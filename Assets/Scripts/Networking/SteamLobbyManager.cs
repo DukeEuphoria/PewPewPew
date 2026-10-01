@@ -302,8 +302,11 @@ namespace PewPewPew.Networking
                 foreach (Friend friend in SteamFriends.GetFriends())
                 {
                     if (!friend.IsPlayingThisGame || !friend.GameInfo.HasValue) continue;
-                    Lobby? friendLobby = friend.GameInfo.Value.Lobby;
-                    if (friendLobby.HasValue) activeLobbyIds.Add(friendLobby.Value.Id.Value);
+Lobby? friendLobby = friend.GameInfo.Value.Lobby;
+                    if (!friendLobby.HasValue) continue;
+                    Lobby lobby = friendLobby.Value;
+                    if (!await lobby.Refresh() || lobby.GetData(m_GameTagKey) != m_GameTagValue) continue;
+                    activeLobbyIds.Add(lobby.Id.Value);
                 }
 
                 ActiveLobbyCountChanged?.Invoke(activeLobbyIds.Count);
