@@ -1,12 +1,12 @@
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.Serialization;
 
 namespace PewPewPew.Networking
 {
     public enum MenuScreenId
     {
-        Title,
+        INVALID =-1,
+        Title =0,
         Main,
         Host,
         Join,
@@ -19,15 +19,15 @@ namespace PewPewPew.Networking
 
     public abstract class MenuScreen : MonoBehaviour
     {
-        [FormerlySerializedAs("menuScreenFlow"), SerializeField] private MenuScreenFlow m_MenuScreenFlow;
-        [FormerlySerializedAs("screenRoot"), SerializeField] private GameObject m_ScreenRoot;
-        [FormerlySerializedAs("initialMenu"), SerializeField] private bool m_InitialMenu;
-        [FormerlySerializedAs("navigateOnEscape"), SerializeField] private bool m_NavigateOnEscape;
-        [FormerlySerializedAs("escapeDestination"), SerializeField] private MenuScreenId m_EscapeDestination;
-        [FormerlySerializedAs("navigateOnAnyKey"), SerializeField] private bool m_NavigateOnAnyKey;
-        [FormerlySerializedAs("anyKeyDestination"), SerializeField] private MenuScreenId m_AnyKeyDestination;
-        [FormerlySerializedAs("onInitialize"), SerializeField] private UnityEvent m_OnInitialize = new UnityEvent();
-        [FormerlySerializedAs("onShutdown"), SerializeField] private UnityEvent m_OnShutdown = new UnityEvent();
+        [SerializeField] private MenuScreenFlow m_MenuScreenFlow;
+        [SerializeField] private GameObject m_ScreenRoot;
+        [SerializeField] private bool m_InitialMenu;
+        [SerializeField] private bool m_NavigateOnEscape;
+        [SerializeField] private MenuScreenId m_EscapeDestination;
+        [SerializeField] private bool m_NavigateOnAnyKey;
+        [SerializeField] private MenuScreenId m_AnyKeyDestination;
+        [SerializeField] private UnityEvent m_OnInitialize = new UnityEvent();
+        [SerializeField] private UnityEvent m_OnShutdown = new UnityEvent();
 
         public abstract MenuScreenId ScreenId { get; }
         public bool IsInitialMenu => m_InitialMenu;
@@ -38,11 +38,6 @@ namespace PewPewPew.Networking
         public GameObject ScreenRoot => m_ScreenRoot != null ? m_ScreenRoot : gameObject;
 
         protected virtual void Awake()
-        {
-            RegisterWithFlow();
-        }
-
-        protected virtual void OnEnable()
         {
             RegisterWithFlow();
         }

@@ -38,6 +38,7 @@ namespace PewPewPew.Networking
         public event Action<Lobby[]> LobbyListUpdated;
         public event Action<string> StatusChanged;
         public event Action<int> ActiveLobbyCountChanged;
+        public event Action GameplayReady;
 
         private void Awake()
         {
@@ -159,6 +160,7 @@ namespace PewPewPew.Networking
             CurrentLobby.Value.SetData(m_PasswordRequiredKey, string.IsNullOrEmpty(password) ? "false" : "true");
 
             StatusChanged?.Invoke($"Hosting '{CurrentLobby.Value.GetData(m_LobbyNameKey)}' ({gameMode}, {maxPlayers} players)");
+            GameplayReady?.Invoke();
         }
 
         public async void RefreshLobbies()
@@ -323,6 +325,13 @@ namespace PewPewPew.Networking
                 CurrentLobby.Value.Leave();
                 CurrentLobby = null;
             }
+        }
+
+        public void NotifyNetworkClientConnected()
+        {
+            if (NetworkServer.active) return;
+
+            GameplayReady?.Invoke();
         }
 
         private void OnLobbyCreated(Result result, Lobby lobby)

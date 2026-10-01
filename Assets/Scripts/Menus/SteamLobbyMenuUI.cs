@@ -45,23 +45,14 @@ namespace PewPewPew.Networking
         {
             Debug.Assert(m_MenuScreenFlow != null, "SteamLobbyMenuUI requires a MenuScreenFlow reference.", this);
             Debug.Assert(m_SteamLobbyManager != null, "SteamLobbyMenuUI requires a SteamLobbyManager reference.", this);
-            if (m_MenuScreenFlow == null || m_SteamLobbyManager == null)
+            Debug.Assert(m_Canvas != null, "SteamLobbyMenuUI requires a scene Canvas reference.", this);
+            if (m_MenuScreenFlow == null || m_SteamLobbyManager == null || m_Canvas == null)
             {
                 enabled = false;
                 return;
             }
 
             InitializeFont();
-            if (m_Canvas == null) BuildUI();
-        }
-
-        public bool HasSceneObjects => m_Canvas != null;
-
-        public void BuildSceneObjects()
-        {
-            if (m_Canvas != null) return;
-            InitializeFont();
-            BuildUI();
         }
 
         private void Start()
@@ -71,6 +62,7 @@ namespace PewPewPew.Networking
             m_SteamLobbyManager.ActiveLobbyCountChanged += OnActiveLobbyCountChanged;
             m_SteamLobbyManager.LobbyListUpdated += OnLobbyListUpdated;
             m_SteamLobbyManager.StatusChanged += OnStatusChanged;
+            m_SteamLobbyManager.GameplayReady += OnGameplayReady;
 
             if (m_MenuScreenFlow.CurrentScreen.HasValue)
             {
@@ -89,94 +81,13 @@ namespace PewPewPew.Networking
             m_SteamLobbyManager.ActiveLobbyCountChanged -= OnActiveLobbyCountChanged;
             m_SteamLobbyManager.LobbyListUpdated -= OnLobbyListUpdated;
             m_SteamLobbyManager.StatusChanged -= OnStatusChanged;
-        }
-
-        private void BuildUI()
-        {
-            GameObject canvasObject = new GameObject("SteamLobbyCanvas", typeof(RectTransform));
-            canvasObject.transform.SetParent(transform, false);
-            canvasObject.transform.localScale = Vector3.one;
-            RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
-            StretchToParent(canvasRect, 0f, 0f, 0f, 0f);
-            m_Canvas = canvasObject.AddComponent<Canvas>();
-            m_Canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            m_Canvas.sortingOrder = -1;
-            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280f, 720f);
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasObject.AddComponent<GraphicRaycaster>();
-
-            m_TitlePanel = new GameObject("TitleLobbyCount", typeof(RectTransform));
-            m_TitlePanel.transform.SetParent(m_Canvas.transform, false);
-            RectTransform titleRect = m_TitlePanel.GetComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(1f, 1f);
-            titleRect.anchorMax = new Vector2(1f, 1f);
-            titleRect.pivot = new Vector2(1f, 1f);
-            titleRect.anchoredPosition = new Vector2(-24f, -24f);
-            titleRect.sizeDelta = new Vector2(340f, 48f);
-            m_ActiveGamesText = CreateText(m_TitlePanel.transform, "Games in progress: ...", 22, FontStyle.Bold);
-            StretchToParent(m_ActiveGamesText.rectTransform, 0f, 0f, 0f, 0f);
-            m_ActiveGamesText.alignment = TextAnchor.MiddleRight;
-            m_ActiveGamesText.raycastTarget = false;
-
-            m_HostPanel = CreatePanel("HostLobbyPanel", new Vector2(500f, 520f));
-            BuildHostPanel(m_HostPanel.transform);
-            m_HostPanel.SetActive(false);
-
-            m_JoinPanel = CreatePanel("JoinLobbyPanel", new Vector2(620f, 600f));
-            BuildJoinPanel(m_JoinPanel.transform);
-            m_JoinPanel.SetActive(false);
-
-            m_TitlePanel.SetActive(false);
+            m_SteamLobbyManager.GameplayReady -= OnGameplayReady;
         }
 
         private void InitializeFont()
         {
             m_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (m_Font == null) m_Font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
-
-        private void BuildHostPanel(Transform parent)
-        {
-            AddSectionTitle(parent, "Host Game");
-            AddLabel(parent, "Lobby name");
-            m_LobbyNameInput = CreateInputField(parent, "Enter a lobby name");
-            AddLabel(parent, "Password (optional)");
-            m_HostPasswordInput = CreateInputField(parent, "Leave blank for no password", InputField.ContentType.Standard);
-
-            AddLabel(parent, "Game mode");
-            GameObject modeRow = CreateRow(parent, "GameModeButtons");
-            m_FreeForAllButton = CreateButton(modeRow.transform, "Free-for-All");
-            m_TeamDeathmatchButton = CreateButton(modeRow.transform, "Team Deathmatch");
-            AddLabel(parent, "Maximum players");
-            GameObject playerCountRow = CreateRow(parent, "PlayerCountStepper");
-            m_DecrementButton = CreateButton(playerCountRow.transform, "-");
-            m_PlayerCountText = CreateText(playerCountRow.transform, m_MaxPlayers.ToString(), 18, FontStyle.Bold);
-            m_PlayerCountText.alignment = TextAnchor.MiddleCenter;
-            LayoutElement countLayout = m_PlayerCountText.gameObject.AddComponent<LayoutElement>();
-            countLayout.preferredWidth = 90f;
-            countLayout.minHeight = 26f;
-            countLayout.preferredHeight = 26f;
-            m_IncrementButton = CreateButton(playerCountRow.transform, "+");
-
-            m_CreateLobbyButton = CreateButton(parent, "Create Lobby");
-            m_HostStatusText = AddStatusText(parent);
-
-            SetGameMode(GameMode.FreeForAll);
-        }
-
-        private void BuildJoinPanel(Transform parent)
-        {
-            AddSectionTitle(parent, "Join Game");
-            GameObject searchRow = CreateRow(parent, "LobbySearchTabs");
-            m_PublicSearchButton = CreateButton(searchRow.transform, "Public Games");
-            m_FriendsSearchButton = CreateButton(searchRow.transform, "Friends' Games");
-            m_RefreshButton = CreateButton(searchRow.transform, "Refresh");
-
-            m_JoinPasswordInput = CreateInputField(parent, "Password (if required)", InputField.ContentType.Standard);
-            m_JoinStatusText = AddStatusText(parent);
-            CreateLobbyScrollArea(parent, out m_LobbyListContent);
         }
 
         private void BindActions()
@@ -215,81 +126,6 @@ namespace PewPewPew.Networking
             if (button != null) button.onClick.RemoveListener(listener);
         }
 
-        private GameObject CreatePanel(string objectName, Vector2 size)
-        {
-            GameObject panel = new GameObject(objectName, typeof(RectTransform));
-            panel.transform.SetParent(m_Canvas.transform, false);
-            RectTransform rect = panel.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = size;
-            panel.AddComponent<Image>().color = new Color(0.035f, 0.06f, 0.09f, 0.94f);
-
-            VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(20, 20, 16, 16);
-            layout.spacing = 8;
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = false;
-            return panel;
-        }
-
-        private void AddSectionTitle(Transform parent, string value)
-        {
-            Text title = CreateText(parent, value, 28, FontStyle.Bold);
-            title.alignment = TextAnchor.MiddleCenter;
-            LayoutElement layout = title.gameObject.AddComponent<LayoutElement>();
-            layout.minHeight = 44f;
-            layout.preferredHeight = 44f;
-        }
-
-        private void AddLabel(Transform parent, string value)
-        {
-            Text label = CreateText(parent, value, 15, FontStyle.Bold);
-            label.alignment = TextAnchor.MiddleLeft;
-            LayoutElement layout = label.gameObject.AddComponent<LayoutElement>();
-            layout.minHeight = 22f;
-            layout.preferredHeight = 22f;
-        }
-
-        private Text AddStatusText(Transform parent)
-        {
-            Text statusText = CreateText(parent, "Ready.", 14, FontStyle.Normal);
-            statusText.alignment = TextAnchor.MiddleLeft;
-            statusText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            LayoutElement layout = statusText.gameObject.AddComponent<LayoutElement>();
-            layout.minHeight = 24f;
-            layout.preferredHeight = 24f;
-            return statusText;
-        }
-
-        private InputField CreateInputField(Transform parent, string placeholder, InputField.ContentType contentType = InputField.ContentType.Standard)
-        {
-            GameObject fieldObject = new GameObject("InputField", typeof(RectTransform));
-            fieldObject.transform.SetParent(parent, false);
-            fieldObject.AddComponent<Image>().color = new Color(0.92f, 0.95f, 0.97f, 1f);
-            InputField inputField = fieldObject.AddComponent<InputField>();
-            inputField.contentType = contentType;
-            LayoutElement fieldLayout = fieldObject.AddComponent<LayoutElement>();
-            fieldLayout.minHeight = 38f;
-            fieldLayout.preferredHeight = 38f;
-
-            Text text = CreateText(fieldObject.transform, string.Empty, 16, FontStyle.Normal);
-            text.color = new Color(0.05f, 0.08f, 0.1f, 1f);
-            text.alignment = TextAnchor.MiddleLeft;
-            StretchToParent(text.rectTransform, 8f, 4f, -8f, -4f);
-
-            Text placeholderText = CreateText(fieldObject.transform, placeholder, 15, FontStyle.Italic);
-            placeholderText.color = new Color(0.35f, 0.4f, 0.43f, 1f);
-            placeholderText.alignment = TextAnchor.MiddleLeft;
-            StretchToParent(placeholderText.rectTransform, 8f, 4f, -8f, -4f);
-            inputField.textComponent = text;
-            inputField.placeholder = placeholderText;
-            return inputField;
-        }
-
         private Button CreateButton(Transform parent, string label)
         {
             GameObject buttonObject = new GameObject("Button", typeof(RectTransform));
@@ -322,44 +158,6 @@ namespace PewPewPew.Networking
             rowLayoutElement.minHeight = 38f;
             rowLayoutElement.preferredHeight = 38f;
             return row;
-        }
-
-        private void CreateLobbyScrollArea(Transform parent, out RectTransform content)
-        {
-            GameObject scrollObject = new GameObject("LobbyList", typeof(RectTransform));
-            scrollObject.transform.SetParent(parent, false);
-            scrollObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.05f);
-            ScrollRect scrollRect = scrollObject.AddComponent<ScrollRect>();
-            scrollObject.AddComponent<LayoutElement>().flexibleHeight = 1f;
-
-            GameObject viewportObject = new GameObject("Viewport", typeof(RectTransform));
-            viewportObject.transform.SetParent(scrollObject.transform, false);
-            RectTransform viewport = viewportObject.GetComponent<RectTransform>();
-            StretchToParent(viewport, 0f, 0f, 0f, 0f);
-            viewportObject.AddComponent<RectMask2D>();
-            scrollRect.viewport = viewport;
-
-            GameObject contentObject = new GameObject("Content", typeof(RectTransform));
-            contentObject.transform.SetParent(viewport, false);
-            content = contentObject.GetComponent<RectTransform>();
-            content.anchorMin = new Vector2(0f, 1f);
-            content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f);
-            content.sizeDelta = Vector2.zero;
-
-            VerticalLayoutGroup contentLayout = contentObject.AddComponent<VerticalLayoutGroup>();
-            contentLayout.padding = new RectOffset(6, 6, 6, 6);
-            contentLayout.spacing = 5f;
-            contentLayout.childControlWidth = true;
-            contentLayout.childControlHeight = true;
-            contentLayout.childForceExpandWidth = true;
-            contentLayout.childForceExpandHeight = false;
-            ContentSizeFitter fitter = contentObject.AddComponent<ContentSizeFitter>();
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            scrollRect.content = content;
-            scrollRect.horizontal = false;
-            scrollRect.vertical = true;
         }
 
         private Text CreateText(Transform parent, string value, int fontSize, FontStyle style)
@@ -468,6 +266,11 @@ namespace PewPewPew.Networking
         {
             if (m_HostStatusText != null) m_HostStatusText.text = status;
             if (m_JoinStatusText != null) m_JoinStatusText.text = status;
+        }
+
+        private void OnGameplayReady()
+        {
+            m_MenuScreenFlow.ShowScreen(MenuScreenId.Gameplay);
         }
 
         private void OnLobbyListUpdated(Lobby[] lobbies)

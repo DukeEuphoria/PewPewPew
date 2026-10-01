@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Serialization;
 
 namespace PewPewPew.Networking
@@ -8,23 +9,15 @@ namespace PewPewPew.Networking
     {
         [FormerlySerializedAs("screenFlow"), SerializeField] private MenuScreenFlow m_ScreenFlow;
         [FormerlySerializedAs("destination"), SerializeField] private MenuScreenId m_Destination;
+        [SerializeField] private UnityEvent m_OnActivate = new UnityEvent();
 
         private BoxCollider m_BoxCollider;
-
-        private void Awake()
-        {
-            FitColliderToRenderer();
-        }
 
         private void Start()
         {
             FitColliderToRenderer();
         }
 
-        private void Reset()
-        {
-            FitColliderToRenderer();
-        }
 
         private void FitColliderToRenderer()
         {
@@ -45,9 +38,7 @@ namespace PewPewPew.Networking
                     {
                         for (int zIndex = -1; zIndex <= 1; zIndex += 2)
                         {
-                            Vector3 worldCorner = worldBounds.center + Vector3.Scale(
-                                worldExtents,
-                                new Vector3(xIndex, yIndex, zIndex));
+                            Vector3 worldCorner = worldBounds.center + Vector3.Scale(worldExtents,new Vector3(xIndex, yIndex, zIndex));
                             Vector3 localCorner = transform.InverseTransformPoint(worldCorner);
                             if (hasBounds)
                             {
@@ -70,11 +61,15 @@ namespace PewPewPew.Networking
 
         public void Activate()
         {
+            m_OnActivate?.Invoke();
+
             if (m_ScreenFlow == null)
             {
                 Debug.LogError($"{nameof(MenuRaycastButton)} on '{name}' requires a MenuScreenFlow reference.", this);
                 return;
             }
+
+            if (m_ScreenFlow.CurrentScreen == m_Destination) return;
 
             m_ScreenFlow.ShowScreen(m_Destination);
         }
