@@ -207,7 +207,8 @@ namespace PewPewPew.Networking
                         Lobby? friendLobby = friend.GameInfo.Value.Lobby;
                         if (!friendLobby.HasValue) continue;
 
-                        Lobby lobby = friendLobby.Value;
+Lobby lobby = friendLobby.Value;
+                        if (!await lobby.Refresh()) continue;
                         if (lobby.GetData(m_GameTagKey) != m_GameTagValue) continue;
                         lobbiesById[lobby.Id.Value] = lobby;
                     }
