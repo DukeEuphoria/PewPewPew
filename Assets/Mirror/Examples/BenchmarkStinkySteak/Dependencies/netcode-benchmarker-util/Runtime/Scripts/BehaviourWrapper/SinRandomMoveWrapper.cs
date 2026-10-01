@@ -27,6 +27,7 @@ namespace StinkySteak.NetcodeBenchmark
         public void NetworkStart(Transform transform)
         {
             _speed = Random.Range(_minSpeed, _maxSpeed);
+            _initialPosition = RandomVector3.Get(1f);
             _targetPosition = RandomVector3.Get(1f);
         }
 

@@ -3,9 +3,15 @@ using UnityEngine;
 
 namespace PewPewPew.Networking
 {
-    /// Mirror NetworkManager whose transport is swapped to Steam (FizzyFacepunch) by NetworkBootstrap.
+    /// Mirror NetworkManager with its transport assigned in the scene.
     public class GameNetworkManager : NetworkManager
     {
+        public override void OnClientConnect()
+        {
+            base.OnClientConnect();
+            SteamLobbyManager.Instance?.NotifyNetworkClientConnected();
+        }
+
         public override void OnServerConnect(NetworkConnectionToClient conn)
         {
             base.OnServerConnect(conn);

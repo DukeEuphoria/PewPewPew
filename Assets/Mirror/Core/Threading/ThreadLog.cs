@@ -35,7 +35,7 @@ namespace Mirror
             new ConcurrentQueue<LogEntry>();
 
         // main thread id
-        static int mainThreadId;
+        static int mainThreadId = 0;
 
         // track Mirror-managed thread IDs
         // using ConcurrentDictionary as a thread-safe HashSet
