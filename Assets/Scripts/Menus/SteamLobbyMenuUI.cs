@@ -40,6 +40,7 @@ namespace PewPewPew.Networking
         private GameMode m_SelectedGameMode;
         private int m_MaxPlayers = 8;
         private bool m_FriendsOnly;
+        private Lobby? m_PendingInviteLobby;
 
         private void Awake()
         {
@@ -63,6 +64,7 @@ namespace PewPewPew.Networking
             m_SteamLobbyManager.LobbyListUpdated += OnLobbyListUpdated;
             m_SteamLobbyManager.StatusChanged += OnStatusChanged;
             m_SteamLobbyManager.GameplayReady += OnGameplayReady;
+            m_SteamLobbyManager.PasswordRequired += OnPasswordRequired;
 
             if (m_MenuScreenFlow.CurrentScreen.HasValue)
             {
@@ -82,6 +84,7 @@ namespace PewPewPew.Networking
             m_SteamLobbyManager.LobbyListUpdated -= OnLobbyListUpdated;
             m_SteamLobbyManager.StatusChanged -= OnStatusChanged;
             m_SteamLobbyManager.GameplayReady -= OnGameplayReady;
+            m_SteamLobbyManager.PasswordRequired -= OnPasswordRequired;
         }
 
         private void InitializeFont()
@@ -254,7 +257,19 @@ namespace PewPewPew.Networking
             m_HostPanel.SetActive(screen == MenuScreenId.Host);
             m_JoinPanel.SetActive(screen == MenuScreenId.Join);
 
-            if (screen == MenuScreenId.Join) SearchLobbies(m_FriendsOnly);
+            if (screen == MenuScreenId.Join)
+            {
+                if (m_PendingInviteLobby.HasValue)
+                {
+                    Lobby inviteLobby = m_PendingInviteLobby.Value;
+                    m_PendingInviteLobby = null;
+                    OnLobbyListUpdated(new[] { inviteLobby });
+                }
+                else
+                {
+                    SearchLobbies(m_FriendsOnly);
+                }
+            }
         }
 
         private void OnActiveLobbyCountChanged(int count)
@@ -271,6 +286,24 @@ namespace PewPewPew.Networking
         private void OnGameplayReady()
         {
             m_MenuScreenFlow.ShowScreen(MenuScreenId.Gameplay);
+        }
+
+        private void OnPasswordRequired(Lobby lobby)
+        {
+            m_PendingInviteLobby = lobby;
+            if (m_JoinPasswordInput != null) m_JoinPasswordInput.text = string.Empty;
+
+            if (m_MenuScreenFlow.CurrentScreen == MenuScreenId.Join)
+            {
+                m_PendingInviteLobby = null;
+                OnLobbyListUpdated(new[] { lobby });
+            }
+            else
+            {
+                m_MenuScreenFlow.ShowScreen(MenuScreenId.Join);
+            }
+
+            OnStatusChanged("Enter the lobby password and select Join.");
         }
 
         private void OnLobbyListUpdated(Lobby[] lobbies)

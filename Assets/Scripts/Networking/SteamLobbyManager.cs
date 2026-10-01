@@ -39,6 +39,7 @@ namespace PewPewPew.Networking
         public event Action<string> StatusChanged;
         public event Action<int> ActiveLobbyCountChanged;
         public event Action GameplayReady;
+        public event Action<Lobby> PasswordRequired;
 
         private void Awake()
         {
@@ -365,8 +366,14 @@ Lobby? friendLobby = friend.GameInfo.Value.Lobby;
             NetworkManager.singleton.StartClient();
         }
 
-        private void OnGameLobbyJoinRequested(Lobby lobby, SteamId friendId)
+        private async void OnGameLobbyJoinRequested(Lobby lobby, SteamId friendId)
         {
+            if (await lobby.Refresh() && lobby.GetData(m_PasswordRequiredKey) == "true")
+            {
+                PasswordRequired?.Invoke(lobby);
+                return;
+            }
+
             JoinLobby(lobby, string.Empty);
         }
 
