@@ -28,6 +28,7 @@ namespace StinkySteak.NetcodeBenchmark
             data._mass = 15;
             data._maxSpeed = 3;
             data._maxForce = 15;
+            data._target = Vector3.zero;
 
             return data;
         }

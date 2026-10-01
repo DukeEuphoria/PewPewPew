@@ -164,7 +164,7 @@ namespace PewPewPew.Networking
             GameplayReady?.Invoke();
         }
 
-        public async void RefreshLobbies()
+        public void RefreshLobbies()
         {
             RefreshLobbies(false);
         }
@@ -207,8 +207,8 @@ namespace PewPewPew.Networking
                         Lobby? friendLobby = friend.GameInfo.Value.Lobby;
                         if (!friendLobby.HasValue) continue;
 
-Lobby lobby = friendLobby.Value;
-                        if (!await lobby.Refresh()) continue;
+                        Lobby lobby = friendLobby.Value;
+                        if (!lobby.Refresh()) continue;
                         if (lobby.GetData(m_GameTagKey) != m_GameTagValue) continue;
                         lobbiesById[lobby.Id.Value] = lobby;
                     }
@@ -229,7 +229,7 @@ Lobby lobby = friendLobby.Value;
             }
         }
 
-        public async void JoinLobby(Lobby lobby)
+        public void JoinLobby(Lobby lobby)
         {
             JoinLobby(lobby, string.Empty);
         }
@@ -304,10 +304,10 @@ Lobby lobby = friendLobby.Value;
                 foreach (Friend friend in SteamFriends.GetFriends())
                 {
                     if (!friend.IsPlayingThisGame || !friend.GameInfo.HasValue) continue;
-Lobby? friendLobby = friend.GameInfo.Value.Lobby;
+                    Lobby? friendLobby = friend.GameInfo.Value.Lobby;
                     if (!friendLobby.HasValue) continue;
                     Lobby lobby = friendLobby.Value;
-                    if (!await lobby.Refresh() || lobby.GetData(m_GameTagKey) != m_GameTagValue) continue;
+                    if (!lobby.Refresh() || lobby.GetData(m_GameTagKey) != m_GameTagValue) continue;
                     activeLobbyIds.Add(lobby.Id.Value);
                 }
 
@@ -367,9 +367,9 @@ Lobby? friendLobby = friend.GameInfo.Value.Lobby;
             NetworkManager.singleton.StartClient();
         }
 
-        private async void OnGameLobbyJoinRequested(Lobby lobby, SteamId friendId)
+        private void OnGameLobbyJoinRequested(Lobby lobby, SteamId friendId)
         {
-            if (await lobby.Refresh() && lobby.GetData(m_PasswordRequiredKey) == "true")
+            if (lobby.Refresh() && lobby.GetData(m_PasswordRequiredKey) == "true")
             {
                 PasswordRequired?.Invoke(lobby);
                 return;

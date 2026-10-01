@@ -2,6 +2,7 @@
 
 namespace Mirror.Examples.MultipleMatch
 {
+#pragma warning disable UAC1001
     /// <summary>
     /// Match message to be sent to the server
     /// </summary>
@@ -43,6 +44,7 @@ namespace Mirror.Examples.MultipleMatch
         public bool ready;
         public Guid matchId;
     }
+#pragma warning restore UAC1001
 
     [Serializable]
     public struct MatchPlayerData

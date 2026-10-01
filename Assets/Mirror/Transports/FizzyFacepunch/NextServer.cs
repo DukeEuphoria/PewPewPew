@@ -7,7 +7,7 @@ namespace Mirror.FizzySteam
 {
   public class NextServer : NextCommon, IServer
   {
-    private event Action<int> OnConnected;
+    private event Action<int, string> OnConnected;
     private event Action<int, byte[], int> OnReceivedData;
     private event Action<int> OnDisconnected;
     private event Action<int, Exception> OnReceivedError;
@@ -32,7 +32,7 @@ namespace Mirror.FizzySteam
     {
       NextServer s = new NextServer(maxConnections);
 
-      s.OnConnected += (id) => transport.OnServerConnected.Invoke(id);
+      s.OnConnected += (id, address) => transport.OnServerConnectedWithAddress.Invoke(id, address);
       s.OnDisconnected += (id) => transport.OnServerDisconnected.Invoke(id);
       s.OnReceivedData += (id, data, ch) => transport.OnServerDataReceived.Invoke(id, new ArraySegment<byte>(data), ch);
       s.OnReceivedError += (id, exception) => transport.OnServerError.Invoke(id, TransportError.Unexpected, exception.ToString());
@@ -81,7 +81,7 @@ namespace Mirror.FizzySteam
         int connectionId = nextConnectionID++;
         connToMirrorID.Add(conn, connectionId);
         steamIDToMirrorID.Add(clientSteamID, connectionId);
-        OnConnected.Invoke(connectionId);
+        OnConnected.Invoke(connectionId, clientSteamID.ToString());
         Debug.Log($"Client with SteamID {clientSteamID} connected. Assigning connection id {connectionId}");
       }
       else if(info.State == ConnectionState.ClosedByPeer)

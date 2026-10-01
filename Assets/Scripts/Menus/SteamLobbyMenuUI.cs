@@ -232,18 +232,19 @@ namespace PewPewPew.Networking
 
         private void SearchLobbies(bool friendsOnly)
         {
-            m_FriendsOnly = friendsOnly;
             m_SteamLobbyManager.RefreshLobbies(friendsOnly);
         }
 
         private void SearchPublicLobbies()
         {
-            SearchLobbies(false);
+            m_FriendsOnly = false;
+            SearchLobbies(m_FriendsOnly);
         }
 
         private void SearchFriendsLobbies()
         {
-            SearchLobbies(true);
+            m_FriendsOnly = true;
+            SearchLobbies(m_FriendsOnly);
         }
 
         private void RefreshCurrentSearch()
@@ -257,6 +258,8 @@ namespace PewPewPew.Networking
             m_HostPanel.SetActive(screen == MenuScreenId.Host);
             m_JoinPanel.SetActive(screen == MenuScreenId.Join);
 
+            //this is in the wrong place. Why is it not in the activation of the Join Screen.
+            //Do we need a simple "Password entry" screen ?
             if (screen == MenuScreenId.Join)
             {
                 if (m_PendingInviteLobby.HasValue)
