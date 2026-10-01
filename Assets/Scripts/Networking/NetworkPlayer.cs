@@ -1,27 +1,29 @@
 using Mirror;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace PewPewPew.Networking
 {
     /// Minimal networked player used to visually confirm connections/spawns are working end-to-end.
     public class NetworkPlayer : NetworkBehaviour
     {
-        [SerializeField] private float moveSpeed = 4f;
+        [FormerlySerializedAs("moveSpeed"), SerializeField] private float m_MoveSpeed = 4f;
 
         [SyncVar(hook = nameof(OnColorChanged))]
-        private Color playerColor = Color.white;
+        [FormerlySerializedAs("playerColor")]
+        private Color m_PlayerColor = Color.white;
 
-        private Renderer cachedRenderer;
+        private Renderer m_CachedRenderer;
 
         private void Awake()
         {
-            cachedRenderer = GetComponentInChildren<Renderer>();
+            m_CachedRenderer = GetComponentInChildren<Renderer>();
         }
 
         public override void OnStartServer()
         {
-            playerColor = new Color(Random.value, Random.value, Random.value);
+            m_PlayerColor = new Color(Random.value, Random.value, Random.value);
         }
 
         public override void OnStartLocalPlayer()
@@ -29,9 +31,9 @@ namespace PewPewPew.Networking
         //    if (Camera.main != null) Camera.main.transform.SetParent(transform);
         }
 
-        private void OnColorChanged(Color _, Color newColor)
+        private void OnColorChanged(Color oldColor, Color newColor)
         {
-            if (cachedRenderer != null) cachedRenderer.material.color = newColor;
+            if (m_CachedRenderer != null) m_CachedRenderer.material.color = newColor;
         }
 
         private void Update()
@@ -44,7 +46,7 @@ namespace PewPewPew.Networking
             if (Keyboard.current.dKey.isPressed) input.x += 1;
             if (Keyboard.current.aKey.isPressed) input.x -= 1;
 
-            transform.position += input.normalized * moveSpeed * Time.deltaTime;
+            transform.position += input.normalized * m_MoveSpeed * Time.deltaTime;
         }
     }
 }
