@@ -616,6 +616,37 @@ namespace PewPewPew.Tests
         }
     }
 
+    public class PlayerPaletteTests
+    {
+        [Test]
+        public void Palette_HasSixtyFourDistinctOpaqueColours()
+        {
+            var seen = new System.Collections.Generic.HashSet<int>();
+            for (int i = 0; i < PlayerPalette.Count; i++)
+            {
+                Color32 colour = PlayerPalette.Colour(i);
+                Assert.AreEqual(255, colour.a);
+                Assert.IsTrue(seen.Add((colour.r << 16) | (colour.g << 8) | colour.b), $"swatch {i} repeats a colour");
+            }
+            Assert.AreEqual(64, seen.Count);
+        }
+
+        [Test]
+        public void IndexOf_FindsPaletteColoursAndRejectsOthers()
+        {
+            Assert.AreEqual(17, PlayerPalette.IndexOf(PlayerPalette.Colour(17)));
+            Assert.AreEqual(-1, PlayerPalette.IndexOf(new Color32(1, 2, 3, 255)));
+        }
+
+        [Test]
+        public void EmptyLoadout_UsesDefaultColours()
+        {
+            ShipLoadout loadout = ShipLoadout.Empty;
+            Assert.AreEqual(PlayerPalette.DefaultPrimary, loadout.Colour0);
+            Assert.AreEqual(PlayerPalette.DefaultSecondary, loadout.Colour1);
+        }
+    }
+
     public class VitalsMathTests
     {
         [Test]

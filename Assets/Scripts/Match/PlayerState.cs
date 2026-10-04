@@ -83,7 +83,11 @@ namespace PewPewPew.Match
         [Command]
         public void CmdSetLoadout(ShipLoadout loadout)
         {
-            if (ShipCatalog.Instance.IsValid(loadout)) m_Loadout = loadout;
+            if (!ShipCatalog.Instance.IsValid(loadout)) return;
+
+            loadout.Colour0.a = 255;
+            loadout.Colour1.a = 255;
+            m_Loadout = loadout;
         }
 
         [Command]

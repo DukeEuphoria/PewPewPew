@@ -65,7 +65,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
+  m_RenderingLayerMask: 12
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 3500dce637708024da2f2e45e4f71cd3, type: 2}
@@ -108,6 +108,7 @@ MonoBehaviour:
   m_FullColor: {r: 0.4481132, g: 1, b: 0.9759254, a: 1}
   m_EmptyColor: {r: 0.4433962, g: 0.006274463, b: 0.006274463, a: 1}
   m_FadeTime: 1
+  m_ShieldBloat: 1.2
 --- !u!58 &1005
 CircleCollider2D:
   m_ObjectHideFlags: 0

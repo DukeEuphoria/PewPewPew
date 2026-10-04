@@ -21,10 +21,10 @@ MonoBehaviour:
   m_Armour: 10
   m_ArmourBar: {fileID: 104, guid: d4f3a4b5c6d77e8fb0a1b2c3d4e5f607, type: 3}
   m_PowerBar: {fileID: 104, guid: f6b5c6d7e8f990a1d2c3d4e5f6071829, type: 3}
-  m_ArmourRepairRate: 0.5
+  m_ArmourRepairRate: 0.25
   m_ArmourWearRatio: 0.1
   m_MaxPowerStorage: 100
   m_SubSystemSlots: 2
-  m_Friction: 0.3
+  m_Friction: 0.001
   m_AngularAcceleration: 600
   m_AngularDamping: 2

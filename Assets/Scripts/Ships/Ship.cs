@@ -15,6 +15,9 @@ namespace PewPewPew.Ships
     [RequireComponent(typeof(ThrusterEffects), typeof(ShipHudSync))]
     public class Ship : SpaceObject, IDamageable
     {
+        // Aim points closer than this (squared) to the ship are ignored so the ship doesn't jitter.
+        private const float MinAimDistanceSqr = 1e-4f;
+        private const int BoxCornerCount = 8;
         [SerializeField] private GameObject m_ExplosionPrefab;
         [SerializeField, Tooltip("Keeps the object alive briefly after the hull fails so clients receive the explosion.")] private float m_DespawnDelay = 0.3f;
         [SerializeField] private float m_SystemHitRadius = 2f;
@@ -117,6 +120,7 @@ namespace PewPewPew.Ships
             if (m_HullDef.HullPoints != null)
             {
                 HullPoints hull = Instantiate(m_HullDef.HullPoints, transform);
+                ShipColours.Apply(hull.gameObject, m_Loadout);
                 m_MainPoints = BindPoints(m_HullDef.MainWeaponPoints, m_MainGunDef.MaxEmissionPointsConsidered, hull.transform);
                 m_SecondaryPoints = BindPoints(m_HullDef.SecondaryWeaponPoints, m_SecondaryGunDef.MaxEmissionPointsConsidered, hull.transform);
                 m_ThrusterPoints = BindPoints(m_HullDef.ThrusterPoints, m_ThrusterDef.EmissionPointsUsed, hull.transform);
@@ -176,7 +180,7 @@ namespace PewPewPew.Ships
             {
                 Matrix4x4 matrix = toShip * renderer.localToWorldMatrix;
                 Bounds local = renderer.localBounds;
-                for (int corner = 0; corner < 8; corner++)
+                for (int corner = 0; corner < BoxCornerCount; corner++)
                 {
                     Vector3 offset = Vector3.Scale(local.extents, new Vector3((corner & 1) == 0 ? -1f : 1f, (corner & 2) == 0 ? -1f : 1f, (corner & 4) == 0 ? -1f : 1f));
                     Vector3 point = matrix.MultiplyPoint3x4(local.center + offset);
@@ -380,7 +384,7 @@ namespace PewPewPew.Ships
         private void StepRotation(float deltaTime)
         {
             Vector2 toAim = m_Controls.AimPoint - m_Body.position;
-            if (toAim.sqrMagnitude < 1e-4f) return;
+            if (toAim.sqrMagnitude < MinAimDistanceSqr) return;
 
             float targetAngle = Mathf.Atan2(toAim.y, toAim.x) * Mathf.Rad2Deg - 90f; // Forward is +Y.
             float error = Mathf.DeltaAngle(m_Body.rotation, targetAngle);

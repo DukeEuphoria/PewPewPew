@@ -4,6 +4,8 @@ namespace PewPewPew.Core
 {
     public static class OrbitMath
     {
+        // Newton-Raphson passes for Kepler's equation; ample for game-scale eccentricities.
+        private const int NewtonRaphsonIterationCount = 8;
         /// Position relative to the parent, which sits at an ellipse focus. Requires 0 < minAltitude <= maxAltitude and period > 0.
         /// phaseAngle is the starting mean anomaly; precessionRate rotates the whole ellipse (radians/second).
         public static Vector2 Position(float minAltitude, float maxAltitude, float phaseAngle, float precessionRate, float period, float time)
@@ -25,7 +27,7 @@ namespace PewPewPew.Core
         private static float SolveKepler(float meanAnomaly, float eccentricity)
         {
             float anomaly = meanAnomaly;
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < NewtonRaphsonIterationCount; i++)
             {
                 anomaly -= (anomaly - eccentricity * Mathf.Sin(anomaly) - meanAnomaly) / (1f - eccentricity * Mathf.Cos(anomaly));
             }

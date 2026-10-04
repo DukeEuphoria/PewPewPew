@@ -11,6 +11,7 @@ namespace PewPewPew.Ships
     [RequireComponent(typeof(Ship))]
     public class ShipVisualPrediction : NetworkBehaviour
     {
+        private const float OneWayLatencyFraction = 0.5f;
         [SerializeField, Range(0f, 1f), Tooltip("0 draws the network position, 1 the full prediction.")] private float m_Blend = 0.5f;
         [SerializeField] private float m_MaxLookAhead = 0.25f;
         [SerializeField] private float m_VelocitySmoothing = 10f;
@@ -49,7 +50,7 @@ namespace PewPewPew.Ships
 
             // The host is the simulation, so there is nothing to predict.
             bool predicting = isOwned && !isServer;
-            Vector2 offset = predicting ? PredictionMath.Offset(m_Velocity, (float)NetworkTime.rtt * 0.5f, m_Blend, m_MaxLookAhead) : Vector2.zero;
+            Vector2 offset = predicting ? PredictionMath.Offset(m_Velocity, (float)NetworkTime.rtt * OneWayLatencyFraction, m_Blend, m_MaxLookAhead) : Vector2.zero;
             Vector3 localOffset = transform.InverseTransformVector(offset);
             for (int i = 0; i < visuals.Count; i++) visuals[i].localPosition = m_BasePositions[i] + localOffset;
         }

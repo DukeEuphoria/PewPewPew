@@ -6,6 +6,7 @@ namespace PewPewPew.Ships
     /// Server-side thruster state. Active power is drawn per second while it fires.
     public class Thruster
     {
+        private const float FiringThrottleThreshold = 0.01f;
         private float m_Throttle;
 
         public Thruster(ThrusterDef def, ShipSystem system)
@@ -16,7 +17,7 @@ namespace PewPewPew.Ships
 
         public ThrusterDef Def { get; }
         public ShipSystem System { get; }
-        public bool IsFiring => m_Throttle > 0.01f;
+        public bool IsFiring => m_Throttle > FiringThrottleThreshold;
         public float Throttle => m_Throttle;
 
         public void Step(float deltaTime, float demand, PowerBank power)

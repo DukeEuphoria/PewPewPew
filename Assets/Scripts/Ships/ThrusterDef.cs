@@ -17,6 +17,6 @@ namespace PewPewPew.Ships
         public float RampDownTime => m_RampDownTime;
         public GameObject Effect => m_Effect;
 
-        private void OnValidate() => m_EmissionPointsUsed = Mathf.Clamp(m_EmissionPointsUsed, 1, 4);
+        private void OnValidate() => m_EmissionPointsUsed = Mathf.Clamp(m_EmissionPointsUsed, 1, HullPoints.MaxEmissionPoints);
     }
 }

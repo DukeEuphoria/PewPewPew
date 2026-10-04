@@ -6,6 +6,7 @@ namespace PewPewPew.Ships
     /// Each transform's position and local +Y give the point and its direction.
     public class HullPoints : MonoBehaviour
     {
+        public const int MaxEmissionPoints = 4;
         [SerializeField] private Transform[] m_MainWeapon;
         [SerializeField] private Transform[] m_SecondaryWeapon;
         [SerializeField] private Transform[] m_Thruster;
