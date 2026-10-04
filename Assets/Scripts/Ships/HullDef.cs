@@ -34,6 +34,13 @@ namespace PewPewPew.Ships
         public Transform[] ThrusterPoints => m_ThrusterPoints;
         public Transform[] SecondaryWeaponPoints => m_SecondaryWeaponPoints;
 
+        /// How many of each point list actually resolve to a transform inside the Mesh prefab.
+        public int MainPointCount => ResolvedCount(m_MainWeaponPoints);
+        public int SecondaryPointCount => ResolvedCount(m_SecondaryWeaponPoints);
+        public int ThrusterPointCount => ResolvedCount(m_ThrusterPoints);
+
+        private int ResolvedCount(Transform[] points) => m_Mesh == null ? 0 : Bind(points, m_Mesh.transform).Length;
+
         /// Finds the counterpart of each prefab point inside an instance of the Mesh prefab; unresolvable points are dropped.
         public Transform[] Bind(Transform[] prefabPoints, Transform instanceRoot)
         {

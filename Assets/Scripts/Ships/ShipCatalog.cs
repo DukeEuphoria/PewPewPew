@@ -60,5 +60,29 @@ namespace PewPewPew.Ships
             }
             return true;
         }
+
+        /// Null if the loadout can launch; otherwise why not. The chosen guns and thruster need as many emission points on the hull as they use.
+        public string LaunchProblem(ShipLoadout loadout)
+        {
+            if (!IsValid(loadout)) return "The loadout is out of range.";
+
+            HullDef hull = m_Hulls[loadout.Hull];
+            if (hull.Mesh == null) return $"{hull.name} has no mesh.";
+            if (m_Shields[loadout.Shield].Visual == null) return $"{m_Shields[loadout.Shield].name} has no shield visual.";
+
+            GunDef main = m_MainGuns[loadout.MainGun];
+            if (hull.MainPointCount < main.MaxEmissionPointsConsidered)
+                return $"{hull.name} has {hull.MainPointCount} main weapon points; {main.name} needs {main.MaxEmissionPointsConsidered}.";
+
+            GunDef secondary = m_SecondaryGuns[loadout.SecondaryGun];
+            if (hull.SecondaryPointCount < secondary.MaxEmissionPointsConsidered)
+                return $"{hull.name} has {hull.SecondaryPointCount} secondary weapon points; {secondary.name} needs {secondary.MaxEmissionPointsConsidered}.";
+
+            ThrusterDef thruster = m_Thrusters[loadout.Thruster];
+            if (hull.ThrusterPointCount < thruster.EmissionPointsUsed)
+                return $"{hull.name} has {hull.ThrusterPointCount} thruster points; {thruster.name} needs {thruster.EmissionPointsUsed}.";
+
+            return null;
+        }
     }
 }

@@ -84,7 +84,9 @@ namespace PewPewPew.Match
             if (changed) local.CmdSetLoadout(m_Pending);
 
             double wait = local.RespawnAt - NetworkTime.time;
-            GUI.enabled = wait <= 0.0 && !(match.State == MatchState.Lobby && local.Ready);
+            string problem = catalog.LaunchProblem(m_Pending);
+            if (problem != null) GUILayout.Label(problem);
+            GUI.enabled = wait <= 0.0 && problem == null && !(match.State == MatchState.Lobby && local.Ready);
             string label = wait > 0.0 ? $"Deploy in {wait:0}s" : match.State == MatchState.Lobby ? (local.Ready ? "Ready" : "Ready up") : "Deploy";
             if (GUILayout.Button(label)) local.CmdDeploy();
             GUI.enabled = true;

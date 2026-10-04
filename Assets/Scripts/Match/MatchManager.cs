@@ -70,6 +70,13 @@ namespace PewPewPew.Match
         {
             if (m_State == MatchState.Ended || player.Ship != null || NetworkTime.time < player.RespawnAt) return;
 
+            string problem = ShipCatalog.Instance.LaunchProblem(player.Loadout);
+            if (problem != null)
+            {
+                Debug.LogError($"{player.Name} cannot launch: {problem}");
+                return;
+            }
+
             player.ServerSetReady(true);
             if (m_State == MatchState.Running) SpawnShip(player);
         }
