@@ -9,10 +9,21 @@ namespace PewPewPew.Ships
         [SerializeField] private Color m_FullColor = Color.green;
         [SerializeField] private Color m_EmptyColor = Color.red;
         [SerializeField] private float m_FadeTime = 0.3f;
+        [SerializeField] private float m_ShieldBloat = 1.2f;
 
         private float m_Alpha;
 
-        private void Awake() => m_Renderer.enabled = false;
+        private void Awake()
+        {
+            Flash(1f);
+        }
+
+        /// Sizes the unit-sized shield to cover bounds given in its parent's local space.
+        public void Fit(Bounds parentLocalBounds)
+        {
+            transform.localPosition = new Vector3(parentLocalBounds.center.x, parentLocalBounds.center.y, 0f);
+            transform.localScale = new Vector3(parentLocalBounds.size.x, parentLocalBounds.size.y, 1f) * m_ShieldBloat;
+        }
 
         public void Flash(float healthFraction)
         {

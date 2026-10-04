@@ -17,6 +17,8 @@ MonoBehaviour:
   m_ActivePowerDrain: 3
   m_MaxHealth: 100
   m_AutoRepairRate: 0
+  m_Visual: {fileID: 1004, guid: 1ad6b51299434de088244bc7b6cfd8be, type: 3}
+  m_Bar: {fileID: 104, guid: e5a4b5c6d7e88f90c1b2c3d4e5f60718, type: 3}
   m_ShieldCapacity: 100
   m_MaxSingleImpact: 50
-  m_RechargeRate: 10
+  m_RechargeRate: 5

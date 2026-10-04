@@ -19,5 +19,8 @@ namespace PewPewPew.Core
         public void Damage(float amount) => Current = Mathf.Max(0f, Current - amount);
 
         public void Repair(float amount) => Current = Mathf.Min(Max, Current + amount);
+
+        /// For mirroring a value synced from the server.
+        public void SetFraction(float fraction) => Current = Max * Mathf.Clamp01(fraction);
     }
 }

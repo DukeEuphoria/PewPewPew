@@ -5,8 +5,8 @@ using Random = System.Random;
 
 namespace PewPewPew.Weapons
 {
-    /// Server-side firing state for one installed gun.
-    public class Gun
+    /// Server-side firing state for one installed gun. Guns have no ammo or heat yet, so there is nothing to show on the HUD.
+    public class Gun : IHudElement
     {
         private int m_BurstIndex;
         private float m_SweepPhase;
@@ -23,6 +23,8 @@ namespace PewPewPew.Weapons
         public float RateMultiplier { get; set; } = 1f;
 
         public void Tick(float deltaTime) => m_SweepPhase += Def.SweepSpeed * deltaTime;
+
+        public void Render() { }
 
         /// Returns the burst, or null if the gun is destroyed, still cooling down or the burst's power is unavailable.
         public Shot[] TryFire(float time, PowerBank power, Random random)

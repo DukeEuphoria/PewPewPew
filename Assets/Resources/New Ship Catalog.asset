@@ -18,9 +18,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ade6892f6ec45fb4d95322c2977ac6fd, type: 2}
   m_MainGuns:
   - {fileID: 11400000, guid: a34c1f1292b218445ae722274065ddc8, type: 2}
+  - {fileID: 11400000, guid: a3234414758558f49873e77fb0674bf4, type: 2}
+  - {fileID: 11400000, guid: 99b4dd12c8bdc9f4f9013afd0290343d, type: 2}
+  - {fileID: 11400000, guid: 0b9cf547df43596489172b1f74f26163, type: 2}
   m_SecondaryGuns:
   - {fileID: 11400000, guid: a99c3271ae21d66438bc92870c2b3d2f, type: 2}
   m_Thrusters:
   - {fileID: 11400000, guid: db93b4f63dc695540ba9297cafc8b54e, type: 2}
+  - {fileID: 11400000, guid: e2d41a03bac820e4fa9cb46198b99d8c, type: 2}
   m_SubSystems:
   - {fileID: 11400000, guid: ab43ac7267f00c64cb7eaabe5931d034, type: 2}

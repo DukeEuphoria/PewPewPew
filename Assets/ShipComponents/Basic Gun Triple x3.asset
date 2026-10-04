@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83df16d1b165b714eb77c76937203041, type: 3}
+  m_Name: Basic Gun Triple x3
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Weapons.GunDef
+  m_Mass: 5
+  m_PassivePowerDrain: 0.1
+  m_ActivePowerDrain: 8
+  m_MaxHealth: 100
+  m_AutoRepairRate: 0
+  m_FireRate: 2
+  m_LaunchSpeed: 40
+  m_MinLaunchAngle: 0
+  m_MaxLaunchAngle: 0
+  m_BulletsPerBurst: 3
+  m_EmissionPointsUsed: 3
+  m_MaxEmissionPointsConsidered: 3
+  m_SweepSpeed: 3
+  m_Pattern: 2
+  m_BulletPrefab: {fileID: 6268373826673617405, guid: 868a92a0ce788b84c923cc3b71e2f8a5, type: 3}
+  m_LaunchEffect: {fileID: 0}
+  m_LaunchSound: {fileID: 0}

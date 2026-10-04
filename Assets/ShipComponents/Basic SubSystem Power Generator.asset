@@ -23,3 +23,4 @@ MonoBehaviour:
   m_ExtraPowerStorage: 50
   m_HullRepairRate: 0
   m_FireRateMultiplier: 1
+  m_Gauge: {fileID: 104, guid: a7c6d7e8f9a0a1b2e3d4e5f60718293a, type: 3}

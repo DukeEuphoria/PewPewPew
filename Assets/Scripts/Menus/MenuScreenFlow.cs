@@ -10,6 +10,7 @@ namespace PewPewPew.Networking
 {
     public class MenuScreenFlow : MonoBehaviour
     {
+        private static readonly List<MenuScreenFlow> s_Flows = new List<MenuScreenFlow>();
         private enum FadeState
         {
             Idle,
@@ -31,6 +32,20 @@ namespace PewPewPew.Networking
         private float m_FadeTargetAlpha;
 
         public bool IsTransitioning => m_FadeState != FadeState.Idle;
+        public bool IsBlocking => IsTransitioning || (m_CurrentMenu != null && m_CurrentMenu.IsBlocking);
+
+        /// True while any menu flow is showing a blocking screen or fading between screens.
+        public static bool AnyBlocking
+        {
+            get
+            {
+                foreach (MenuScreenFlow flow in s_Flows)
+                {
+                    if (flow.IsBlocking) return true;
+                }
+                return false;
+            }
+        }
         public MenuScreenId? CurrentScreen => m_CurrentMenu != null ? m_CurrentMenu.ScreenId : null;
         public event Action<MenuScreenId> ScreenChanged;
 
@@ -89,8 +104,11 @@ namespace PewPewPew.Networking
             }
         }
 
+        private void OnEnable() => s_Flows.Add(this);
+
         private void OnDisable()
         {
+            s_Flows.Remove(this);
             if (m_FadeState == FadeState.Idle) return;
 
             m_FadeState = FadeState.Idle;

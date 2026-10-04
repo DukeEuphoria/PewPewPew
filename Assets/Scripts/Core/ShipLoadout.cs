@@ -1,3 +1,5 @@
+using System;
+
 namespace PewPewPew.Core
 {
     /// A ship's chosen components as indices into the ShipCatalog; sub system slots use -1 for empty.
@@ -46,6 +48,18 @@ namespace PewPewPew.Core
         public static bool InRange(int index, int count, bool allowNone)
         {
             return index < count && index >= (allowNone ? -1 : 0);
+        }
+
+        /// Like Cycle, but skips entries that are not available; stays put if none is.
+        public static int CycleAvailable(int index, int count, int step, bool allowNone, Func<int, bool> available)
+        {
+            int candidate = index;
+            for (int i = 0; i <= count; i++)
+            {
+                candidate = Cycle(candidate, count, step, allowNone);
+                if (candidate < 0 || available(candidate)) return candidate;
+            }
+            return index;
         }
 
         /// Steps through 0..count-1 (and -1 for none when allowed), wrapping at both ends.

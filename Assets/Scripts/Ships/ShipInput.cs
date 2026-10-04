@@ -1,4 +1,5 @@
 using Mirror;
+using PewPewPew.Networking;
 using PewPewPew.Presentation;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -40,7 +41,11 @@ namespace PewPewPew.Ships
                 FireMain = Mouse.current.leftButton.isPressed,
                 FireSecondary = Mouse.current.rightButton.isPressed || Keyboard.current.spaceKey.isPressed,
             };
+            // A menu is up: release everything and keep the last aim.
+            bool blocked = MenuScreenFlow.AnyBlocking;
+            if (blocked) controls = new ShipControls { AimPoint = m_Sent.AimPoint };
             SendControls(controls);
+            if (blocked) return;
 
             var subSystemKeys = new[] { Keyboard.current.digit1Key, Keyboard.current.digit2Key, Keyboard.current.digit3Key, Keyboard.current.digit4Key };
             for (int i = 0; i < subSystemKeys.Length; i++)
