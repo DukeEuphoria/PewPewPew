@@ -2,6 +2,7 @@ using Mirror;
 using PewPewPew.Core;
 using PewPewPew.GameSystems;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace PewPewPew.World
 {
@@ -12,7 +13,13 @@ namespace PewPewPew.World
         [SerializeField] private int m_TargetCount = 100;
         [SerializeField] private int m_MinSize = 1;
         [SerializeField] private int m_MaxSize = 20;
-        [SerializeField] private float m_MaxDriftSpeed = 3f;
+
+        [SerializeField] 
+        [Range(0f, 10f)] private float m_MinSpeed = 1f;
+
+        [FormerlySerializedAs("m_MaxDriftSpeed"), SerializeField] 
+        [Range(0f, 10f)] private float m_MaxSpeed = 3f;
+
         [SerializeField] private float m_TopUpInterval = 2f;
         [SerializeField] private float m_DensityScale = 300f;
         [SerializeField] private float m_DensitySharpness = 2f;
@@ -25,6 +32,12 @@ namespace PewPewPew.World
         public static AsteroidField Instance { get; private set; }
 
         private void Awake() => Instance = this;
+
+        private void OnValidate()
+        {
+            m_MinSpeed = Mathf.Max(0f, m_MinSpeed);
+            m_MaxSpeed = Mathf.Max(m_MinSpeed, m_MaxSpeed);
+        }
 
         public override void OnStartServer()
         {
@@ -52,7 +65,7 @@ namespace PewPewPew.World
         private void SpawnRandom()
         {
             Vector2 position = RandomDenseWorldPosition();
-            Spawn(Random.Range(m_MinSize, m_MaxSize + 1), position, Random.insideUnitCircle * m_MaxDriftSpeed);
+            Spawn(Random.Range(m_MinSize, m_MaxSize + 1), position, Random.insideUnitCircle.normalized * Random.Range(m_MinSpeed, m_MaxSpeed));
         }
 
         /// Rejection sampling against the density map; falls back to the last candidate if none is accepted.
