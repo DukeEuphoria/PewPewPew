@@ -1,0 +1,574 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="47" result="Failed(Child)" total="47" passed="43" failed="4" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:32Z" duration="2.9910849">
+  <test-suite type="TestSuite" id="1072" name="PewPewPew" fullname="PewPewPew" runstate="Runnable" testcasecount="47" result="Failed" site="Child" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:32Z" duration="2.991085" total="47" passed="43" failed="4" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <failure>
+      <message><![CDATA[One or more child tests had errors]]></message>
+    </failure>
+    <test-suite type="Assembly" id="1064" name="Mirror.Tests.Runtime.dll" fullname="D:/Dev/PewPewPew/Library/ScriptAssemblies/Mirror.Tests.Runtime.dll" runstate="Runnable" testcasecount="47" result="Failed" site="Child" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:32Z" duration="2.968533" total="47" passed="43" failed="4" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="1864" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <failure>
+        <message><![CDATA[One or more child tests had errors]]></message>
+      </failure>
+      <test-suite type="TestSuite" id="1065" name="Mirror" fullname="Mirror" runstate="Runnable" testcasecount="47" result="Failed" site="Child" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:32Z" duration="2.964309" total="47" passed="43" failed="4" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <failure>
+          <message><![CDATA[One or more child tests had errors]]></message>
+        </failure>
+        <test-suite type="TestSuite" id="1066" name="Tests" fullname="Mirror.Tests" runstate="Runnable" testcasecount="47" result="Failed" site="Child" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:32Z" duration="2.960595" total="47" passed="43" failed="4" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <failure>
+            <message><![CDATA[One or more child tests had errors]]></message>
+          </failure>
+          <test-suite type="TestFixture" id="1002" name="NetworkLoopPlayModeTests" fullname="Mirror.Tests.NetworkLoopPlayModeTests" classname="Mirror.Tests.NetworkLoopPlayModeTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.040898" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1004" name="NetworkEarlyUpdate_InvokesOnEarlyUpdate" fullname="Mirror.Tests.NetworkLoopPlayModeTests.NetworkEarlyUpdate_InvokesOnEarlyUpdate" methodname="NetworkEarlyUpdate_InvokesOnEarlyUpdate" classname="Mirror.Tests.NetworkLoopPlayModeTests" runstate="Runnable" seed="2087134136" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.015616" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1003" name="NetworkEarlyUpdate_NullCallback_DoesNotThrow" fullname="Mirror.Tests.NetworkLoopPlayModeTests.NetworkEarlyUpdate_NullCallback_DoesNotThrow" methodname="NetworkEarlyUpdate_NullCallback_DoesNotThrow" classname="Mirror.Tests.NetworkLoopPlayModeTests" runstate="Runnable" seed="1748705155" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.001615" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1006" name="NetworkLateUpdate_InvokesOnLateUpdate" fullname="Mirror.Tests.NetworkLoopPlayModeTests.NetworkLateUpdate_InvokesOnLateUpdate" methodname="NetworkLateUpdate_InvokesOnLateUpdate" classname="Mirror.Tests.NetworkLoopPlayModeTests" runstate="Runnable" seed="2011940062" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.000299" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1005" name="NetworkLateUpdate_NullCallback_DoesNotThrow" fullname="Mirror.Tests.NetworkLoopPlayModeTests.NetworkLateUpdate_NullCallback_DoesNotThrow" methodname="NetworkLateUpdate_NullCallback_DoesNotThrow" classname="Mirror.Tests.NetworkLoopPlayModeTests" runstate="Runnable" seed="1901740317" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.000223" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestSuite" id="1067" name="Runtime" fullname="Mirror.Tests.Runtime" runstate="Runnable" testcasecount="43" result="Failed" site="Child" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:32Z" duration="2.914023" total="43" passed="39" failed="4" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <failure>
+              <message><![CDATA[One or more child tests had errors]]></message>
+            </failure>
+            <test-suite type="TestFixture" id="1007" name="ClientSceneTest_LocalPlayer_AsHost" fullname="Mirror.Tests.Runtime.ClientSceneTest_LocalPlayer_AsHost" classname="Mirror.Tests.Runtime.ClientSceneTest_LocalPlayer_AsHost" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.164237" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1008" name="LocalPlayerIsSetToNullAfterNetworkDestroy" fullname="Mirror.Tests.Runtime.ClientSceneTest_LocalPlayer_AsHost.LocalPlayerIsSetToNullAfterNetworkDestroy" methodname="LocalPlayerIsSetToNullAfterNetworkDestroy" classname="Mirror.Tests.Runtime.ClientSceneTest_LocalPlayer_AsHost" runstate="Runnable" seed="1206643357" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.116294" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Server started listening
+Error reason is 'NoSubscription' and no additional error information was provided (https://generators.ai.unity.com).
+]]></output>
+              </test-case>
+              <test-case id="1009" name="LocalPlayerIsSetToNullAfterNetworkUnspawn" fullname="Mirror.Tests.Runtime.ClientSceneTest_LocalPlayer_AsHost.LocalPlayerIsSetToNullAfterNetworkUnspawn" methodname="LocalPlayerIsSetToNullAfterNetworkUnspawn" classname="Mirror.Tests.Runtime.ClientSceneTest_LocalPlayer_AsHost" runstate="Runnable" seed="2092464033" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.042001" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Server started listening
+]]></output>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestSuite" id="1068" name="ClientSceneTests" fullname="Mirror.Tests.Runtime.ClientSceneTests" runstate="Runnable" testcasecount="28" result="Failed" site="Child" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:30Z" duration="0.449404" total="28" passed="26" failed="2" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <failure>
+                <message><![CDATA[One or more child tests had errors]]></message>
+              </failure>
+              <test-suite type="TestFixture" id="1027" name="ClientSceneTests_DestroyAllClientObjects" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects" runstate="Runnable" testcasecount="5" result="Failed" site="Child" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.229640" total="5" passed="3" failed="2" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <failure>
+                  <message><![CDATA[One or more child tests had errors]]></message>
+                </failure>
+                <test-case id="1030" name="CallsUnspawnHandlerInsteadOfDestroy" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects.CallsUnspawnHandlerInsteadOfDestroy" methodname="CallsUnspawnHandlerInsteadOfDestroy" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects" runstate="Runnable" seed="1665182460" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.049937" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Server started listening
+MemoryTransport Client Message: Connected
+MemoryTransport Server Message: Connected
+MemoryTransport Client Message: Data: 38-1A-91-8E-28-7B-26-40-12-4F-44-38-1A-91-8E-28-7B-26-40-00-00-00-00-00-00-00-00
+MemoryTransport Server Message: Data: 38-1A-91-8E-28-7B-26-40-12-4F-44-38-1A-91-8E-28-7B-26-40-38-1A-91-8E-28-7B-26-40
+MemoryTransport Server Message: Data: 38-1A-91-8E-28-7B-26-40-02-BC-AA
+MemoryTransport Server Message: Data: 38-1A-91-8E-28-7B-26-40-1A-D7-69-38-1A-91-8E-28-7B-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: 38-1A-91-8E-28-7B-26-40-1A-D7-69-38-1A-91-8E-28-7B-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: 03-10-CF-E8-E0-83-26-40-0A-09-DF-77-23-B1-32-1E-87-E0-3F
+MemoryTransport Client Message: Data: 03-10-CF-E8-E0-83-26-40-02-D8-30-02-B4-A9-39-64-88-01-03-FF-DE-BA-FC-FF-FF-FF-FF-FF-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-80-3F-00-00-80-3F-00-00-80-3F-00-00-80-3F-03-01-00
+]]></output>
+                </test-case>
+                <test-case id="1032" name="CatchesAndLogsExeptionWhenSpawnedListIsChanged" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects.CatchesAndLogsExeptionWhenSpawnedListIsChanged" methodname="CatchesAndLogsExeptionWhenSpawnedListIsChanged" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects" runstate="Runnable" seed="447297050" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.065079" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Server started listening
+MemoryTransport Client Message: Connected
+MemoryTransport Server Message: Connected
+MemoryTransport Client Message: Data: 24-E3-2D-CB-B5-95-26-40-12-4F-44-24-E3-2D-CB-B5-95-26-40-00-00-00-00-00-00-00-00
+MemoryTransport Server Message: Data: 24-E3-2D-CB-B5-95-26-40-12-4F-44-24-E3-2D-CB-B5-95-26-40-24-E3-2D-CB-B5-95-26-40
+MemoryTransport Server Message: Data: 24-E3-2D-CB-B5-95-26-40-02-BC-AA
+MemoryTransport Server Message: Data: 24-E3-2D-CB-B5-95-26-40-1A-D7-69-24-E3-2D-CB-B5-95-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: 24-E3-2D-CB-B5-95-26-40-1A-D7-69-24-E3-2D-CB-B5-95-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: E2-E8-10-12-FD-99-26-40-0A-09-DF-61-B1-CE-C6-E0-E8-E1-3F
+MemoryTransport Client Message: Data: E2-E8-10-12-FD-99-26-40-39-64-88-01-00-FF-C6-BA-FC-FF-FF-FF-FF-FF-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-80-3F-00-00-80-3F-00-00-80-3F-00-00-80-3F-03-01-00
+InvalidOperationException: Collection was modified; enumeration operation may not execute.
+System.Collections.Generic.Dictionary`2+ValueCollection+Enumerator[TKey,TValue].MoveNext () (at <816f70bc2a9c4332b0bd119906a8d40e>:0)
+Mirror.NetworkClient.DestroyAllClientObjects () (at Assets/Mirror/Core/NetworkClient.cs:1907)
+UnityEngine.Debug:LogException(Exception)
+Mirror.NetworkClient:DestroyAllClientObjects() (at Assets/Mirror/Core/NetworkClient.cs:1958)
+Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects:CatchesAndLogsExeptionWhenSpawnedListIsChanged() (at Assets/Mirror/Tests/Runtime/ClientSceneTests_DestroyAllClientObjects.cs:147)
+System.Reflection.MethodBase:Invoke(Object, Object[])
+NUnit.Framework.Internal.Reflect:InvokeMethod(MethodInfo, Object, Object[])
+NUnit.Framework.Internal.MethodWrapper:Invoke(Object, Object[])
+NUnit.Framework.Internal.Commands.TestMethodCommand:RunNonAsyncTestMethod(ITestExecutionContext)
+NUnit.Framework.Internal.Commands.TestMethodCommand:RunTestMethod(ITestExecutionContext)
+NUnit.Framework.Internal.Commands.TestMethodCommand:Execute(ITestExecutionContext)
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+Could not DestroyAllClientObjects because spawned list was modified during loop, make sure you are not modifying NetworkIdentity.spawned by calling NetworkServer.Destroy or NetworkServer.Spawn in OnDestroy or OnDisable.
+Error reason is 'NoSubscription' and no additional error information was provided (https://generators.ai.unity.com).
+]]></output>
+                </test-case>
+                <test-case id="1031" name="ClearsSpawnedList" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects.ClearsSpawnedList" methodname="ClearsSpawnedList" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects" runstate="Runnable" seed="487313623" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.043554" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Server started listening
+MemoryTransport Client Message: Connected
+MemoryTransport Server Message: Connected
+MemoryTransport Client Message: Data: 04-31-18-72-4F-BF-26-40-12-4F-44-04-31-18-72-4F-BF-26-40-00-00-00-00-00-00-00-00
+MemoryTransport Server Message: Data: 04-31-18-72-4F-BF-26-40-12-4F-44-04-31-18-72-4F-BF-26-40-04-31-18-72-4F-BF-26-40
+MemoryTransport Server Message: Data: 04-31-18-72-4F-BF-26-40-02-BC-AA
+MemoryTransport Server Message: Data: 04-31-18-72-4F-BF-26-40-1A-D7-69-04-31-18-72-4F-BF-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: 04-31-18-72-4F-BF-26-40-1A-D7-69-04-31-18-72-4F-BF-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: F0-AB-12-51-C8-C4-26-40-0A-09-DF-3F-E2-EA-B6-94-95-E4-3F
+MemoryTransport Client Message: Data: F0-AB-12-51-C8-C4-26-40-02-D8-30-02-B4-A9-39-64-88-01-03-FF-A2-BA-FC-FF-FF-FF-FF-FF-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-80-3F-00-00-80-3F-00-00-80-3F-00-00-80-3F-03-01-00
+]]></output>
+                </test-case>
+                <test-case id="1028" name="DestroysAllNetworkPrefabsInScene" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects.DestroysAllNetworkPrefabsInScene" methodname="DestroysAllNetworkPrefabsInScene" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects" runstate="Runnable" seed="501108412" result="Failed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.036737" asserts="0">
+                  <properties>
+                    <property name="_JOINTYPE" value="UnityCombinatorial" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <failure>
+                    <message><![CDATA[  Expected: True
+  But was:  False
+]]></message>
+                    <stack-trace><![CDATA[at Mirror.Tests.MirrorTest.CreateNetworkedAndSpawnPlayer[T] (UnityEngine.GameObject& serverGO, Mirror.NetworkIdentity& serverIdentity, T& serverComponent, UnityEngine.GameObject& clientGO, Mirror.NetworkIdentity& clientIdentity, T& clientComponent, Mirror.NetworkConnectionToClient ownerConnection) [0x00095] in D:\Dev\PewPewPew\Assets\Mirror\Tests\Common\MirrorTest.cs:835
+at Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects.CreateAndAddObject (System.UInt64 sceneId, Mirror.Tests.Runtime.ClientSceneTests.TestListenerBehaviour& serverComp, Mirror.Tests.Runtime.ClientSceneTests.TestListenerBehaviour& clientComp) [0x00001] in D:\Dev\PewPewPew\Assets\Mirror\Tests\Runtime\ClientSceneTests_DestroyAllClientObjects.cs:62
+at Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects+<DestroysAllNetworkPrefabsInScene>d__6.MoveNext () [0x0002b] in D:\Dev\PewPewPew\Assets\Mirror\Tests\Runtime\ClientSceneTests_DestroyAllClientObjects.cs:72
+at UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0004e] in .\Library\PackageCache\com.unity.test-framework@1405238725ab\UnityEngine.TestRunner\NUnitExtensions\Attributes\TestEnumerator.cs:44
+]]></stack-trace>
+                  </failure>
+                  <output><![CDATA[Server started listening
+MemoryTransport Client Message: Connected
+MemoryTransport Server Message: Connected
+MemoryTransport Client Message: Data: B0-B2-B5-4D-E5-CE-26-40-12-4F-44-B0-B2-B5-4D-E5-CE-26-40-00-00-00-00-00-00-00-00
+MemoryTransport Server Message: Data: B0-B2-B5-4D-E5-CE-26-40-12-4F-44-B0-B2-B5-4D-E5-CE-26-40-B0-B2-B5-4D-E5-CE-26-40
+MemoryTransport Server Message: Data: B0-B2-B5-4D-E5-CE-26-40-02-BC-AA
+MemoryTransport Server Message: Data: B0-B2-B5-4D-E5-CE-26-40-1A-D7-69-B0-B2-B5-4D-E5-CE-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: B0-B2-B5-4D-E5-CE-26-40-1A-D7-69-B0-B2-B5-4D-E5-CE-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: 86-F5-F6-95-D3-D5-26-40-0A-09-DF-A2-7B-2F-05-49-A6-E5-3F
+]]></output>
+                </test-case>
+                <test-case id="1029" name="DisablesAllNetworkSceneObjectsInScene" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects.DisablesAllNetworkSceneObjectsInScene" methodname="DisablesAllNetworkSceneObjectsInScene" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects" runstate="Runnable" seed="1598012327" result="Failed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.028004" asserts="0">
+                  <properties>
+                    <property name="_JOINTYPE" value="UnityCombinatorial" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <failure>
+                    <message><![CDATA[  Expected: True
+  But was:  False
+]]></message>
+                    <stack-trace><![CDATA[at Mirror.Tests.MirrorTest.CreateNetworkedAndSpawnPlayer[T] (UnityEngine.GameObject& serverGO, Mirror.NetworkIdentity& serverIdentity, T& serverComponent, UnityEngine.GameObject& clientGO, Mirror.NetworkIdentity& clientIdentity, T& clientComponent, Mirror.NetworkConnectionToClient ownerConnection) [0x00095] in D:\Dev\PewPewPew\Assets\Mirror\Tests\Common\MirrorTest.cs:835
+at Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects.CreateAndAddObject (System.UInt64 sceneId, Mirror.Tests.Runtime.ClientSceneTests.TestListenerBehaviour& serverComp, Mirror.Tests.Runtime.ClientSceneTests.TestListenerBehaviour& clientComp) [0x00001] in D:\Dev\PewPewPew\Assets\Mirror\Tests\Runtime\ClientSceneTests_DestroyAllClientObjects.cs:62
+at Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_DestroyAllClientObjects+<DisablesAllNetworkSceneObjectsInScene>d__7.MoveNext () [0x0002e] in D:\Dev\PewPewPew\Assets\Mirror\Tests\Runtime\ClientSceneTests_DestroyAllClientObjects.cs:88
+at UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0004e] in .\Library\PackageCache\com.unity.test-framework@1405238725ab\UnityEngine.TestRunner\NUnitExtensions\Attributes\TestEnumerator.cs:44
+]]></stack-trace>
+                  </failure>
+                  <output><![CDATA[Server started listening
+MemoryTransport Client Message: Connected
+MemoryTransport Server Message: Connected
+MemoryTransport Client Message: Data: 8A-24-34-94-FB-E0-26-40-12-4F-44-8A-24-34-94-FB-E0-26-40-00-00-00-00-00-00-00-00
+MemoryTransport Server Message: Data: 8A-24-34-94-FB-E0-26-40-12-4F-44-8A-24-34-94-FB-E0-26-40-8A-24-34-94-FB-E0-26-40
+MemoryTransport Server Message: Data: 8A-24-34-94-FB-E0-26-40-02-BC-AA
+MemoryTransport Server Message: Data: 8A-24-34-94-FB-E0-26-40-1A-D7-69-8A-24-34-94-FB-E0-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: 8A-24-34-94-FB-E0-26-40-1A-D7-69-8A-24-34-94-FB-E0-26-40-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+MemoryTransport Client Message: Data: 91-61-68-99-50-E7-26-40-0A-09-DF-58-3C-46-3C-19-BE-E6-3F
+]]></output>
+                </test-case>
+              </test-suite>
+              <test-suite type="TestFixture" id="1033" name="ClientSceneTests_LocalPlayer" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_LocalPlayer" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_LocalPlayer" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:30Z" duration="0.103968" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <output><![CDATA[
+IgnoreFailingMessages:true
+'PrefabWithChildrenForClientScene' has another NetworkIdentity component on 'Child Network Identity'. There should only be one NetworkIdentity, and it must be on the root object. Please remove the other one.
+
+IgnoreFailingMessages:false
+]]></output>
+                <test-case id="1035" name="DestroyingOtherObjectDoesntEffectLocalPlayer" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_LocalPlayer.DestroyingOtherObjectDoesntEffectLocalPlayer" methodname="DestroyingOtherObjectDoesntEffectLocalPlayer" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_LocalPlayer" runstate="Runnable" seed="963373191" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:29Z" duration="0.034439" asserts="0">
+                  <properties>
+                    <property name="_JOINTYPE" value="UnityCombinatorial" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Server started listening
+Error reason is 'NoSubscription' and no additional error information was provided (https://generators.ai.unity.com).
+]]></output>
+                </test-case>
+                <test-case id="1034" name="LocalPlayerIsSetToNullAfterDestroy" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_LocalPlayer.LocalPlayerIsSetToNullAfterDestroy" methodname="LocalPlayerIsSetToNullAfterDestroy" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_LocalPlayer" runstate="Runnable" seed="221019534" result="Passed" start-time="2026-10-03 23:03:29Z" end-time="2026-10-03 23:03:30Z" duration="0.023224" asserts="0">
+                  <properties>
+                    <property name="_JOINTYPE" value="UnityCombinatorial" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Server started listening
+]]></output>
+                </test-case>
+                <test-case id="1036" name="LocalPlayerIsSetToNullAfterDestroyMessage" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_LocalPlayer.LocalPlayerIsSetToNullAfterDestroyMessage" methodname="LocalPlayerIsSetToNullAfterDestroyMessage" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_LocalPlayer" runstate="Runnable" seed="1789081999" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.024181" asserts="0">
+                  <properties>
+                    <property name="_JOINTYPE" value="UnityCombinatorial" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Server started listening
+]]></output>
+                </test-case>
+              </test-suite>
+              <test-suite type="TestFixture" id="1037" name="ClientSceneTests_Runtime_RegisterPrefab" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" testcasecount="20" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.093462" total="20" passed="20" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <output><![CDATA[
+IgnoreFailingMessages:true
+
+IgnoreFailingMessages:false
+]]></output>
+                <test-suite type="ParameterizedMethod" id="1056" name="CheckOverloadWithAssetId" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithAssetId" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.010183" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+                  <properties />
+                  <test-case id="1050" name="CheckOverloadWithAssetId(Prefab,False)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithAssetId(Prefab,False)" methodname="CheckOverloadWithAssetId" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="247853215" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.002427" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1051" name="CheckOverloadWithAssetId(Prefab_NewAssetId,True)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithAssetId(Prefab_NewAssetId,True)" methodname="CheckOverloadWithAssetId" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="1283305373" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000184" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1052" name="CheckOverloadWithAssetId(Prefab_SpawnDelegate,False)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithAssetId(Prefab_SpawnDelegate,False)" methodname="CheckOverloadWithAssetId" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="2064741248" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000160" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1053" name="CheckOverloadWithAssetId(Prefab_SpawnDelegate_NewAssetId,True)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithAssetId(Prefab_SpawnDelegate_NewAssetId,True)" methodname="CheckOverloadWithAssetId" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="1232451299" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000158" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1054" name="CheckOverloadWithAssetId(Prefab_SpawnHandlerDelegate,False)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithAssetId(Prefab_SpawnHandlerDelegate,False)" methodname="CheckOverloadWithAssetId" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="2134629143" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000158" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1055" name="CheckOverloadWithAssetId(Prefab_SpawnHandlerDelegate_NewAssetId,True)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithAssetId(Prefab_SpawnHandlerDelegate_NewAssetId,True)" methodname="CheckOverloadWithAssetId" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="628458244" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000157" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                </test-suite>
+                <test-suite type="ParameterizedMethod" id="1063" name="CheckOverloadWithHandler" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithHandler" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.009972" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+                  <properties />
+                  <test-case id="1057" name="CheckOverloadWithHandler(Prefab,False)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithHandler(Prefab,False)" methodname="CheckOverloadWithHandler" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="1575810320" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000545" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1058" name="CheckOverloadWithHandler(Prefab_NewAssetId,False)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithHandler(Prefab_NewAssetId,False)" methodname="CheckOverloadWithHandler" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="33364738" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000198" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1059" name="CheckOverloadWithHandler(Prefab_SpawnDelegate,True)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithHandler(Prefab_SpawnDelegate,True)" methodname="CheckOverloadWithHandler" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="1933955786" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000160" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1060" name="CheckOverloadWithHandler(Prefab_SpawnDelegate_NewAssetId,True)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithHandler(Prefab_SpawnDelegate_NewAssetId,True)" methodname="CheckOverloadWithHandler" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="1581750542" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000168" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1061" name="CheckOverloadWithHandler(Prefab_SpawnHandlerDelegate,True)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithHandler(Prefab_SpawnHandlerDelegate,True)" methodname="CheckOverloadWithHandler" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="1233188933" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000164" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1062" name="CheckOverloadWithHandler(Prefab_SpawnHandlerDelegate_NewAssetId,True)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.CheckOverloadWithHandler(Prefab_SpawnHandlerDelegate_NewAssetId,True)" methodname="CheckOverloadWithHandler" classname="Mirror.Tests.ClientSceneTests_RegisterPrefabBase" runstate="Runnable" seed="1882034947" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000175" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                </test-suite>
+                <test-suite type="ParameterizedMethod" id="1044" name="ErrorForEmptyGuid" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.ErrorForEmptyGuid" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.018000" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                  <properties />
+                  <test-case id="1041" name="ErrorForEmptyGuid(Prefab)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.ErrorForEmptyGuid(Prefab)" methodname="ErrorForEmptyGuid" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" seed="1905702066" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.002857" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                    <output><![CDATA[Can not Register 'New Game Object' because it had empty assetid. If this is a scene Object use RegisterSpawnHandler instead
+]]></output>
+                  </test-case>
+                  <test-case id="1042" name="ErrorForEmptyGuid(Prefab_SpawnDelegate)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.ErrorForEmptyGuid(Prefab_SpawnDelegate)" methodname="ErrorForEmptyGuid" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" seed="971735132" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.001540" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                    <output><![CDATA[Can not Register handler for 'New Game Object' because it had empty assetid. If this is a scene Object use RegisterSpawnHandler instead
+]]></output>
+                  </test-case>
+                  <test-case id="1043" name="ErrorForEmptyGuid(Prefab_SpawnHandlerDelegate)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.ErrorForEmptyGuid(Prefab_SpawnHandlerDelegate)" methodname="ErrorForEmptyGuid" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" seed="789104692" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.001744" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                    <output><![CDATA[Can not Register handler for 'New Game Object' because it had empty assetid. If this is a scene Object use RegisterSpawnHandler instead
+]]></output>
+                  </test-case>
+                </test-suite>
+                <test-suite type="ParameterizedMethod" id="1040" name="Handler_AddsSpawnHandlerToDictionaryForRuntimeObject" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.Handler_AddsSpawnHandlerToDictionaryForRuntimeObject" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.012285" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+                  <properties />
+                  <test-case id="1038" name="Handler_AddsSpawnHandlerToDictionaryForRuntimeObject(Prefab_SpawnDelegate_NewAssetId)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.Handler_AddsSpawnHandlerToDictionaryForRuntimeObject(Prefab_SpawnDelegate_NewAssetId)" methodname="Handler_AddsSpawnHandlerToDictionaryForRuntimeObject" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" seed="2000137391" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.002968" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1039" name="Handler_AddsSpawnHandlerToDictionaryForRuntimeObject(Prefab_SpawnHandlerDelegate_NewAssetId)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.Handler_AddsSpawnHandlerToDictionaryForRuntimeObject(Prefab_SpawnHandlerDelegate_NewAssetId)" methodname="Handler_AddsSpawnHandlerToDictionaryForRuntimeObject" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" seed="457282011" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000339" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                </test-suite>
+                <test-suite type="ParameterizedMethod" id="1049" name="Handler_AddsUnSpawnHandlerToDictionaryForRuntimeObject" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.Handler_AddsUnSpawnHandlerToDictionaryForRuntimeObject" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.011210" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+                  <properties />
+                  <test-case id="1047" name="Handler_AddsUnSpawnHandlerToDictionaryForRuntimeObject(Prefab_SpawnDelegate_NewAssetId)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.Handler_AddsUnSpawnHandlerToDictionaryForRuntimeObject(Prefab_SpawnDelegate_NewAssetId)" methodname="Handler_AddsUnSpawnHandlerToDictionaryForRuntimeObject" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" seed="1020927738" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000987" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                  <test-case id="1048" name="Handler_AddsUnSpawnHandlerToDictionaryForRuntimeObject(Prefab_SpawnHandlerDelegate_NewAssetId)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.Handler_AddsUnSpawnHandlerToDictionaryForRuntimeObject(Prefab_SpawnHandlerDelegate_NewAssetId)" methodname="Handler_AddsUnSpawnHandlerToDictionaryForRuntimeObject" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" seed="566135032" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.000352" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                </test-suite>
+                <test-suite type="ParameterizedMethod" id="1046" name="PrefabNewGuid_AddsRuntimeObjectToDictionary" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.PrefabNewGuid_AddsRuntimeObjectToDictionary" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.010571" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+                  <properties />
+                  <test-case id="1045" name="PrefabNewGuid_AddsRuntimeObjectToDictionary(Prefab_NewAssetId)" fullname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab.PrefabNewGuid_AddsRuntimeObjectToDictionary(Prefab_NewAssetId)" methodname="PrefabNewGuid_AddsRuntimeObjectToDictionary" classname="Mirror.Tests.Runtime.ClientSceneTests.ClientSceneTests_Runtime_RegisterPrefab" runstate="Runnable" seed="887047561" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.002919" asserts="0">
+                    <properties>
+                      <property name="retryIteration" value="0" />
+                      <property name="repeatIteration" value="0" />
+                    </properties>
+                  </test-case>
+                </test-suite>
+              </test-suite>
+            </test-suite>
+            <test-suite type="TestFixture" id="1010" name="NetworkIdentityTests" fullname="Mirror.Tests.Runtime.NetworkIdentityTests" classname="Mirror.Tests.Runtime.NetworkIdentityTests" runstate="Runnable" testcasecount="3" result="Failed" site="Child" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.089674" total="3" passed="1" failed="2" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <failure>
+                <message><![CDATA[One or more child tests had errors]]></message>
+              </failure>
+              <test-case id="1011" name="OnDestroyIsServerTrue" fullname="Mirror.Tests.Runtime.NetworkIdentityTests.OnDestroyIsServerTrue" methodname="OnDestroyIsServerTrue" classname="Mirror.Tests.Runtime.NetworkIdentityTests" runstate="Runnable" seed="1076483626" result="Failed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.026648" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <failure>
+                  <message><![CDATA[  Expected: True
+  But was:  False
+]]></message>
+                  <stack-trace><![CDATA[at Mirror.Tests.Runtime.NetworkIdentityTests+<OnDestroyIsServerTrue>d__3.MoveNext () [0x00031] in D:\Dev\PewPewPew\Assets\Mirror\Tests\Runtime\NetworkIdentityTests.cs:27
+at UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0004e] in .\Library\PackageCache\com.unity.test-framework@1405238725ab\UnityEngine.TestRunner\NUnitExtensions\Attributes\TestEnumerator.cs:44
+]]></stack-trace>
+                </failure>
+                <output><![CDATA[Error reason is 'NoSubscription' and no additional error information was provided (https://generators.ai.unity.com).
+]]></output>
+              </test-case>
+              <test-case id="1012" name="OnDestroyIsServerTrueWhenNetworkServerDestroyIsCalled" fullname="Mirror.Tests.Runtime.NetworkIdentityTests.OnDestroyIsServerTrueWhenNetworkServerDestroyIsCalled" methodname="OnDestroyIsServerTrueWhenNetworkServerDestroyIsCalled" classname="Mirror.Tests.Runtime.NetworkIdentityTests" runstate="Runnable" seed="1528379934" result="Failed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.034397" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <failure>
+                  <message><![CDATA[  Expected: True
+  But was:  False
+]]></message>
+                  <stack-trace><![CDATA[at Mirror.Tests.Runtime.NetworkIdentityTests+<OnDestroyIsServerTrueWhenNetworkServerDestroyIsCalled>d__4.MoveNext () [0x00031] in D:\Dev\PewPewPew\Assets\Mirror\Tests\Runtime\NetworkIdentityTests.cs:47
+at UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0004e] in .\Library\PackageCache\com.unity.test-framework@1405238725ab\UnityEngine.TestRunner\NUnitExtensions\Attributes\TestEnumerator.cs:44
+]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1013" name="TestSerializationWithLargeTimestamps" fullname="Mirror.Tests.Runtime.NetworkIdentityTests.TestSerializationWithLargeTimestamps" methodname="TestSerializationWithLargeTimestamps" classname="Mirror.Tests.Runtime.NetworkIdentityTests" runstate="Runnable" seed="1079738758" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.020192" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1014" name="NetworkManagerTests" fullname="Mirror.Tests.Runtime.NetworkManagerTests" classname="Mirror.Tests.Runtime.NetworkManagerTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.068504" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1018" name="IsActiveSceneIsFalseForEmptyString" fullname="Mirror.Tests.Runtime.NetworkManagerTests.IsActiveSceneIsFalseForEmptyString" methodname="IsActiveSceneIsFalseForEmptyString" classname="Mirror.Tests.Runtime.NetworkManagerTests" runstate="Runnable" seed="512784639" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.017620" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1017" name="IsActiveSceneIsFalseForScenesWithSameNameButDifferentPath" fullname="Mirror.Tests.Runtime.NetworkManagerTests.IsActiveSceneIsFalseForScenesWithSameNameButDifferentPath" methodname="IsActiveSceneIsFalseForScenesWithSameNameButDifferentPath" classname="Mirror.Tests.Runtime.NetworkManagerTests" runstate="Runnable" seed="1347599374" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.012468" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1015" name="IsActiveSceneWorksWithSceneName" fullname="Mirror.Tests.Runtime.NetworkManagerTests.IsActiveSceneWorksWithSceneName" methodname="IsActiveSceneWorksWithSceneName" classname="Mirror.Tests.Runtime.NetworkManagerTests" runstate="Runnable" seed="514669293" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.013183" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1016" name="IsActiveSceneWorksWithScenePath" fullname="Mirror.Tests.Runtime.NetworkManagerTests.IsActiveSceneWorksWithScenePath" methodname="IsActiveSceneWorksWithScenePath" classname="Mirror.Tests.Runtime.NetworkManagerTests" runstate="Runnable" seed="1775864710" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.016049" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1019" name="NetworkServerRuntimeTest" fullname="Mirror.Tests.Runtime.NetworkServerRuntimeTest" classname="Mirror.Tests.Runtime.NetworkServerRuntimeTest" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:32Z" duration="2.118046" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1020" name="DestroyPlayerForConnectionTest" fullname="Mirror.Tests.Runtime.NetworkServerRuntimeTest.DestroyPlayerForConnectionTest" methodname="DestroyPlayerForConnectionTest" classname="Mirror.Tests.Runtime.NetworkServerRuntimeTest" runstate="Runnable" seed="1082765345" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:30Z" duration="0.023468" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Server started listening
+]]></output>
+              </test-case>
+              <test-case id="1023" name="DisconnectTimeoutTest" fullname="Mirror.Tests.Runtime.NetworkServerRuntimeTest.DisconnectTimeoutTest" methodname="DisconnectTimeoutTest" classname="Mirror.Tests.Runtime.NetworkServerRuntimeTest" runstate="Runnable" seed="2012691384" result="Passed" start-time="2026-10-03 23:03:30Z" end-time="2026-10-03 23:03:32Z" duration="2.022014" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Server started listening
+Disconnecting connection(1) for inactivity!
+MemoryTransport Server Message: Disconnected
+MemoryTransport Client Message: Disconnected
+]]></output>
+              </test-case>
+              <test-case id="1021" name="RemovePlayerForConnectionTest" fullname="Mirror.Tests.Runtime.NetworkServerRuntimeTest.RemovePlayerForConnectionTest" methodname="RemovePlayerForConnectionTest" classname="Mirror.Tests.Runtime.NetworkServerRuntimeTest" runstate="Runnable" seed="722902081" result="Passed" start-time="2026-10-03 23:03:32Z" end-time="2026-10-03 23:03:32Z" duration="0.022254" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Server started listening
+]]></output>
+              </test-case>
+              <test-case id="1022" name="Shutdown_DestroysAllSpawnedPrefabs" fullname="Mirror.Tests.Runtime.NetworkServerRuntimeTest.Shutdown_DestroysAllSpawnedPrefabs" methodname="Shutdown_DestroysAllSpawnedPrefabs" classname="Mirror.Tests.Runtime.NetworkServerRuntimeTest" runstate="Runnable" seed="1841946226" result="Passed" start-time="2026-10-03 23:03:32Z" end-time="2026-10-03 23:03:32Z" duration="0.024826" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Server started listening
+Server started listening
+NetworkServer.RegisterHandler replacing handler for Mirror.ReadyMessage, id=43708. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.CommandMessage, id=39124. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.NetworkPingMessage, id=17487. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.NetworkPongMessage, id=27095. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.EntityStateMessage, id=12339. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.EntityStateMessageUnreliableBaseline, id=18275. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.EntityStateMessageUnreliableDelta, id=13817. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.TimeSnapshotMessage, id=57097. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+MemoryTransport Server Message: Disconnected
+MemoryTransport Client Message: Disconnected
+]]></output>
+              </test-case>
+              <test-case id="1024" name="Shutdown_DisablesAllSpawnedPrefabs" fullname="Mirror.Tests.Runtime.NetworkServerRuntimeTest.Shutdown_DisablesAllSpawnedPrefabs" methodname="Shutdown_DisablesAllSpawnedPrefabs" classname="Mirror.Tests.Runtime.NetworkServerRuntimeTest" runstate="Runnable" seed="992874044" result="Passed" start-time="2026-10-03 23:03:32Z" end-time="2026-10-03 23:03:32Z" duration="0.017579" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Server started listening
+Server started listening
+NetworkServer.RegisterHandler replacing handler for Mirror.ReadyMessage, id=43708. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.CommandMessage, id=39124. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.NetworkPingMessage, id=17487. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.NetworkPongMessage, id=27095. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.EntityStateMessage, id=12339. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.EntityStateMessageUnreliableBaseline, id=18275. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.EntityStateMessageUnreliableDelta, id=13817. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+NetworkServer.RegisterHandler replacing handler for Mirror.TimeSnapshotMessage, id=57097. If replacement is intentional, use ReplaceHandler instead to avoid this warning.
+]]></output>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1025" name="WeaveProtectedFields" fullname="Mirror.Tests.Runtime.WeaveProtectedFields" classname="Mirror.Tests.Runtime.WeaveProtectedFields" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-10-03 23:03:32Z" end-time="2026-10-03 23:03:32Z" duration="0.013704" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1026" name="WriteProtected" fullname="Mirror.Tests.Runtime.WeaveProtectedFields.WriteProtected" methodname="WriteProtected" classname="Mirror.Tests.Runtime.WeaveProtectedFields" runstate="Runnable" seed="873786744" result="Passed" start-time="2026-10-03 23:03:32Z" end-time="2026-10-03 23:03:32Z" duration="0.005894" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Server started listening
+MemoryTransport Client Message: Connected
+MemoryTransport Server Message: Connected
+MemoryTransport Client Message: Data: E3-16-8E-5A-4F-E3-2B-40-12-4F-44-E3-16-8E-5A-4F-E3-2B-40-00-00-00-00-00-00-00-00
+MemoryTransport Server Message: Data: E3-16-8E-5A-4F-E3-2B-40-12-4F-44-E3-16-8E-5A-4F-E3-2B-40-E3-16-8E-5A-4F-E3-2B-40
+MemoryTransport Server Message: Data: E3-16-8E-5A-4F-E3-2B-40-02-BC-AA
+Saving results to: C:/Users/Euphoria/AppData/LocalLow/DefaultCompany/PewPewPew\TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

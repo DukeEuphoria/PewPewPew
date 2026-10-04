@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0674ad328d403241b7322bfd7f1adcd, type: 3}
+  m_Name: Basic Shield
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ShieldDef
+  m_Mass: 1
+  m_PassivePowerDrain: 1
+  m_ActivePowerDrain: 3
+  m_MaxHealth: 100
+  m_AutoRepairRate: 0
+  m_ShieldCapacity: 100
+  m_MaxSingleImpact: 50
+  m_RechargeRate: 10

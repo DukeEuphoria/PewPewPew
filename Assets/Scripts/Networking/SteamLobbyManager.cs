@@ -18,6 +18,8 @@ namespace PewPewPew.Networking
     {
         public static SteamLobbyManager Instance { get; private set; }
 
+        public const int MaxPlayers = 16;
+
         // Custom lobby data keys used to filter/display lobbies in the browser UI.
         private const string m_HostAddressKey = "HostAddress";
         private const string m_LobbyNameKey = "LobbyName";
@@ -119,9 +121,9 @@ namespace PewPewPew.Networking
                 return;
             }
 
-            if (maxPlayers < 2 || maxPlayers > 250)
+            if (maxPlayers < 2 || maxPlayers > MaxPlayers)
             {
-                StatusChanged?.Invoke("Player count must be between 2 and 250.");
+                StatusChanged?.Invoke($"Player count must be between 2 and {MaxPlayers}.");
                 return;
             }
 
