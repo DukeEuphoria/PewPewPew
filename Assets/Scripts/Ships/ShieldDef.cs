@@ -7,10 +7,12 @@ namespace PewPewPew.Ships
     [CreateAssetMenu(menuName = "PewPewPew/Shield")]
     public class ShieldDef : ShipComponentDef
     {
+        [SerializeField, Tooltip("Prefab root: ShieldVisual, a unit-sized mesh renderer and the ship's collider. Scaled to fit the hull.")] private ShieldVisual m_Visual;
         [SerializeField] private float m_ShieldCapacity = 100f;
         [SerializeField] private float m_MaxSingleImpact = 50f;
         [SerializeField] private float m_RechargeRate = 10f;
 
+        public ShieldVisual Visual => m_Visual;
         public float ShieldCapacity => m_ShieldCapacity;
         public float MaxSingleImpact => m_MaxSingleImpact;
         public float RechargeRate => m_RechargeRate;

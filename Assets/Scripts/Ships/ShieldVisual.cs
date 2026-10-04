@@ -14,6 +14,13 @@ namespace PewPewPew.Ships
 
         private void Awake() => m_Renderer.enabled = false;
 
+        /// Sizes the unit-sized shield to cover bounds given in its parent's local space.
+        public void Fit(Bounds parentLocalBounds)
+        {
+            transform.localPosition = new Vector3(parentLocalBounds.center.x, parentLocalBounds.center.y, 0f);
+            transform.localScale = new Vector3(parentLocalBounds.size.x, parentLocalBounds.size.y, 1f);
+        }
+
         public void Flash(float healthFraction)
         {
             Color color = Color.Lerp(m_EmptyColor, m_FullColor, healthFraction);

@@ -24,8 +24,9 @@ namespace PewPewPew.World
             m_FixedPosition = transform.position;
         }
 
-        private void OnValidate()
+        protected override void OnValidate()
         {
+            base.OnValidate();
             m_MinAltitude = Mathf.Max(0.01f, m_MinAltitude);
             m_MaxAltitude = Mathf.Max(m_MinAltitude, m_MaxAltitude);
             m_Period = Mathf.Max(0.01f, m_Period);

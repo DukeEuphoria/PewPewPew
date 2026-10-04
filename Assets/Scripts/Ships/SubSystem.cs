@@ -1,5 +1,6 @@
 using System;
 using PewPewPew.Core;
+using UnityEngine;
 
 namespace PewPewPew.Ships
 {
@@ -8,7 +9,7 @@ namespace PewPewPew.Ships
         public SubSystem(SubSystemDef def)
         {
             Def = def;
-            System = new ShipSystem(def, Array.Empty<EmissionPoint>());
+            System = new ShipSystem(def, Array.Empty<Transform>());
             Activation = new Activation(def.Mode, def.Duration, def.Cooldown, def.ActivePowerDrain);
         }
 
