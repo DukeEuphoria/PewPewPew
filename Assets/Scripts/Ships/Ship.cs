@@ -93,6 +93,7 @@ namespace PewPewPew.Ships
             if (m_HullDef.Mesh != null) m_HullMeshFilter.sharedMesh = m_HullDef.Mesh;
             m_ShieldVisual.transform.localScale = new Vector3(m_HullDef.Size.x, m_HullDef.Size.y, 1f);
             m_ThrusterEffects.Build(m_ThrusterDef, m_HullDef.ThrusterPoints);
+            m_ThrusterEffects.SetActive(m_Thrusting);
         }
 
         public override void OnStartServer()
