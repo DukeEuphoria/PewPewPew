@@ -22,6 +22,7 @@ namespace PewPewPew.Networking
         [SerializeField] private MenuScreenFlow m_MenuScreenFlow;
         [SerializeField] private GameObject m_ScreenRoot;
         [SerializeField] private bool m_InitialMenu;
+        [SerializeField, Tooltip("While this screen is shown, gameplay input (ship controls, HUD buttons) is ignored.")] private bool m_Blocking;
         [SerializeField] private bool m_NavigateOnEscape;
         [SerializeField] private MenuScreenId m_EscapeDestination;
         [SerializeField] private bool m_NavigateOnAnyKey;
@@ -31,6 +32,7 @@ namespace PewPewPew.Networking
 
         public abstract MenuScreenId ScreenId { get; }
         public bool IsInitialMenu => m_InitialMenu;
+        public bool IsBlocking => m_Blocking;
         public bool NavigatesOnEscape => m_NavigateOnEscape;
         public MenuScreenId EscapeDestination => m_EscapeDestination;
         public bool NavigatesOnAnyKey => m_NavigateOnAnyKey;

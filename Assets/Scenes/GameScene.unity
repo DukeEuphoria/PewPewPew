@@ -6842,7 +6842,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ed71dd2a63a4b5599a0a4d31b3314f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Networking.MenuRaycastInput
-  m_RaycastCamera: {fileID: 961739752}
+  m_RaycastCamera: {fileID: 4782798739835457935}
   m_ButtonLayers:
     serializedVersion: 2
     m_Bits: 32
@@ -6922,10 +6922,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Networking.MenuRaycastButton
   m_ScreenFlow: {fileID: 571052617526681473}
-  m_Destination: 1
+  m_Destination: 8
   m_OnActivate:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 4401344361458158103}
+        m_TargetAssemblyTypeName: PewPewPew.Networking.MenuButtonFunctions, Assembly-CSharp
+        m_MethodName: QuitToMainMenu
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!1 &1414629215696059303
 GameObject:
   m_ObjectHideFlags: 0
@@ -7637,6 +7649,7 @@ MonoBehaviour:
   m_MenuScreenFlow: {fileID: 571052617526681473}
   m_ScreenRoot: {fileID: 8939450031100775277}
   m_InitialMenu: 0
+  m_Blocking: 1
   m_NavigateOnEscape: 1
   m_EscapeDestination: 5
   m_NavigateOnAnyKey: 0
@@ -7828,6 +7841,7 @@ MonoBehaviour:
   m_MenuScreenFlow: {fileID: 571052617526681473}
   m_ScreenRoot: {fileID: 2357458322975279091}
   m_InitialMenu: 0
+  m_Blocking: 1
   m_NavigateOnEscape: 1
   m_EscapeDestination: 6
   m_NavigateOnAnyKey: 0
@@ -8263,7 +8277,7 @@ GameObject:
   - component: {fileID: 3313441704790991704}
   m_Layer: 0
   m_Name: MenuCamera
-  m_TagString: MainCamera
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

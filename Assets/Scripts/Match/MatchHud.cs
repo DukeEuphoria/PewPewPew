@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Mirror;
 using PewPewPew.Core;
+using PewPewPew.Networking;
 using PewPewPew.Ships;
 using UnityEngine;
 
@@ -15,6 +16,7 @@ namespace PewPewPew.Match
 
         private void OnGUI()
         {
+            if (MenuScreenFlow.AnyBlocking) return;
             MatchManager match = MatchManager.Instance;
             PlayerState local = PlayerState.Local;
             if (match == null || local == null || ShipCatalog.Instance == null) return;

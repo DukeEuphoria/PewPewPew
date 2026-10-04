@@ -197,7 +197,7 @@ MonoBehaviour:
   disconnectInactiveTimeout: 60
   exceptionsDisconnect: 1
   authenticator: {fileID: 53229502}
-  offlineScene: 
+  offlineScene: Assets/Scenes/SplashScreen.unity
   onlineScene: Assets/Scenes/GameScene.unity
   offlineSceneLoadDelay: 0
   playerPrefab: {fileID: 3556933776901847493, guid: c3ee734e0103188499489be9ecd3a398, type: 3}

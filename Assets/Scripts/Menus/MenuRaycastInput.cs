@@ -12,6 +12,11 @@ namespace PewPewPew.Networking
 
         private bool m_DetectionEnabled = true;
 
+        private void Awake()
+        {
+            if (m_RaycastCamera == null) Debug.LogWarning("MenuRaycastInput has no camera assigned; falling back to Camera.main, which may not render the menus.", this);
+        }
+
         public void SetDetectionEnabled(bool isEnabled)
         {
             m_DetectionEnabled = isEnabled;
