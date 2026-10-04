@@ -576,5 +576,69 @@ namespace PewPewPew.Tests
             activation.Stop();
             Assert.IsFalse(activation.IsActive);
         }
+
+        [Test]
+        public void Level_DrainsWhileTriggeredRunsThenRefillsThroughCooldown()
+        {
+            var activation = new Activation(ActivationMode.Triggered, 4f, 4f, 0);
+            PowerBank power = Charged(100);
+            Assert.AreEqual(1f, activation.Level);
+
+            activation.Press();
+            activation.Step(1f, power);
+            Assert.AreEqual(0.75f, activation.Level, 1e-5f);
+
+            for (int i = 0; i < 3; i++) activation.Step(1f, power);
+            Assert.IsTrue(activation.IsCoolingDown);
+            Assert.AreEqual(0f, activation.Level, 1e-5f);
+
+            activation.Step(1f, power);
+            activation.Step(1f, power);
+            Assert.AreEqual(0.5f, activation.Level, 1e-5f);
+        }
+
+        [Test]
+        public void Level_ToggleIsOneWhenOnAndZeroWhenOff()
+        {
+            var activation = new Activation(ActivationMode.Toggle, 0, 0, 0);
+            Assert.AreEqual(0f, activation.Level);
+            activation.Press();
+            activation.Step(1f, Charged(10));
+            Assert.AreEqual(1f, activation.Level);
+        }
+    }
+
+    public class VitalsMathTests
+    {
+        [Test]
+        public void Byte_RoundTripsWithinQuantisationAndClamps()
+        {
+            Assert.AreEqual(0.5f, VitalsMath.FromByte(VitalsMath.ToByte(0.5f)), 1f / 255f);
+            Assert.AreEqual(255, VitalsMath.ToByte(2f));
+            Assert.AreEqual(0, VitalsMath.ToByte(-1f));
+        }
+
+        [Test]
+        public void SubSystemSlots_StoreLevelAndState()
+        {
+            var vitals = new ShipVitals();
+            vitals.SetSubSystem(2, 1f, HudState.Cooling);
+            Assert.AreEqual(255, vitals.GetLevel(2));
+            Assert.AreEqual(HudState.Cooling, vitals.GetState(2));
+            Assert.AreEqual(HudState.Off, vitals.GetState(0));
+        }
+
+        [Test]
+        public void SetFraction_ScalesHealthAndPower()
+        {
+            var health = new ComponentHealth(40);
+            health.SetFraction(0.25f);
+            Assert.AreEqual(10f, health.Current);
+
+            var bank = new PowerBank(200);
+            bank.SetFraction(0.5f);
+            Assert.AreEqual(100f, bank.Stored);
+            Assert.AreEqual(0.5f, bank.Fraction);
+        }
     }
 }

@@ -11,6 +11,10 @@ namespace PewPewPew.Core
 
         public float Max { get; }
         public float Stored { get; private set; }
+        public float Fraction => Max > 0f ? Stored / Max : 0f;
+
+        /// For mirroring a value synced from the server.
+        public void SetFraction(float fraction) => Stored = Max * Mathf.Clamp01(fraction);
 
         public void Charge(float amount) => Stored = Mathf.Min(Max, Stored + amount);
 

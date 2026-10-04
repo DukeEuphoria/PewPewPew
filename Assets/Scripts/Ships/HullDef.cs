@@ -9,6 +9,8 @@ namespace PewPewPew.Ships
     {
         [SerializeField, Tooltip("Root (no parent) of the ship's visual hierarchy, in the XY plane with the nose toward +Y. Emission points must be this object or its descendants.")] private MeshRenderer m_Mesh;
         [SerializeField] private float m_Armour = 10f;
+        [SerializeField, Tooltip("HUD bar prefab for armour.")] private HudGauge m_ArmourBar;
+        [SerializeField, Tooltip("HUD bar prefab for the ship's power storage.")] private HudGauge m_PowerBar;
         [SerializeField] private float m_ArmourRepairRate = 1f;
         [SerializeField, Tooltip("Armour lost per point of damage it blocks.")] private float m_ArmourWearRatio = 0.1f;
         [SerializeField] private float m_MaxPowerStorage = 100f;
@@ -22,6 +24,8 @@ namespace PewPewPew.Ships
 
         public MeshRenderer Mesh => m_Mesh;
         public float Armour => m_Armour;
+        public HudGauge ArmourBar => m_ArmourBar;
+        public HudGauge PowerBar => m_PowerBar;
         public float ArmourRepairRate => m_ArmourRepairRate;
         public float ArmourWearRatio => m_ArmourWearRatio;
         public float MaxPowerStorage => m_MaxPowerStorage;

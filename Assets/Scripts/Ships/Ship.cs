@@ -12,7 +12,7 @@ namespace PewPewPew.Ships
 {
     /// Server-authoritative ship: mass, power, shield/armour/hull damage, weapons, thrust and collisions.
     /// Ships feel gravity but create none. Ship forward is local +Y. Components come from the synced loadout.
-    [RequireComponent(typeof(ThrusterEffects))]
+    [RequireComponent(typeof(ThrusterEffects), typeof(ShipHudSync))]
     public class Ship : SpaceObject, IDamageable
     {
         [SerializeField] private GameObject m_ExplosionPrefab;
@@ -45,6 +45,9 @@ namespace PewPewPew.Ships
         private readonly List<Transform> m_Visuals = new List<Transform>();
         private ShieldVisual m_ShieldVisual;
         private ThrusterEffects m_ThrusterEffects;
+        private ShipHudSync m_HudSync;
+        private readonly List<IHudElement> m_HudElements = new List<IHudElement>();
+        private readonly List<GameObject> m_HudObjects = new List<GameObject>();
         private Transform[] m_MainPoints;
         private Transform[] m_SecondaryPoints;
         private Transform[] m_ThrusterPoints;
@@ -81,7 +84,14 @@ namespace PewPewPew.Ships
         {
             base.Awake();
             m_ThrusterEffects = GetComponent<ThrusterEffects>();
+            m_HudSync = GetComponent<ShipHudSync>();
         }
+
+        private void OnDestroy() => DestroyHud();
+
+        public override void OnStartAuthority() => BuildHud();
+
+        public override void OnStopAuthority() => DestroyHud();
 
         public override void OnStartClient() => ApplyLoadout();
 
@@ -122,6 +132,31 @@ namespace PewPewPew.Ships
             m_Visuals.Add(m_ShieldVisual.transform);
             m_ThrusterEffects.Build(m_ThrusterDef, m_ThrusterPoints);
             m_ThrusterEffects.SetActive(m_Thrusting);
+            BuildSystems();
+        }
+
+        // Built on every client too so the owner's HUD can mirror the synced state; only the server steps them.
+        private void BuildSystems()
+        {
+            m_Hull = new ShipSystem(m_HullDef, Array.Empty<Transform>());
+            m_Systems.Add(m_Hull);
+            m_ShieldGenerator = new ShipSystem(m_ShieldDef, Array.Empty<Transform>());
+            m_Systems.Add(m_ShieldGenerator);
+            m_MainGun = new Gun(m_MainGunDef, new ShipSystem(m_MainGunDef, m_MainPoints, transform));
+            m_SecondaryGun = new Gun(m_SecondaryGunDef, new ShipSystem(m_SecondaryGunDef, m_SecondaryPoints, transform));
+            m_Thruster = new Thruster(m_ThrusterDef, new ShipSystem(m_ThrusterDef, m_ThrusterPoints, transform));
+            m_Systems.AddRange(new[] { m_MainGun.System, m_SecondaryGun.System, m_Thruster.System });
+
+            for (int i = 0; i < m_SubSystemDefs.Count; i++)
+            {
+                var subSystem = new SubSystem(m_SubSystemDefs[i]);
+                m_SubSystems.Add(subSystem);
+                m_Systems.Add(subSystem.System);
+            }
+
+            m_Shield = new ComponentHealth(m_ShieldDef.ShieldCapacity);
+            m_Armour = new ComponentHealth(m_HullDef.Armour);
+            m_Power = new PowerBank(m_HullDef.MaxPowerStorage + m_SubSystems.Sum(s => s.Def.ExtraPowerStorage));
         }
 
         // Combined bounds of every renderer under root, in this ship's local space.
@@ -149,26 +184,6 @@ namespace PewPewPew.Ships
         public override void OnStartServer()
         {
             ApplyLoadout();
-            m_Hull = new ShipSystem(m_HullDef, Array.Empty<Transform>());
-            m_Systems.Add(m_Hull);
-            m_ShieldGenerator = new ShipSystem(m_ShieldDef, Array.Empty<Transform>());
-            m_Systems.Add(m_ShieldGenerator);
-            m_MainGun = new Gun(m_MainGunDef, new ShipSystem(m_MainGunDef, m_MainPoints, transform));
-            m_SecondaryGun = new Gun(m_SecondaryGunDef, new ShipSystem(m_SecondaryGunDef, m_SecondaryPoints, transform));
-            m_Thruster = new Thruster(m_ThrusterDef, new ShipSystem(m_ThrusterDef, m_ThrusterPoints, transform));
-            m_Systems.AddRange(new[] { m_MainGun.System, m_SecondaryGun.System, m_Thruster.System });
-
-            for (int i = 0; i < m_SubSystemDefs.Count; i++)
-            {
-                var subSystem = new SubSystem(m_SubSystemDefs[i]);
-                m_SubSystems.Add(subSystem);
-                m_Systems.Add(subSystem.System);
-            }
-
-            m_Shield = new ComponentHealth(m_ShieldDef.ShieldCapacity);
-            m_Armour = new ComponentHealth(m_HullDef.Armour);
-            m_Power = new PowerBank(m_HullDef.MaxPowerStorage + m_SubSystems.Sum(s => s.Def.ExtraPowerStorage));
-
             m_Body.mass = m_Systems.Sum(system => system.Def.Mass);
             m_Body.angularDamping = m_HullDef.AngularDamping;
             m_Controls.AimPoint = m_Body.position + (Vector2)transform.up;
@@ -190,7 +205,87 @@ namespace PewPewPew.Ships
             m_Thruster.Step(deltaTime, m_Controls.Thrust, m_Power);
             m_Thruster.Apply(m_Body);
             SetThrusting(m_Thruster.IsFiring);
+            PublishVitals();
             CheckHull();
+        }
+
+        private void PublishVitals()
+        {
+            var vitals = new ShipVitals
+            {
+                Armour = VitalsMath.ToByte(m_Armour.Fraction),
+                Shield = VitalsMath.ToByte(m_Shield.Fraction),
+                Power = VitalsMath.ToByte(m_Power.Fraction),
+            };
+            for (int i = 0; i < m_SubSystems.Count; i++)
+            {
+                m_SubSystems[i].RefreshHud();
+                vitals.SetSubSystem(i, m_SubSystems[i].HudLevel, m_SubSystems[i].HudState);
+            }
+            m_HudSync.Publish(vitals);
+        }
+
+        private void Update()
+        {
+            if (m_HudElements.Count == 0) return;
+
+            if (!isServer) ApplyVitals(m_HudSync.Vitals);
+            foreach (IHudElement element in m_HudElements) element.Render();
+        }
+
+        private void ApplyVitals(ShipVitals vitals)
+        {
+            m_Armour.SetFraction(VitalsMath.FromByte(vitals.Armour));
+            m_Shield.SetFraction(VitalsMath.FromByte(vitals.Shield));
+            m_Power.SetFraction(VitalsMath.FromByte(vitals.Power));
+            for (int i = 0; i < m_SubSystems.Count; i++)
+            {
+                m_SubSystems[i].SetHud(VitalsMath.FromByte(vitals.GetLevel(i)), vitals.GetState(i));
+            }
+        }
+
+        // Rows top to bottom: armour, shield, power, weapons, sub systems.
+        private void BuildHud()
+        {
+            ShipHudRoot root = ShipHudRoot.Instance;
+            if (root == null || m_HudElements.Count > 0) return;
+
+            AddBar(root, m_HullDef.ArmourBar, 0, () => m_Armour.Fraction);
+            AddBar(root, m_ShieldDef.Bar, 1, () => m_Shield.Fraction);
+            AddBar(root, m_HullDef.PowerBar, 2, () => m_Power.Fraction);
+            m_HudElements.Add(m_MainGun);
+            m_HudElements.Add(m_SecondaryGun);
+            for (int i = 0; i < m_SubSystems.Count; i++)
+            {
+                m_SubSystems[i].Gauge = Spawn(root, m_SubSystems[i].Def.Gauge, ShipHudRoot.SubSystemRow, i, ShipLoadout.SubSystemSlots);
+                m_HudElements.Add(m_SubSystems[i]);
+            }
+        }
+
+        private void AddBar(ShipHudRoot root, HudGauge prefab, int row, Func<float> fraction)
+        {
+            HudGauge gauge = Spawn(root, prefab, row, 0, 1);
+            if (gauge != null) m_HudElements.Add(new BarElement(gauge, fraction));
+        }
+
+        private HudGauge Spawn(ShipHudRoot root, HudGauge prefab, int row, int column, int columns)
+        {
+            if (prefab == null) return null;
+
+            HudGauge gauge = Instantiate(prefab);
+            root.Place(gauge.Rect, row, column, columns);
+            m_HudObjects.Add(gauge.gameObject);
+            return gauge;
+        }
+
+        private void DestroyHud()
+        {
+            foreach (GameObject hudObject in m_HudObjects)
+            {
+                if (hudObject != null) Destroy(hudObject);
+            }
+            m_HudObjects.Clear();
+            m_HudElements.Clear();
         }
 
         [Command]
@@ -382,6 +477,7 @@ namespace PewPewPew.Ships
         [ClientRpc]
         private void RpcExploded()
         {
+            DestroyHud();
             foreach (Renderer renderer in GetComponentsInChildren<Renderer>()) renderer.enabled = false;
             if (m_ExplosionPrefab != null) Instantiate(m_ExplosionPrefab, transform.position, Quaternion.identity);
         }

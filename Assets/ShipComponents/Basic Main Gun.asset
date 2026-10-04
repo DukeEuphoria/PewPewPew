@@ -23,7 +23,7 @@ MonoBehaviour:
   m_MaxLaunchAngle: 5
   m_BulletsPerBurst: 1
   m_EmissionPointsUsed: 1
-  m_MaxEmissionPointsConsidered: 1
+  m_MaxEmissionPointsConsidered: 2
   m_SweepSpeed: 3
   m_Pattern: 2
   m_BulletPrefab: {fileID: 6268373826673617405, guid: 868a92a0ce788b84c923cc3b71e2f8a5, type: 3}

@@ -35,6 +35,21 @@ namespace PewPewPew.Core
 
         public float CooldownRemaining => m_CooldownLeft;
 
+        public bool IsCoolingDown => !IsActive && m_CooldownLeft > 0f;
+
+        /// 0..1 for display: drains while a Triggered system runs, refills through its cooldown (1 when ready); Toggle is 1 when on, 0 when off.
+        public float Level
+        {
+            get
+            {
+                if (IsActive) return m_Mode == ActivationMode.Triggered && m_Duration > 0f ? Clamp01(1f - m_Elapsed / m_Duration) : 1f;
+                if (m_Mode != ActivationMode.Triggered) return 0f;
+                return m_Cooldown > 0f ? Clamp01(1f - m_CooldownLeft / m_Cooldown) : 1f;
+            }
+        }
+
+        private static float Clamp01(float value) => value < 0f ? 0f : value > 1f ? 1f : value;
+
         public void Press()
         {
             switch (m_Mode)
