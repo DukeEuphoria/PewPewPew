@@ -56,7 +56,7 @@ namespace PewPewPew.Ships
         private float m_LastAttackTime;
 
         [SyncVar] private ShipLoadout m_Loadout;
-        [SyncVar(hook = nameof(OnThrustingChanged))] private bool m_Thrusting;
+        [SyncVar(hook = nameof(OnThrottleChanged))] private byte m_Throttle;
 
         /// Server only. The player this ship belongs to.
         public PlayerState Owner { get; private set; }
@@ -114,12 +114,12 @@ namespace PewPewPew.Ships
             }
 
             Bounds hullBounds = default;
-            if (m_HullDef.Mesh != null)
+            if (m_HullDef.HullPoints != null)
             {
-                MeshRenderer hull = Instantiate(m_HullDef.Mesh, transform);
-                m_MainPoints = m_HullDef.Bind(m_HullDef.MainWeaponPoints, hull.transform);
-                m_SecondaryPoints = m_HullDef.Bind(m_HullDef.SecondaryWeaponPoints, hull.transform);
-                m_ThrusterPoints = m_HullDef.Bind(m_HullDef.ThrusterPoints, hull.transform);
+                HullPoints hull = Instantiate(m_HullDef.HullPoints, transform);
+                m_MainPoints = BindPoints(m_HullDef.MainWeaponPoints, m_MainGunDef.MaxEmissionPointsConsidered, hull.transform);
+                m_SecondaryPoints = BindPoints(m_HullDef.SecondaryWeaponPoints, m_SecondaryGunDef.MaxEmissionPointsConsidered, hull.transform);
+                m_ThrusterPoints = BindPoints(m_HullDef.ThrusterPoints, m_ThrusterDef.EmissionPointsUsed, hull.transform);
                 hullBounds = LocalBounds(hull.transform);
                 m_Visuals.Add(hull.transform);
             }
@@ -131,7 +131,7 @@ namespace PewPewPew.Ships
             m_ShieldVisual.Fit(hullBounds);
             m_Visuals.Add(m_ShieldVisual.transform);
             m_ThrusterEffects.Build(m_ThrusterDef, m_ThrusterPoints);
-            m_ThrusterEffects.SetActive(m_Thrusting);
+            m_ThrusterEffects.SetThrottle(VitalsMath.FromByte(m_Throttle));
             BuildSystems();
         }
 
@@ -157,6 +157,13 @@ namespace PewPewPew.Ships
             m_Shield = new ComponentHealth(m_ShieldDef.ShieldCapacity);
             m_Armour = new ComponentHealth(m_HullDef.Armour);
             m_Power = new PowerBank(m_HullDef.MaxPowerStorage + m_SubSystems.Sum(s => s.Def.ExtraPowerStorage));
+        }
+
+        // The hull's points for a component, resolved to this ship's own hull instance.
+        private Transform[] BindPoints(Transform[] prefabPoints, int needed, Transform hullRoot)
+        {
+            Transform[] selected = m_HullDef.SelectPoints(prefabPoints, needed);
+            return selected == null ? Array.Empty<Transform>() : m_HullDef.Bind(selected, hullRoot);
         }
 
         // Combined bounds of every renderer under root, in this ship's local space.
@@ -204,7 +211,7 @@ namespace PewPewPew.Ships
             StepWeapons(deltaTime);
             m_Thruster.Step(deltaTime, m_Controls.Thrust, m_Power);
             m_Thruster.Apply(m_Body);
-            SetThrusting(m_Thruster.IsFiring);
+            SetThrottle(m_Thruster.Throttle);
             PublishVitals();
             CheckHull();
         }
@@ -359,15 +366,16 @@ namespace PewPewPew.Ships
         }
 
         // The hook only runs on remote clients, so the host updates its own effects directly.
-        private void SetThrusting(bool thrusting)
+        private void SetThrottle(float throttle)
         {
-            if (m_Thrusting == thrusting) return;
+            byte quantised = VitalsMath.ToByte(throttle);
+            if (m_Throttle == quantised) return;
 
-            m_Thrusting = thrusting;
-            if (isClient) m_ThrusterEffects.SetActive(thrusting);
+            m_Throttle = quantised;
+            if (isClient) m_ThrusterEffects.SetThrottle(VitalsMath.FromByte(quantised));
         }
 
-        private void OnThrustingChanged(bool oldValue, bool newValue) => m_ThrusterEffects.SetActive(newValue);
+        private void OnThrottleChanged(byte oldValue, byte newValue) => m_ThrusterEffects.SetThrottle(VitalsMath.FromByte(newValue));
 
         private void StepRotation(float deltaTime)
         {

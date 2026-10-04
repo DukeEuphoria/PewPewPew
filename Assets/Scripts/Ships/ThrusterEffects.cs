@@ -3,10 +3,18 @@ using UnityEngine;
 
 namespace PewPewPew.Ships
 {
-    /// Spawns the thruster's particle effect at each emission point in use and switches it on and off.
+    /// Spawns the thruster's particle effect at each emission point in use. The effect's authored emission rate and
+    /// start speed are the maximums, scaled by the throttle.
     public class ThrusterEffects : MonoBehaviour
     {
-        private readonly List<ParticleSystem> m_Particles = new List<ParticleSystem>();
+        private struct Emitter
+        {
+            public ParticleSystem Particles;
+            public float MaxRate;
+            public float MaxSpeed;
+        }
+
+        private readonly List<Emitter> m_Emitters = new List<Emitter>();
 
         public void Build(ThrusterDef def, Transform[] points)
         {
@@ -17,17 +25,30 @@ namespace PewPewPew.Ships
             {
                 GameObject effect = Instantiate(def.Effect, points[i]);
                 effect.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
-                m_Particles.AddRange(effect.GetComponentsInChildren<ParticleSystem>());
+                foreach (ParticleSystem particles in effect.GetComponentsInChildren<ParticleSystem>())
+                {
+                    m_Emitters.Add(new Emitter
+                    {
+                        Particles = particles,
+                        MaxRate = particles.emission.rateOverTimeMultiplier,
+                        MaxSpeed = particles.main.startSpeedMultiplier,
+                    });
+                }
             }
-            SetActive(false);
+            SetThrottle(0f);
         }
 
-        public void SetActive(bool active)
+        public void SetThrottle(float throttle)
         {
-            foreach (ParticleSystem particles in m_Particles)
+            throttle = Mathf.Clamp01(throttle);
+            foreach (Emitter emitter in m_Emitters)
             {
-                ParticleSystem.EmissionModule emission = particles.emission;
-                emission.enabled = active;
+                ParticleSystem.EmissionModule emission = emitter.Particles.emission;
+                emission.enabled = throttle > 0f;
+                emission.rateOverTimeMultiplier = emitter.MaxRate * throttle;
+
+                ParticleSystem.MainModule main = emitter.Particles.main;
+                main.startSpeedMultiplier = emitter.MaxSpeed * throttle;
             }
         }
     }

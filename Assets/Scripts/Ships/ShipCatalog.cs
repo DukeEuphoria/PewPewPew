@@ -61,26 +61,37 @@ namespace PewPewPew.Ships
             return true;
         }
 
-        /// Null if the loadout can launch; otherwise why not. The chosen guns and thruster need as many emission points on the hull as they use.
+        public bool IsCompatible(HullDef hull, GunDef gun, bool secondary)
+        {
+            Transform[] points = secondary ? hull.SecondaryWeaponPoints : hull.MainWeaponPoints;
+            return hull.SelectPoints(points, gun.MaxEmissionPointsConsidered) != null;
+        }
+
+        public bool IsCompatible(HullDef hull, ThrusterDef thruster)
+        {
+            return hull.SelectPoints(hull.ThrusterPoints, thruster.EmissionPointsUsed) != null;
+        }
+
+        /// Null if the loadout can launch; otherwise why not. The chosen guns and thruster need enough emission points on the hull.
         public string LaunchProblem(ShipLoadout loadout)
         {
             if (!IsValid(loadout)) return "The loadout is out of range.";
 
             HullDef hull = m_Hulls[loadout.Hull];
-            if (hull.Mesh == null) return $"{hull.name} has no mesh.";
+            if (hull.HullPoints == null) return $"{hull.name} has no hull prefab.";
             if (m_Shields[loadout.Shield].Visual == null) return $"{m_Shields[loadout.Shield].name} has no shield visual.";
 
             GunDef main = m_MainGuns[loadout.MainGun];
-            if (hull.MainPointCount < main.MaxEmissionPointsConsidered)
-                return $"{hull.name} has {hull.MainPointCount} main weapon points; {main.name} needs {main.MaxEmissionPointsConsidered}.";
+            if (!IsCompatible(hull, main, false))
+                return $"{hull.name} has too few main weapon points for {main.name} (needs {main.MaxEmissionPointsConsidered}).";
 
             GunDef secondary = m_SecondaryGuns[loadout.SecondaryGun];
-            if (hull.SecondaryPointCount < secondary.MaxEmissionPointsConsidered)
-                return $"{hull.name} has {hull.SecondaryPointCount} secondary weapon points; {secondary.name} needs {secondary.MaxEmissionPointsConsidered}.";
+            if (!IsCompatible(hull, secondary, true))
+                return $"{hull.name} has too few secondary weapon points for {secondary.name} (needs {secondary.MaxEmissionPointsConsidered}).";
 
             ThrusterDef thruster = m_Thrusters[loadout.Thruster];
-            if (hull.ThrusterPointCount < thruster.EmissionPointsUsed)
-                return $"{hull.name} has {hull.ThrusterPointCount} thruster points; {thruster.name} needs {thruster.EmissionPointsUsed}.";
+            if (!IsCompatible(hull, thruster))
+                return $"{hull.name} has too few thruster points for {thruster.name} (needs {thruster.EmissionPointsUsed}).";
 
             return null;
         }

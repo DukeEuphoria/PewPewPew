@@ -17,23 +17,14 @@ MonoBehaviour:
   m_ActivePowerDrain: 0
   m_MaxHealth: 100
   m_AutoRepairRate: 0.1
-  m_Mesh: {fileID: 1003, guid: 5796116e8cb54d8a876ada1c21950f0e, type: 3}
+  m_HullPoints: {fileID: 1006, guid: 5796116e8cb54d8a876ada1c21950f0e, type: 3}
   m_Armour: 10
   m_ArmourBar: {fileID: 104, guid: d4f3a4b5c6d77e8fb0a1b2c3d4e5f607, type: 3}
   m_PowerBar: {fileID: 104, guid: f6b5c6d7e8f990a1d2c3d4e5f6071829, type: 3}
-  m_ArmourRepairRate: 1
+  m_ArmourRepairRate: 0.5
   m_ArmourWearRatio: 0.1
   m_MaxPowerStorage: 100
   m_SubSystemSlots: 2
-  m_MainWeaponPoints:
-  - {fileID: 2001, guid: 5796116e8cb54d8a876ada1c21950f0e, type: 3}
-  - {fileID: 2011, guid: 5796116e8cb54d8a876ada1c21950f0e, type: 3}
-  m_ThrusterPoints:
-  - {fileID: 2021, guid: 5796116e8cb54d8a876ada1c21950f0e, type: 3}
-  - {fileID: 2031, guid: 5796116e8cb54d8a876ada1c21950f0e, type: 3}
-  m_SecondaryWeaponPoints:
-  - {fileID: 2041, guid: 5796116e8cb54d8a876ada1c21950f0e, type: 3}
-  - {fileID: 2051, guid: 5796116e8cb54d8a876ada1c21950f0e, type: 3}
-  m_Friction: 0.1
-  m_AngularAcceleration: 360
+  m_Friction: 0.3
+  m_AngularAcceleration: 600
   m_AngularDamping: 2

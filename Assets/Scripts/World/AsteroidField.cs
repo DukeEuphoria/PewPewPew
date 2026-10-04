@@ -33,9 +33,9 @@ namespace PewPewPew.World
 
         private void Awake() => Instance = this;
 
-        private void OnValidate()
+        protected override void OnValidate()
         {
-            m_MinSpeed = Mathf.Max(0f, m_MinSpeed);
+            base.OnValidate();
             m_MaxSpeed = Mathf.Max(m_MinSpeed, m_MaxSpeed);
         }
 

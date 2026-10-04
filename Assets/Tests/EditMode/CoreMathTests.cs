@@ -379,6 +379,14 @@ namespace PewPewPew.Tests
         }
 
         [Test]
+        public void CycleAvailable_SkipsUnavailableEntriesAndStaysPutWhenNoneFit()
+        {
+            Assert.AreEqual(2, LoadoutMath.CycleAvailable(0, 4, 1, false, i => i == 2));
+            Assert.AreEqual(3, LoadoutMath.CycleAvailable(0, 4, -1, false, i => i >= 2));
+            Assert.AreEqual(1, LoadoutMath.CycleAvailable(1, 4, 1, false, i => false));
+        }
+
+        [Test]
         public void Cycle_EmptyListStaysAtFirst()
         {
             Assert.AreEqual(0, LoadoutMath.Cycle(0, 0, 1, false));

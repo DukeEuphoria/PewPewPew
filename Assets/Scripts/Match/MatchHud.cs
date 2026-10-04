@@ -59,11 +59,12 @@ namespace PewPewPew.Match
         {
             ShipCatalog catalog = ShipCatalog.Instance;
             bool changed = false;
-            changed |= Choose("Hull", ref m_Pending.Hull, catalog.Hulls, false);
-            changed |= Choose("Shield", ref m_Pending.Shield, catalog.Shields, false);
-            changed |= Choose("Main gun", ref m_Pending.MainGun, catalog.MainGuns, false);
-            changed |= Choose("Secondary gun", ref m_Pending.SecondaryGun, catalog.SecondaryGuns, false);
-            changed |= Choose("Thruster", ref m_Pending.Thruster, catalog.Thrusters, false);
+            changed |= Choose("Hull", ref m_Pending.Hull, catalog.Hulls, false, null);
+            HullDef hull = catalog.Hulls[m_Pending.Hull];
+            changed |= Choose("Shield", ref m_Pending.Shield, catalog.Shields, false, null);
+            changed |= Choose("Main gun", ref m_Pending.MainGun, catalog.MainGuns, false, i => catalog.IsCompatible(hull, catalog.MainGuns[i], false));
+            changed |= Choose("Secondary gun", ref m_Pending.SecondaryGun, catalog.SecondaryGuns, false, i => catalog.IsCompatible(hull, catalog.SecondaryGuns[i], true));
+            changed |= Choose("Thruster", ref m_Pending.Thruster, catalog.Thrusters, false, i => catalog.IsCompatible(hull, catalog.Thrusters[i]));
 
             int slots = catalog.Hulls[m_Pending.Hull].SubSystemSlots;
             for (int slot = 0; slot < ShipLoadout.SubSystemSlots; slot++)
@@ -75,7 +76,7 @@ namespace PewPewPew.Match
                     continue;
                 }
 
-                if (Choose($"Sub system {slot + 1}", ref index, catalog.SubSystems, true))
+                if (Choose($"Sub system {slot + 1}", ref index, catalog.SubSystems, true, null))
                 {
                     m_Pending.SetSubSystem(slot, index);
                     changed = true;
@@ -100,16 +101,24 @@ namespace PewPewPew.Match
             if (match.State == MatchState.Ended && GUILayout.Button("Return to lobby")) match.CmdReturnToLobby();
         }
 
-        private static bool Choose<T>(string label, ref int index, T[] items, bool allowNone) where T : UnityEngine.Object
+        // A current choice the hull cannot take is moved to the next one it can.
+        private static bool Choose<T>(string label, ref int index, T[] items, bool allowNone, Func<int, bool> available) where T : UnityEngine.Object
         {
             int before = index;
+            if (available != null && index >= 0 && !available(index)) index = LoadoutMath.CycleAvailable(index, items.Length, 1, allowNone, available);
+
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(100f));
-            if (GUILayout.Button("<", GUILayout.Width(24f))) index = LoadoutMath.Cycle(index, items.Length, -1, allowNone);
+            if (GUILayout.Button("<", GUILayout.Width(24f))) index = Step(index, items.Length, -1, allowNone, available);
             GUILayout.Label(index >= 0 ? items[index].name : "None", GUILayout.Width(140f));
-            if (GUILayout.Button(">", GUILayout.Width(24f))) index = LoadoutMath.Cycle(index, items.Length, 1, allowNone);
+            if (GUILayout.Button(">", GUILayout.Width(24f))) index = Step(index, items.Length, 1, allowNone, available);
             GUILayout.EndHorizontal();
             return index != before;
+        }
+
+        private static int Step(int index, int count, int step, bool allowNone, Func<int, bool> available)
+        {
+            return available == null ? LoadoutMath.Cycle(index, count, step, allowNone) : LoadoutMath.CycleAvailable(index, count, step, allowNone, available);
         }
     }
 }

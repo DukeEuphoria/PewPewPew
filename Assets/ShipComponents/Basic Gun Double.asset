@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 83df16d1b165b714eb77c76937203041, type: 3}
-  m_Name: Basic Main Gun
+  m_Name: Basic Gun Double
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Weapons.GunDef
   m_Mass: 1
   m_PassivePowerDrain: 0.1

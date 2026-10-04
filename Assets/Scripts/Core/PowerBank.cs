@@ -7,6 +7,7 @@ namespace PewPewPew.Core
         public PowerBank(float max)
         {
             Max = max;
+            Stored = max;
         }
 
         public float Max { get; }

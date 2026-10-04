@@ -17,6 +17,7 @@ namespace PewPewPew.Ships
         public ThrusterDef Def { get; }
         public ShipSystem System { get; }
         public bool IsFiring => m_Throttle > 0.01f;
+        public float Throttle => m_Throttle;
 
         public void Step(float deltaTime, float demand, PowerBank power)
         {
