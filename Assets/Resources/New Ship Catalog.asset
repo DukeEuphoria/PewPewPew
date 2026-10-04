@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1489cf664c0c77448b27a3f11a9a6e7f, type: 3}
+  m_Name: New Ship Catalog
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ShipCatalog
+  m_Hulls:
+  - {fileID: 11400000, guid: c62a257dee9c08747b0c3cf501e32266, type: 2}
+  m_Shields:
+  - {fileID: 11400000, guid: ade6892f6ec45fb4d95322c2977ac6fd, type: 2}
+  m_MainGuns:
+  - {fileID: 11400000, guid: a34c1f1292b218445ae722274065ddc8, type: 2}
+  m_SecondaryGuns:
+  - {fileID: 11400000, guid: a99c3271ae21d66438bc92870c2b3d2f, type: 2}
+  m_Thrusters:
+  - {fileID: 11400000, guid: db93b4f63dc695540ba9297cafc8b54e, type: 2}
+  m_SubSystems:
+  - {fileID: 11400000, guid: ab43ac7267f00c64cb7eaabe5931d034, type: 2}

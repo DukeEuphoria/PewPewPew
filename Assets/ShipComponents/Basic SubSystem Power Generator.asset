@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce4478d1cdebda1469ceb754a2cebeee, type: 3}
+  m_Name: Basic SubSystem Power Generator
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.SubSystemDef
+  m_Mass: 1
+  m_PassivePowerDrain: -2
+  m_ActivePowerDrain: 0
+  m_MaxHealth: 100
+  m_AutoRepairRate: 0
+  m_Mode: 0
+  m_Duration: 5
+  m_Cooldown: 10
+  m_ExtraPowerStorage: 50
+  m_HullRepairRate: 0
+  m_FireRateMultiplier: 1
