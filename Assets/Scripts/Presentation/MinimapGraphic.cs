@@ -1,4 +1,5 @@
 using PewPewPew.Core;
+using PewPewPew.GameSystems;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -38,6 +39,13 @@ namespace PewPewPew.Presentation
             if (m_Root.LocalShip == null) return;
             float scale = radius / m_Root.DisplayRange;
             Vector2 origin = m_Root.LocalShip.transform.position;
+            GameWorld world = GameWorld.Instance;
+            if (world != null)
+            {
+                Vector2 fenceCenter = center + ((Vector2)world.transform.position - origin) * scale;
+                Arc(mesh, fenceCenter, world.WorldRadius * scale, Vector2.up, 180f,
+                    m_Root.WorldEdgeWidth, m_Root.WorldEdgeColor);
+            }
             if (m_Root.ShowScan) DrawScans(mesh, center, origin, scale);
             foreach (MinimapRoot.Contact contact in m_Root.Contacts)
             {

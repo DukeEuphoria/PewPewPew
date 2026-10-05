@@ -27,6 +27,8 @@ namespace PewPewPew.Presentation
         [SerializeField] private Color m_ShipColor = new Color(1f, 0.4f, 0.3f);
         [SerializeField] private Color m_OrbitalColor = new Color(0.3f, 0.8f, 1f);
         [SerializeField] private Color m_AsteroidColor = new Color(0.75f, 0.75f, 0.7f);
+        [SerializeField] private Color m_WorldEdgeColor = new Color(1f, 0.8f, 0.2f, 0.9f);
+        [SerializeField, Min(0f)] private float m_WorldEdgeWidth = 2f;
         [SerializeField] private bool m_ShowScan = true;
 
         internal sealed class Contact
@@ -71,6 +73,8 @@ namespace PewPewPew.Presentation
         internal Color BorderColor => m_BorderColor;
         internal Color BackgroundColor => WithOpacity(m_BackgroundColor, m_BackgroundOpacity);
         internal Color PlayerColor => WithOpacity(m_PlayerColor, m_MarkerOpacity);
+        internal Color WorldEdgeColor => WithOpacity(m_WorldEdgeColor, m_MarkerOpacity);
+        internal float WorldEdgeWidth => Mathf.Max(0f, m_WorldEdgeWidth);
 
         private void Awake()
         {

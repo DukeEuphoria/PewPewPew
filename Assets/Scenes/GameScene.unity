@@ -253,9 +253,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2d1e2f3a4b55c6d9e7f8091a2b3c4d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ShipHudRoot
-  m_Width: 240
-  m_BarHeight: 16
+  m_Width: 360
+  m_BarHeight: 32
   m_Gap: 4
+--- !u!1001 &7000020
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 7000002}
+    m_Modifications: []
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 16ab382849714b01a56c83d7eca731df, type: 3}
+--- !u!224 &7000021 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 101, guid: 16ab382849714b01a56c83d7eca731df, type: 3}
+  m_PrefabInstance: {fileID: 7000020}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &78772253
 GameObject:
   m_ObjectHideFlags: 0
@@ -759,7 +777,7 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   m_Prefab: {fileID: -5408043447532512473, guid: 2c5a49b6703718749b2591508366ffc6, type: 3}
-  m_TargetCount: 100
+  m_TargetCount: 500
   m_MinSize: 1
   m_MaxSize: 10
   m_MinSpeed: 3
@@ -6704,7 +6722,7 @@ MonoBehaviour:
   m_Softening: 1
   m_MaxGravityDistance: 1000
   m_WorldRadius: 1000
-  m_EdgeStrength: 50
+  m_EdgeStrength: 500
 --- !u!4 &1736620757
 Transform:
   m_ObjectHideFlags: 0
@@ -9702,24 +9720,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!1001 &7000020
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 7000002}
-    m_Modifications: []
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 16ab382849714b01a56c83d7eca731df, type: 3}
---- !u!224 &7000021 stripped
-RectTransform:
-  m_CorrespondingSourceObject: {fileID: 101, guid: 16ab382849714b01a56c83d7eca731df, type: 3}
-  m_PrefabInstance: {fileID: 7000020}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
