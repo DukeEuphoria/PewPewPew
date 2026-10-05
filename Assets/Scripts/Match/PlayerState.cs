@@ -85,6 +85,8 @@ namespace PewPewPew.Match
         {
             if (!ShipCatalog.Instance.IsValid(loadout)) return;
 
+            if (PlayerPalette.IndexOf(loadout.Colour0) < 0) loadout.Colour0 = PlayerPalette.DefaultPrimary;
+            if (PlayerPalette.IndexOf(loadout.Colour1) < 0) loadout.Colour1 = PlayerPalette.DefaultSecondary;
             loadout.Colour0.a = 255;
             loadout.Colour1.a = 255;
             m_Loadout = loadout;
