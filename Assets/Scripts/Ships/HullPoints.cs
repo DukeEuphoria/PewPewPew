@@ -10,9 +10,11 @@ namespace PewPewPew.Ships
         [SerializeField] private Transform[] m_MainWeapon;
         [SerializeField] private Transform[] m_SecondaryWeapon;
         [SerializeField] private Transform[] m_Thruster;
+        [SerializeField] private Transform[] m_SubSystems = new Transform[4];
 
         public Transform[] MainWeapon => m_MainWeapon;
         public Transform[] SecondaryWeapon => m_SecondaryWeapon;
         public Transform[] Thruster => m_Thruster;
+        public Transform[] SubSystems => m_SubSystems;
     }
 }

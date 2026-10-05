@@ -11,10 +11,10 @@ namespace PewPewPew.Ships
         private static readonly Color ReadyColor = new Color(0.7f, 1f, 0.8f);
         private static readonly Color DisabledColor = new Color(0.4f, 0.4f, 0.4f);
 
-        public SubSystem(SubSystemDef def)
+        public SubSystem(SubSystemDef def, Transform mount = null, Transform space = null)
         {
             Def = def;
-            System = new ShipSystem(def, Array.Empty<Transform>());
+            System = new ShipSystem(def, mount == null ? Array.Empty<Transform>() : new[] { mount }, space);
             Activation = new Activation(def.Mode, def.Duration, def.Cooldown, def.ActivePowerDrain);
         }
 
@@ -26,6 +26,7 @@ namespace PewPewPew.Ships
         public HudState HudState { get; private set; }
 
         public bool IsRunning => !System.Health.IsDestroyed && Activation.IsActive;
+        public bool IsRadarActive => Def.Radar != null && HudState == HudState.Active && System.Points.Length > 0;
 
         /// Server only: takes the display values from the real state.
         public void RefreshHud()

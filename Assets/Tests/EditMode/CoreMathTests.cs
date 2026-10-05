@@ -7,6 +7,61 @@ using Random = System.Random;
 
 namespace PewPewPew.Tests
 {
+    public class RadarMathTests
+    {
+        [Test]
+        public void RadarPower_DrawsThreePerSecondAndStopsOnEmpty()
+        {
+            var power = new PowerBank(3f);
+            var activation = new Activation(ActivationMode.Toggle, 0f, 0f, 3f);
+            activation.Press();
+            activation.Step(0.5f, power);
+            Assert.IsTrue(activation.IsActive);
+            Assert.AreEqual(1.5f, power.Stored);
+            activation.Step(0.5f, power);
+            Assert.IsTrue(activation.IsActive);
+            Assert.AreEqual(0f, power.Stored);
+            activation.Step(0.1f, power);
+            Assert.IsFalse(activation.IsActive);
+        }
+
+        [Test]
+        public void Pulse_DelaysByDistanceAndDoesNotSkipLongUpdates()
+        {
+            Assert.IsFalse(RadarMath.PulseCrosses(-0.01d, 0.4d, 100f, 100f, 2f));
+            Assert.IsTrue(RadarMath.PulseCrosses(0.9d, 1.1d, 100f, 100f, 2f));
+            Assert.IsFalse(RadarMath.PulseCrosses(1.1d, 1.2d, 100f, 100f, 2f));
+            Assert.IsTrue(RadarMath.PulseCrosses(1.2d, 4d, 100f, 100f, 2f));
+        }
+
+        [Test]
+        public void Sweep_WrapsAndCoversSkippedAngles()
+        {
+            Assert.IsTrue(RadarMath.SweepCrosses(3.9d, 4.2d, 5f, 180f, 90f));
+            Assert.IsTrue(RadarMath.SweepCrosses(0d, 10d, 170f, 180f, 90f));
+            Assert.IsFalse(RadarMath.SweepCrosses(0.1d, 0.2d, 90f, 180f, 90f));
+        }
+
+        [Test]
+        public void Cone_ReflectsAtEdgesAndRejectsOutsideBearings()
+        {
+            Assert.IsTrue(RadarMath.SweepCrosses(0.9d, 1.1d, 0f, 30f, 30f));
+            Assert.IsTrue(RadarMath.SweepCrosses(2.9d, 3.1d, 0f, 30f, 30f));
+            Assert.IsFalse(RadarMath.SweepCrosses(0d, 100d, 31f, 30f, 30f));
+            Assert.AreEqual(30f, RadarMath.SweepAngle(2d, 30f, 30f));
+            Assert.AreEqual(0f, RadarMath.SweepAngle(3d, 30f, 30f));
+        }
+
+        [Test]
+        public void Fade_ExpiresAndClamps()
+        {
+            Assert.AreEqual(1f, RadarMath.Fade(0d, 2f));
+            Assert.AreEqual(0.5f, RadarMath.Fade(1d, 2f));
+            Assert.AreEqual(0f, RadarMath.Fade(3d, 2f));
+            Assert.AreEqual(0f, RadarMath.Fade(0d, 0f));
+        }
+    }
+
     public class GravityMathTests
     {
         [Test]

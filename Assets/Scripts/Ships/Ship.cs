@@ -44,6 +44,8 @@ namespace PewPewPew.Ships
         private GunDef m_SecondaryGunDef;
         private ThrusterDef m_ThrusterDef;
         private readonly List<SubSystemDef> m_SubSystemDefs = new List<SubSystemDef>();
+        private readonly List<int> m_SubSystemSlots = new List<int>();
+        private Transform[] m_SubSystemPoints = Array.Empty<Transform>();
         private bool m_Applied;
         private readonly List<Transform> m_Visuals = new List<Transform>();
         private ShieldVisual m_ShieldVisual;
@@ -69,6 +71,8 @@ namespace PewPewPew.Ships
 
         /// Instantiated visuals (hull first, then shield); empty until the loadout is applied.
         public IReadOnlyList<Transform> Visuals => m_Visuals;
+        public IReadOnlyList<SubSystem> SubSystems => m_SubSystems;
+        public bool HasExploded => m_Exploded;
 
         /// Server only, before the ship is spawned. The loadout must already be validated.
         public void Initialize(ShipLoadout loadout, PlayerState owner)
@@ -113,7 +117,11 @@ namespace PewPewPew.Ships
             for (int slot = 0; slot < Mathf.Min(ShipLoadout.SubSystemSlots, m_HullDef.SubSystemSlots); slot++)
             {
                 int index = m_Loadout.GetSubSystem(slot);
-                if (index >= 0) m_SubSystemDefs.Add(catalog.SubSystems[index]);
+                if (index >= 0)
+                {
+                    m_SubSystemDefs.Add(catalog.SubSystems[index]);
+                    m_SubSystemSlots.Add(slot);
+                }
             }
 
             Bounds hullBounds = default;
@@ -124,6 +132,15 @@ namespace PewPewPew.Ships
                 m_MainPoints = BindPoints(m_HullDef.MainWeaponPoints, m_MainGunDef.MaxEmissionPointsConsidered, hull.transform);
                 m_SecondaryPoints = BindPoints(m_HullDef.SecondaryWeaponPoints, m_SecondaryGunDef.MaxEmissionPointsConsidered, hull.transform);
                 m_ThrusterPoints = BindPoints(m_HullDef.ThrusterPoints, m_ThrusterDef.EmissionPointsUsed, hull.transform);
+                Transform[] mounts = m_HullDef.HullPoints.SubSystems;
+                m_SubSystemPoints = new Transform[m_SubSystemDefs.Count];
+                for (int index = 0; index < m_SubSystemPoints.Length; index++)
+                {
+                    int slot = m_SubSystemSlots[index];
+                    if (mounts == null || slot >= mounts.Length || mounts[slot] == null) continue;
+                    Transform[] bound = m_HullDef.Bind(new[] { mounts[slot] }, hull.transform);
+                    if (bound.Length > 0) m_SubSystemPoints[index] = bound[0];
+                }
                 hullBounds = LocalBounds(hull.transform);
                 m_Visuals.Add(hull.transform);
             }
@@ -153,7 +170,8 @@ namespace PewPewPew.Ships
 
             for (int i = 0; i < m_SubSystemDefs.Count; i++)
             {
-                var subSystem = new SubSystem(m_SubSystemDefs[i]);
+                Transform mount = i < m_SubSystemPoints.Length ? m_SubSystemPoints[i] : null;
+                var subSystem = new SubSystem(m_SubSystemDefs[i], mount, transform);
                 m_SubSystems.Add(subSystem);
                 m_Systems.Add(subSystem.System);
             }
@@ -238,9 +256,9 @@ namespace PewPewPew.Ships
 
         private void Update()
         {
+            if (m_Applied && !isServer && isOwned) ApplyVitals(m_HudSync.Vitals);
             if (m_HudElements.Count == 0) return;
 
-            if (!isServer) ApplyVitals(m_HudSync.Vitals);
             foreach (IHudElement element in m_HudElements) element.Render();
         }
 
@@ -268,7 +286,7 @@ namespace PewPewPew.Ships
             m_HudElements.Add(m_SecondaryGun);
             for (int i = 0; i < m_SubSystems.Count; i++)
             {
-                m_SubSystems[i].Gauge = Spawn(root, m_SubSystems[i].Def.Gauge, ShipHudRoot.SubSystemRow, i, ShipLoadout.SubSystemSlots);
+                m_SubSystems[i].Gauge = Spawn(root, m_SubSystems[i].Def.Gauge, ShipHudRoot.SubSystemRow, m_SubSystemSlots[i], ShipLoadout.SubSystemSlots);
                 m_HudElements.Add(m_SubSystems[i]);
             }
         }
@@ -311,7 +329,8 @@ namespace PewPewPew.Ships
         [Command]
         public void CmdPressSubSystem(int index)
         {
-            if (index >= 0 && index < m_SubSystems.Count) m_SubSystems[index].Activation.Press();
+            int installed = m_SubSystemSlots.IndexOf(index);
+            if (installed >= 0) m_SubSystems[installed].Activation.Press();
         }
 
         public HitResult TakeDamage(float amount, Vector2 point, PlayerState attacker)
@@ -489,6 +508,7 @@ namespace PewPewPew.Ships
         [ClientRpc]
         private void RpcExploded()
         {
+            m_Exploded = true;
             DestroyHud();
             foreach (Renderer renderer in GetComponentsInChildren<Renderer>()) renderer.enabled = false;
             if (m_ExplosionPrefab != null) Instantiate(m_ExplosionPrefab, transform.position, Quaternion.identity);
