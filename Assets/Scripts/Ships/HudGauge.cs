@@ -28,6 +28,9 @@ namespace PewPewPew.Ships
             if (m_Fill != null) m_Fill.fillAmount = Mathf.Clamp01(fraction);
         }
 
-        public void SetColor(Color color) => m_Fill.color = color;
+        public void SetColor(Color color)
+        {
+            if (m_Fill != null) m_Fill.color = color;
+        }
     }
 }

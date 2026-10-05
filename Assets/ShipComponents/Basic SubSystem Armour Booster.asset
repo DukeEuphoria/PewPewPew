@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ce4478d1cdebda1469ceb754a2cebeee, type: 3}
-  m_Name: Basic SubSystem Radar Cone
+  m_Name: Basic SubSystem Armour Booster
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.SubSystemDef
-  m_Mass: 1
+  m_Mass: 5
   m_PassivePowerDrain: 0
-  m_ActivePowerDrain: 3
+  m_ActivePowerDrain: 0
   m_MaxHealth: 100
   m_AutoRepairRate: 0
   m_Mode: 1
@@ -25,6 +25,6 @@ MonoBehaviour:
   m_FireRateMultiplier: 1
   m_ThrustForceMultiplier: 1
   m_ShieldHealthMultiplier: 1
-  m_ArmourStrengthMultiplier: 1
-  m_Gauge: {fileID: 104, guid: 5f7467532841cda40bd764d7315d8726, type: 3}
-  m_Radar: {fileID: 11400000, guid: 561b27d29f3341d5be2b2dc67ec6fb9a, type: 2}
+  m_ArmourStrengthMultiplier: 1.5
+  m_Gauge: {fileID: 104, guid: 14f24fa5a1c322245a3d655e88b2a859, type: 3}
+  m_Radar: {fileID: 0}

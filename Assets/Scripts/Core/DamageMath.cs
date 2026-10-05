@@ -23,10 +23,11 @@ namespace PewPewPew.Core
         }
 
         /// Armour blocks up to its current value per impact and wears down by wearRatio of what it blocked.
-        public static float AbsorbArmour(float damage, ComponentHealth armour, float wearRatio)
+        public static float AbsorbArmour(float damage, ComponentHealth armour, float wearRatio, float strengthMultiplier = 1f)
         {
-            float blocked = Mathf.Min(damage, armour.Current);
-            armour.Damage(blocked * wearRatio);
+            strengthMultiplier = Mathf.Max(1f, strengthMultiplier);
+            float blocked = Mathf.Min(damage, armour.Current * strengthMultiplier);
+            armour.Damage(blocked * wearRatio / strengthMultiplier);
             return damage - blocked;
         }
 
