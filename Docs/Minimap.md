@@ -1,7 +1,7 @@
 # Minimap and Radar
 
 The game scene contains a Minimap prefab instance under HudCanvas. For other
-scenes, place `Assets/Prefabs/Minimap.prefab` under a Canvas, just like ShipHudRoot.
+scenes, place `Assets/Prefabs/HUD/Minimap.prefab` under a Canvas, just like ShipHudRoot.
 It only runs in Play Mode and always hides without a living locally owned ship.
 
 ## Minimap Inspector
