@@ -1,4 +1,5 @@
 using Mirror;
+using System.Collections.Generic;
 using PewPewPew.GameSystems;
 using UnityEngine;
 
@@ -9,6 +10,13 @@ namespace PewPewPew.World
     public abstract class SpaceObject : NetworkBehaviour
     {
         protected Rigidbody2D m_Body;
+        private static readonly HashSet<SpaceObject> m_ActiveObjects = new HashSet<SpaceObject>();
+
+        public static IReadOnlyCollection<SpaceObject> ActiveObjects => m_ActiveObjects;
+
+        protected virtual void OnEnable() => m_ActiveObjects.Add(this);
+
+        protected virtual void OnDisable() => m_ActiveObjects.Remove(this);
 
         protected virtual void Awake()
         {

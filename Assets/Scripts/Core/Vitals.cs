@@ -50,8 +50,8 @@ namespace PewPewPew.Core
 
     public static class VitalsMath
     {
-        public static byte ToByte(float fraction) => (byte)Mathf.RoundToInt(Mathf.Clamp01(fraction) * 255f);
+        public static byte ToByte(float fraction) => (byte)Mathf.RoundToInt(Mathf.Clamp01(fraction) * byte.MaxValue);
 
-        public static float FromByte(byte value) => value / 255f;
+        public static float FromByte(byte value) => value / (float)byte.MaxValue;
     }
 }

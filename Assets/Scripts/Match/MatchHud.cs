@@ -11,8 +11,15 @@ namespace PewPewPew.Match
     /// Placeholder immediate-mode UI: match status, scoreboard, loadout selection and the deploy / host buttons.
     public class MatchHud : MonoBehaviour
     {
+        private const float PanelMargin = 10f;
+        private const float PanelWidth = 320f;
+        private const float LabelWidth = 100f;
+        private const float ArrowButtonWidth = 24f;
+        private const float ValueWidth = 140f;
+        private const float SwatchGridGap = 12f;
         private ShipLoadout m_Pending;
         private bool m_HasPending;
+        private bool m_ShowColours;
 
         private void OnGUI()
         {
@@ -24,10 +31,12 @@ namespace PewPewPew.Match
             if (!m_HasPending)
             {
                 m_Pending = local.Loadout;
+                PlayerColourStore.Current.Load(out m_Pending.Colour0, out m_Pending.Colour1);
+                local.CmdSetLoadout(m_Pending);
                 m_HasPending = true;
             }
 
-            GUILayout.BeginArea(new Rect(10f, 10f, 320f, Screen.height - 20f));
+            GUILayout.BeginArea(new Rect(PanelMargin, PanelMargin, PanelWidth, Screen.height - 2f * PanelMargin));
             GUILayout.Label(StatusText(match));
             DrawScoreboard();
             if (!local.HasShip && match.State != MatchState.Ended) DrawDeployPanel(match, local);
@@ -86,6 +95,8 @@ namespace PewPewPew.Match
             }
             if (changed) local.CmdSetLoadout(m_Pending);
 
+            DrawColourPicker(local);
+
             double wait = local.RespawnAt - NetworkTime.time;
             string problem = catalog.LaunchProblem(m_Pending);
             if (problem != null) GUILayout.Label(problem);
@@ -93,6 +104,54 @@ namespace PewPewPew.Match
             string label = wait > 0.0 ? $"Deploy in {wait:0}s" : match.State == MatchState.Lobby ? (local.Ready ? "Ready" : "Ready up") : "Deploy";
             if (GUILayout.Button(label)) local.CmdDeploy();
             GUI.enabled = true;
+        }
+
+        private void DrawColourPicker(PlayerState local)
+        {
+            m_ShowColours = GUILayout.Toggle(m_ShowColours, "Ship colours");
+            if (!m_ShowColours) return;
+
+            GUILayout.BeginHorizontal();
+            bool changed = DrawSwatches(ref m_Pending.Colour0);
+            GUILayout.Space(SwatchGridGap);
+            changed |= DrawSwatches(ref m_Pending.Colour1);
+            GUILayout.EndHorizontal();
+            if (!changed) return;
+
+            PlayerColourStore.Current.Save(m_Pending.Colour0, m_Pending.Colour1);
+            local.CmdSetLoadout(m_Pending);
+        }
+
+        private static bool DrawSwatches(ref Color32 selected)
+        {
+            const float cell = 16f;
+            Rect grid = GUILayoutUtility.GetRect(cell * PlayerPalette.Columns, cell * PlayerPalette.Rows, GUILayout.Width(cell * PlayerPalette.Columns));
+            int selectedIndex = PlayerPalette.IndexOf(selected);
+            bool changed = false;
+            Color previous = GUI.color;
+
+            for (int i = 0; i < PlayerPalette.Count; i++)
+            {
+                var rect = new Rect(grid.x + (i % PlayerPalette.Columns) * cell, grid.y + (i / PlayerPalette.Columns) * cell, cell, cell);
+                if (i == selectedIndex)
+                {
+                    GUI.color = Color.white;
+                    GUI.DrawTexture(rect, Texture2D.whiteTexture);
+                }
+
+                GUI.color = PlayerPalette.Colour(i);
+                GUI.DrawTexture(new Rect(rect.x + 2f, rect.y + 2f, cell - 4f, cell - 4f), Texture2D.whiteTexture);
+
+                if (Event.current.type == EventType.MouseDown && rect.Contains(Event.current.mousePosition))
+                {
+                    selected = PlayerPalette.Colour(i);
+                    changed = true;
+                    Event.current.Use();
+                }
+            }
+
+            GUI.color = previous;
+            return changed;
         }
 
         private static void DrawHostButtons(MatchManager match)
@@ -110,10 +169,10 @@ namespace PewPewPew.Match
             if (available != null && index >= 0 && !available(index)) index = LoadoutMath.CycleAvailable(index, items.Length, 1, allowNone, available);
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(100f));
-            if (GUILayout.Button("<", GUILayout.Width(24f))) index = Step(index, items.Length, -1, allowNone, available);
-            GUILayout.Label(index >= 0 ? items[index].name : "None", GUILayout.Width(140f));
-            if (GUILayout.Button(">", GUILayout.Width(24f))) index = Step(index, items.Length, 1, allowNone, available);
+            GUILayout.Label(label, GUILayout.Width(LabelWidth));
+            if (GUILayout.Button("<", GUILayout.Width(ArrowButtonWidth))) index = Step(index, items.Length, -1, allowNone, available);
+            GUILayout.Label(index >= 0 ? items[index].name : "None", GUILayout.Width(ValueWidth));
+            if (GUILayout.Button(">", GUILayout.Width(ArrowButtonWidth))) index = Step(index, items.Length, 1, allowNone, available);
             GUILayout.EndHorizontal();
             return index != before;
         }

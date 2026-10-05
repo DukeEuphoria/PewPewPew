@@ -93,6 +93,16 @@ namespace PewPewPew.Ships
             if (!IsCompatible(hull, thruster))
                 return $"{hull.name} has too few thruster points for {thruster.name} (needs {thruster.EmissionPointsUsed}).";
 
+            Transform[] mounts = hull.HullPoints.SubSystems;
+            for (int slot = 0; slot < hull.SubSystemSlots; slot++)
+            {
+                int index = loadout.GetSubSystem(slot);
+                if (index < 0 || m_SubSystems[index].Radar == null) continue;
+                if (mounts == null || slot >= mounts.Length || mounts[slot] == null ||
+                    hull.Bind(new[] { mounts[slot] }, hull.HullPoints.transform).Length == 0)
+                    return $"{hull.name} needs a subsystem attachment point in slot {slot + 1} for radar.";
+            }
+
             return null;
         }
     }

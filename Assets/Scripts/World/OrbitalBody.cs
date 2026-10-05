@@ -8,6 +8,8 @@ namespace PewPewPew.World
     /// position from the shared network time, so nothing needs to be synced.
     public class OrbitalBody : SpaceObject
     {
+        // Keeps altitudes and period positive so the orbit maths never divides by zero.
+        private const float MinOrbitValue = 0.01f;
         [SerializeField] private OrbitalBody m_Parent;
         [SerializeField] private float m_MinAltitude = 100f;
         [SerializeField] private float m_MaxAltitude = 100f;
@@ -27,9 +29,9 @@ namespace PewPewPew.World
         protected override void OnValidate()
         {
             base.OnValidate();
-            m_MinAltitude = Mathf.Max(0.01f, m_MinAltitude);
+            m_MinAltitude = Mathf.Max(MinOrbitValue, m_MinAltitude);
             m_MaxAltitude = Mathf.Max(m_MinAltitude, m_MaxAltitude);
-            m_Period = Mathf.Max(0.01f, m_Period);
+            m_Period = Mathf.Max(MinOrbitValue, m_Period);
         }
 
         protected override void OnPhysicsStep()

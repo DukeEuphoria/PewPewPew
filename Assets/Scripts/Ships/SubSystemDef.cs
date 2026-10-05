@@ -1,4 +1,5 @@
 using PewPewPew.Core;
+using PewPewPew.Presentation;
 using UnityEngine;
 
 namespace PewPewPew.Ships
@@ -14,6 +15,7 @@ namespace PewPewPew.Ships
         [SerializeField, Tooltip("Hull health repaired per second while active.")] private float m_HullRepairRate;
         [SerializeField, Tooltip("Multiplies every gun's fire rate while active.")] private float m_FireRateMultiplier = 1f;
         [SerializeField, Tooltip("HUD radial gauge prefab.")] private HudGauge m_Gauge;
+        [SerializeField] private RadarEmitterDef m_Radar;
 
         public ActivationMode Mode => m_Mode;
         public float Duration => m_Duration;
@@ -22,5 +24,6 @@ namespace PewPewPew.Ships
         public float HullRepairRate => m_HullRepairRate;
         public float FireRateMultiplier => m_FireRateMultiplier;
         public HudGauge Gauge => m_Gauge;
+        public RadarEmitterDef Radar => m_Radar;
     }
 }

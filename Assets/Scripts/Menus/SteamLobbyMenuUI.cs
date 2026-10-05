@@ -11,6 +11,10 @@ namespace PewPewPew.Networking
 {
     public class SteamLobbyMenuUI : MonoBehaviour
     {
+        private const int DefaultMaxPlayers = 8;
+        private const float ControlHeight = 38f;
+        private static readonly Color NormalButtonColour = new Color(0.13f, 0.37f, 0.42f, 1f);
+        private static readonly Color SelectedButtonColour = new Color(0.12f, 0.58f, 0.52f, 1f);
         [FormerlySerializedAs("menuScreenFlow"), SerializeField] private MenuScreenFlow m_MenuScreenFlow;
         [FormerlySerializedAs("steamLobbyManager"), SerializeField] private SteamLobbyManager m_SteamLobbyManager;
         [SerializeField] private Canvas m_Canvas;
@@ -38,7 +42,7 @@ namespace PewPewPew.Networking
 
         private Font m_Font;
         private GameMode m_SelectedGameMode;
-        private int m_MaxPlayers = 8;
+        private int m_MaxPlayers = DefaultMaxPlayers;
         private bool m_FriendsOnly;
         private Lobby? m_PendingInviteLobby;
 
@@ -134,12 +138,12 @@ namespace PewPewPew.Networking
             GameObject buttonObject = new GameObject("Button", typeof(RectTransform));
             buttonObject.transform.SetParent(parent, false);
             Image image = buttonObject.AddComponent<Image>();
-            image.color = new Color(0.13f, 0.37f, 0.42f, 1f);
+            image.color = NormalButtonColour;
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = image;
             LayoutElement buttonLayout = buttonObject.AddComponent<LayoutElement>();
-            buttonLayout.minHeight = 38f;
-            buttonLayout.preferredHeight = 38f;
+            buttonLayout.minHeight = ControlHeight;
+            buttonLayout.preferredHeight = ControlHeight;
 
             Text buttonText = CreateText(buttonObject.transform, label, 15, FontStyle.Bold);
             buttonText.alignment = TextAnchor.MiddleCenter;
@@ -158,8 +162,8 @@ namespace PewPewPew.Networking
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             LayoutElement rowLayoutElement = row.AddComponent<LayoutElement>();
-            rowLayoutElement.minHeight = 38f;
-            rowLayoutElement.preferredHeight = 38f;
+            rowLayoutElement.minHeight = ControlHeight;
+            rowLayoutElement.preferredHeight = ControlHeight;
             return row;
         }
 
@@ -184,14 +188,14 @@ namespace PewPewPew.Networking
             if (m_FreeForAllButton != null)
             {
                 m_FreeForAllButton.targetGraphic.color = gameMode == GameMode.FreeForAll
-                    ? new Color(0.12f, 0.58f, 0.52f, 1f)
-                    : new Color(0.13f, 0.37f, 0.42f, 1f);
+                    ? SelectedButtonColour
+                    : NormalButtonColour;
             }
             if (m_TeamDeathmatchButton != null)
             {
                 m_TeamDeathmatchButton.targetGraphic.color = gameMode == GameMode.TeamDeathmatch
-                    ? new Color(0.12f, 0.58f, 0.52f, 1f)
-                    : new Color(0.13f, 0.37f, 0.42f, 1f);
+                    ? SelectedButtonColour
+                    : NormalButtonColour;
             }
         }
 
@@ -217,7 +221,7 @@ namespace PewPewPew.Networking
 
         private void SetMaxPlayers(int maxPlayers)
         {
-            m_MaxPlayers = Mathf.Clamp(maxPlayers, 2, 16);
+            m_MaxPlayers = Mathf.Clamp(maxPlayers, SteamLobbyManager.MinPlayers, SteamLobbyManager.MaxPlayers);
             if (m_PlayerCountText != null) m_PlayerCountText.text = m_MaxPlayers.ToString();
         }
 

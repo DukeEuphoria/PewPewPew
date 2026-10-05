@@ -8,6 +8,7 @@ namespace PewPewPew.Weapons
     [CreateAssetMenu(menuName = "PewPewPew/Gun")]
     public class GunDef : ShipComponentDef
     {
+        private const float MinFireRate = 0.01f;
         [SerializeField] private float m_FireRate = 5f;
         [SerializeField] private float m_LaunchSpeed = 40f;
         [SerializeField] private float m_MinLaunchAngle = -5f;
@@ -36,9 +37,9 @@ namespace PewPewPew.Weapons
 
         private void OnValidate()
         {
-            m_FireRate = Mathf.Max(0.01f, m_FireRate);
+            m_FireRate = Mathf.Max(MinFireRate, m_FireRate);
             m_BulletsPerBurst = Mathf.Max(1, m_BulletsPerBurst);
-            m_MaxEmissionPointsConsidered = Mathf.Clamp(m_MaxEmissionPointsConsidered, 1, 4);
+            m_MaxEmissionPointsConsidered = Mathf.Clamp(m_MaxEmissionPointsConsidered, 1, HullPoints.MaxEmissionPoints);
             m_EmissionPointsUsed = Mathf.Clamp(m_EmissionPointsUsed, 1, m_MaxEmissionPointsConsidered);
             m_MaxLaunchAngle = Mathf.Max(m_MinLaunchAngle, m_MaxLaunchAngle);
         }

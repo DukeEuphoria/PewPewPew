@@ -1,8 +1,9 @@
 using System;
+using UnityEngine;
 
 namespace PewPewPew.Core
 {
-    /// A ship's chosen components as indices into the ShipCatalog; sub system slots use -1 for empty.
+    /// A ship's chosen components as indices into the ShipCatalog; sub system slots use -1 for empty. Colour0 and Colour1 are the player's two ship colours.
     public struct ShipLoadout
     {
         public const int SubSystemSlots = 4;
@@ -16,8 +17,18 @@ namespace PewPewPew.Core
         public int SubSystem1;
         public int SubSystem2;
         public int SubSystem3;
+        public Color32 Colour0;
+        public Color32 Colour1;
 
-        public static ShipLoadout Empty => new ShipLoadout { SubSystem0 = -1, SubSystem1 = -1, SubSystem2 = -1, SubSystem3 = -1 };
+        public static ShipLoadout Empty => new ShipLoadout
+        {
+            SubSystem0 = -1,
+            SubSystem1 = -1,
+            SubSystem2 = -1,
+            SubSystem3 = -1,
+            Colour0 = PlayerPalette.DefaultPrimary,
+            Colour1 = PlayerPalette.DefaultSecondary,
+        };
 
         public int GetSubSystem(int slot)
         {

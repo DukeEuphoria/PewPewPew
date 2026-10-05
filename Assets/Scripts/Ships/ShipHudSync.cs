@@ -8,6 +8,7 @@ namespace PewPewPew.Ships
     [RequireComponent(typeof(Ship))]
     public class ShipHudSync : NetworkBehaviour
     {
+        private const float HudSyncInterval = 0.1f;
         [SyncVar] private ShipVitals m_Vitals;
 
         public ShipVitals Vitals => m_Vitals;
@@ -15,7 +16,7 @@ namespace PewPewPew.Ships
         private void Awake()
         {
             syncMode = SyncMode.Owner;
-            syncInterval = 0.1f;
+            syncInterval = HudSyncInterval;
         }
 
         [Server]

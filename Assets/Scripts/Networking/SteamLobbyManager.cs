@@ -19,6 +19,8 @@ namespace PewPewPew.Networking
         public static SteamLobbyManager Instance { get; private set; }
 
         public const int MaxPlayers = 16;
+        public const int MinPlayers = 2;
+        private const int LobbySearchMaxResults = 50;
 
         // Custom lobby data keys used to filter/display lobbies in the browser UI.
         private const string m_HostAddressKey = "HostAddress";
@@ -121,9 +123,9 @@ namespace PewPewPew.Networking
                 return;
             }
 
-            if (maxPlayers < 2 || maxPlayers > MaxPlayers)
+            if (maxPlayers < MinPlayers || maxPlayers > MaxPlayers)
             {
-                StatusChanged?.Invoke($"Player count must be between 2 and {MaxPlayers}.");
+                StatusChanged?.Invoke($"Player count must be between {MinPlayers} and {MaxPlayers}.");
                 return;
             }
 
@@ -189,7 +191,7 @@ namespace PewPewPew.Networking
                 {
                     Lobby[] publicLobbies = await SteamMatchmaking.LobbyList
                         .WithKeyValue(m_GameTagKey, m_GameTagValue)
-                        .WithMaxResults(50)
+                        .WithMaxResults(LobbySearchMaxResults)
                         .RequestAsync();
 
                     if (publicLobbies != null)
@@ -294,7 +296,7 @@ namespace PewPewPew.Networking
                 var activeLobbyIds = new HashSet<ulong>();
                 Lobby[] lobbies = await SteamMatchmaking.LobbyList
                     .WithKeyValue(m_GameTagKey, m_GameTagValue)
-                    .WithMaxResults(50)
+                    .WithMaxResults(LobbySearchMaxResults)
                     .RequestAsync();
 
                 if (lobbies == null) return;

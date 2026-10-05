@@ -68,7 +68,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
+  m_RenderingLayerMask: 4
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 1058f0fbda1e84e6c9e18b7ebf1d0c4b, type: 2}
@@ -196,7 +196,7 @@ MonoBehaviour:
   m_HealthPerSize: 20
   m_FragmentScatterSpeed: 2
   m_CollisionDamageMultiplier: 1
-  m_OrbitalBodyDamageMultiplier: 10
+  m_OrbitalBodyDamageMultiplier: 100
 --- !u!114 &7246261333361110013
 MonoBehaviour:
   m_ObjectHideFlags: 0
