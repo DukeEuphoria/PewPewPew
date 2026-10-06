@@ -89,7 +89,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1c0d1e2f3a44b5c8d6e7f8091a2b3c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HudGauge
-  m_Fill: {fileID: 0}
+  m_Fill: {fileID: 7416872715534361048}
   m_Icon: {fileID: 0}
 --- !u!1 &1868731116255730375
 GameObject:
