@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ce4478d1cdebda1469ceb754a2cebeee, type: 3}
-  m_Name: Basic SubSystem Radar
+  m_Name: Basic SubSystem Shield Booster
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.SubSystemDef
   m_Mass: 1
   m_PassivePowerDrain: 0
-  m_ActivePowerDrain: 3
+  m_ActivePowerDrain: 10
   m_MaxHealth: 100
   m_AutoRepairRate: 0
   m_Mode: 1
@@ -23,5 +23,8 @@ MonoBehaviour:
   m_ExtraPowerStorage: 0
   m_HullRepairRate: 0
   m_FireRateMultiplier: 1
-  m_Gauge: {fileID: 104, guid: a7c6d7e8f9a0a1b2e3d4e5f60718293a, type: 3}
-  m_Radar: {fileID: 11400000, guid: 4a3b25e8d70948a2a1d5c65e9b067831, type: 2}
+  m_ThrustForceMultiplier: 1
+  m_ShieldHealthMultiplier: 1.5
+  m_ArmourStrengthMultiplier: 1
+  m_Gauge: {fileID: 104, guid: 4a91e579a7c5e4a4ab697f7e1a1574c5, type: 3}
+  m_Radar: {fileID: 0}

@@ -19,6 +19,7 @@ namespace PewPewPew.Ships
         public ShipSystem System { get; }
         public bool IsFiring => m_Throttle > FiringThrottleThreshold;
         public float Throttle => m_Throttle;
+        public float ForceMultiplier { get; set; } = 1f;
 
         public void Step(float deltaTime, float demand, PowerBank power)
         {
@@ -36,7 +37,7 @@ namespace PewPewPew.Ships
             for (int i = 0; i < used; i++)
             {
                 Transform point = System.Points[i];
-                body.AddForceAtPosition((Vector2)point.up * (Def.Force * m_Throttle / used), point.position);
+                body.AddForceAtPosition((Vector2)point.up * (Def.Force * ForceMultiplier * m_Throttle / used), point.position);
             }
         }
     }

@@ -31,6 +31,7 @@ namespace PewPewPew.Ships
         private ShipSystem m_ShieldGenerator;
         private ComponentHealth m_Shield;
         private ComponentHealth m_Armour;
+        private float m_ArmourStrengthMultiplier = 1f;
         private PowerBank m_Power;
         private Gun m_MainGun;
         private Gun m_SecondaryGun;
@@ -347,7 +348,7 @@ namespace PewPewPew.Ships
             if (afterShield < amount) RpcShieldHit(m_Shield.Fraction);
             if (afterShield <= 0f) return HitResult.ShieldAbsorbed;
 
-            float leftover = DamageMath.AbsorbArmour(afterShield, m_Armour, m_HullDef.ArmourWearRatio);
+            float leftover = DamageMath.AbsorbArmour(afterShield, m_Armour, m_HullDef.ArmourWearRatio, m_ArmourStrengthMultiplier);
             if (leftover <= 0f) return HitResult.NoDamage;
 
             Vector2 localPoint = transform.InverseTransformPoint(point);
@@ -414,6 +415,9 @@ namespace PewPewPew.Ships
         private void StepSubSystems(float deltaTime)
         {
             float fireRateMultiplier = 1f;
+            float thrustForceMultiplier = 1f;
+            float shieldHealthMultiplier = 1f;
+            float armourStrengthMultiplier = 1f;
             foreach (SubSystem subSystem in m_SubSystems)
             {
                 if (subSystem.System.Health.IsDestroyed) subSystem.Activation.Stop();
@@ -422,9 +426,15 @@ namespace PewPewPew.Ships
                 if (!subSystem.IsRunning) continue;
                 m_Hull.Health.Repair(subSystem.Def.HullRepairRate * deltaTime);
                 fireRateMultiplier *= subSystem.Def.FireRateMultiplier;
+                thrustForceMultiplier *= subSystem.Def.ThrustForceMultiplier;
+                shieldHealthMultiplier *= subSystem.Def.ShieldHealthMultiplier;
+                armourStrengthMultiplier *= subSystem.Def.ArmourStrengthMultiplier;
             }
             m_MainGun.RateMultiplier = fireRateMultiplier;
             m_SecondaryGun.RateMultiplier = fireRateMultiplier;
+            m_Thruster.ForceMultiplier = thrustForceMultiplier;
+            m_Shield.SetMax(m_ShieldDef.ShieldCapacity * shieldHealthMultiplier);
+            m_ArmourStrengthMultiplier = armourStrengthMultiplier;
         }
 
         private void StepWeapons(float deltaTime)

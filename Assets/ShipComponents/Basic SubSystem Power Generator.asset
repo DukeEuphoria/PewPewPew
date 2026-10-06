@@ -20,7 +20,8 @@ MonoBehaviour:
   m_Mode: 0
   m_Duration: 5
   m_Cooldown: 10
-  m_ExtraPowerStorage: 50
+  m_ExtraPowerStorage: 0
   m_HullRepairRate: 0
   m_FireRateMultiplier: 1
-  m_Gauge: {fileID: 104, guid: a7c6d7e8f9a0a1b2e3d4e5f60718293a, type: 3}
+  m_Gauge: {fileID: 104, guid: 281ba1df7567b514ab49ad99c36d1e44, type: 3}
+  m_Radar: {fileID: 0}

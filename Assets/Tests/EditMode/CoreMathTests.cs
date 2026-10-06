@@ -108,6 +108,23 @@ namespace PewPewPew.Tests
     public class DamageMathTests
     {
         [Test]
+        public void AbsorbArmour_BoostsBlockingAndKeepsWearInBaseUnits()
+        {
+            var armour = new ComponentHealth(10f);
+            Assert.AreEqual(30f, DamageMath.AbsorbArmour(50f, armour, 0.1f, 2f));
+            Assert.AreEqual(9f, armour.Current, 1e-5f);
+            Assert.AreEqual(41f, DamageMath.AbsorbArmour(50f, armour, 0f), 1e-5f);
+        }
+
+        [Test]
+        public void AbsorbArmour_BoostNeverBlocksMoreThanTheHit()
+        {
+            var armour = new ComponentHealth(10f);
+            Assert.AreEqual(0f, DamageMath.AbsorbArmour(5f, armour, 0.1f, 2f));
+            Assert.AreEqual(9.75f, armour.Current, 1e-5f);
+        }
+
+        [Test]
         public void Impact_HeadOnIsMaximumAndGlancingIsMinimal()
         {
             float headOn = DamageMath.Impact(new Vector2(0, -10), Vector2.up, 1);
@@ -179,6 +196,34 @@ namespace PewPewPew.Tests
 
     public class ComponentHealthTests
     {
+        [Test]
+        public void SetMax_PreservesFractionOnBoostAndRemoval()
+        {
+            var shield = new ComponentHealth(100f);
+            shield.Damage(40f);
+            shield.SetMax(200f);
+            Assert.AreEqual(200f, shield.Max);
+            Assert.AreEqual(120f, shield.Current, 1e-5f);
+            shield.Damage(20f);
+            shield.SetMax(100f);
+            Assert.AreEqual(50f, shield.Current, 1e-5f);
+            for (int cycle = 0; cycle < 10; cycle++)
+            {
+                shield.SetMax(200f);
+                shield.SetMax(100f);
+            }
+            Assert.AreEqual(50f, shield.Current, 1e-5f);
+        }
+
+        [Test]
+        public void SetMax_DoesNotRestoreDepletedShield()
+        {
+            var shield = new ComponentHealth(100f);
+            shield.Damage(100f);
+            shield.SetMax(200f);
+            Assert.AreEqual(0f, shield.Current);
+        }
+
         [Test]
         public void Damage_ClampsAtZeroAndFlagsDestroyed()
         {

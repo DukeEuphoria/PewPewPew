@@ -32,9 +32,12 @@ namespace PewPewPew.Ships
             element.SetParent(transform, false);
             element.anchorMin = Vector2.zero;
             element.anchorMax = Vector2.zero;
-            element.pivot = Vector2.zero;
-            element.anchoredPosition = new Vector2(column * (cellWidth + m_Gap), bottom);
+            element.pivot = Vector2.one * 0.5f;
+            element.anchoredPosition = new Vector2(column * (cellWidth + m_Gap) + cellWidth * 0.5f, bottom + height * 0.5f);
             element.sizeDelta = new Vector2(cellWidth, height);
+            HudGauge gauge = element.GetComponent<HudGauge>();
+            if (row != SubSystemRow && gauge != null && gauge.PlaceIcon(m_Gap))
+                element.anchoredPosition += Vector2.right * (height + m_Gap);
         }
     }
 }
