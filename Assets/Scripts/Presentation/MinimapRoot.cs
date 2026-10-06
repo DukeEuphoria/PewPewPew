@@ -15,7 +15,7 @@ namespace PewPewPew.Presentation
         [SerializeField] private MinimapActivation m_Activation = MinimapActivation.AlwaysOn;
         [SerializeField] private RadarEmitterDef m_DefaultEmitter;
         [SerializeField, Min(1f)] private float m_DisplayRange = 500f;
-        [SerializeField, Min(0.1f)] private float m_DisplayRefreshRate = 30f;
+        [SerializeField, Min(0.1f)] private float m_DisplayRefreshRate = 15f;
         [SerializeField] private bool m_FadeContacts = true;
         [SerializeField, Min(0.1f)] private float m_ContactLifetime = 3f;
         [SerializeField, Range(0f, 1f)] private float m_BackgroundOpacity = 0.35f;

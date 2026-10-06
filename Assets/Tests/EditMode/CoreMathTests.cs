@@ -554,6 +554,46 @@ namespace PewPewPew.Tests
         }
     }
 
+    public class DustMathTests
+    {
+        [Test]
+        public void Fade_RampsInAndOutAndIsZeroOutsideLife()
+        {
+            Assert.AreEqual(0f, DustMath.Fade(0f, 4f, 1f));
+            Assert.AreEqual(0.5f, DustMath.Fade(0.5f, 4f, 1f), 1e-5f);
+            Assert.AreEqual(1f, DustMath.Fade(2f, 4f, 1f));
+            Assert.AreEqual(0.5f, DustMath.Fade(3.5f, 4f, 1f), 1e-5f);
+            Assert.AreEqual(0f, DustMath.Fade(4f, 4f, 1f));
+            Assert.AreEqual(0f, DustMath.Fade(5f, 4f, 1f));
+        }
+
+        [Test]
+        public void Fade_ShortLifetimeNeverReachesFull()
+        {
+            Assert.AreEqual(0.5f, DustMath.Fade(0.5f, 1f, 1f), 1e-5f);
+        }
+
+        [Test]
+        public void StreakAmount_StartsAtFractionAndSaturates()
+        {
+            Assert.AreEqual(0f, DustMath.StreakAmount(30f, 100f, 0.5f));
+            Assert.AreEqual(0f, DustMath.StreakAmount(50f, 100f, 0.5f));
+            Assert.AreEqual(0.5f, DustMath.StreakAmount(75f, 100f, 0.5f), 1e-5f);
+            Assert.AreEqual(1f, DustMath.StreakAmount(100f, 100f, 0.5f));
+            Assert.AreEqual(1f, DustMath.StreakAmount(300f, 100f, 0.5f));
+            Assert.AreEqual(0f, DustMath.StreakAmount(300f, 0f, 0.5f));
+        }
+
+        [Test]
+        public void Wrap_KeepsValuesInRange()
+        {
+            Assert.AreEqual(0.5f, DustMath.Wrap(0.5f, 1.2f), 1e-5f);
+            Assert.AreEqual(-1.1f, DustMath.Wrap(1.3f, 1.2f), 1e-5f);
+            Assert.AreEqual(1.1f, DustMath.Wrap(-1.3f, 1.2f), 1e-5f);
+            Assert.AreEqual(0.2f, DustMath.Wrap(5f, 1.2f), 1e-4f);
+        }
+    }
+
     public class SpeedMathTests
     {
         [Test]

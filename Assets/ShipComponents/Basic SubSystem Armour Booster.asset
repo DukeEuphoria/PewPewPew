@@ -17,7 +17,7 @@ MonoBehaviour:
   m_ActivePowerDrain: 0
   m_MaxHealth: 100
   m_AutoRepairRate: 0
-  m_Mode: 1
+  m_Mode: 0
   m_Duration: 5
   m_Cooldown: 10
   m_ExtraPowerStorage: 0

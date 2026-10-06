@@ -777,7 +777,7 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   m_Prefab: {fileID: -5408043447532512473, guid: 2c5a49b6703718749b2591508366ffc6, type: 3}
-  m_TargetCount: 500
+  m_TargetCount: 250
   m_MinSize: 1
   m_MaxSize: 10
   m_MinSpeed: 3
@@ -1852,8 +1852,38 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5b998901d09d1849955536b2f6e6e0f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Presentation.SpaceDust
-  m_RateAtRest: 2
-  m_RateAtFullSpeed: 60
+  m_Layers:
+  - Count: 70
+    Depth: 0.25
+    Size: 0.01
+    Tint: {r: 0.7, g: 0.8, b: 1, a: 0.45}
+    Z: 30
+    SortingOrder: -30
+  - Count: 50
+    Depth: 0.55
+    Size: 0.01
+    Tint: {r: 0.8, g: 0.9, b: 1, a: 0.65}
+    Z: 20
+    SortingOrder: -20
+  - Count: 35
+    Depth: 1
+    Size: 0.015
+    Tint: {r: 1, g: 1, b: 1, a: 0.85}
+    Z: 10
+    SortingOrder: -10
+  - Count: 8
+    Depth: 1.4
+    Size: 0.2
+    Tint: {r: 1, g: 1, b: 1, a: 0.5}
+    Z: -10
+    SortingOrder: 10
+  m_MinLifetime: 4
+  m_MaxLifetime: 8
+  m_FadeTime: 0.6
+  m_StreakStart: 0.5
+  m_StreakSeconds: 0.08
+  m_MaxStreak: 0.15
+  m_MinScreenSize: 0.003
 --- !u!199 &1554690183
 ParticleSystemRenderer:
   serializedVersion: 7
@@ -2124,7 +2154,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 1, b: 1, a: 1}
+      maxColor: {r: 0.1976986, g: 1, b: 0, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -2188,7 +2218,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 50
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -6720,8 +6750,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.GameSystems.GameWorld
   m_GravityConstant: 1
   m_Softening: 1
-  m_MaxGravityDistance: 1000
-  m_WorldRadius: 1000
+  m_MaxGravityDistance: 500
+  m_WorldRadius: 500
   m_EdgeStrength: 500
 --- !u!4 &1736620757
 Transform:
@@ -9084,7 +9114,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!23 &6432813971311905901
 MeshRenderer:
   m_ObjectHideFlags: 0

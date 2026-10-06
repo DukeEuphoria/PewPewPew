@@ -37,7 +37,7 @@ namespace PewPewPew.Ships
             for (int i = 0; i < used; i++)
             {
                 Transform point = System.Points[i];
-                body.AddForceAtPosition((Vector2)point.up * (Def.Force * ForceMultiplier * m_Throttle / used), point.position);
+                body.AddForceAtPosition((Vector2)point.up * (Def.Force * ForceMultiplier * m_Throttle), point.position);
             }
         }
     }

@@ -467,13 +467,16 @@ namespace PewPewPew.Ships
 
         private void StepPower(float deltaTime)
         {
-            foreach (ShipSystem system in m_Systems.Where(s => !s.Health.IsDestroyed && s.Def.PassivePowerDrain < 0f))
+            for (int i = 0; i < m_Systems.Count; i++)
             {
-                m_Power.Charge(-system.Def.PassivePowerDrain * deltaTime);
+                ShipSystem system = m_Systems[i];
+                if (!system.Health.IsDestroyed && system.Def.PassivePowerDrain < 0f) m_Power.Charge(-system.Def.PassivePowerDrain * deltaTime);
             }
 
-            foreach (ShipSystem system in m_Systems.Where(s => !s.Health.IsDestroyed && s.Def.PassivePowerDrain > 0f))
+            for (int i = 0; i < m_Systems.Count; i++)
             {
+                ShipSystem system = m_Systems[i];
+                if (system.Health.IsDestroyed || system.Def.PassivePowerDrain <= 0f) continue;
                 float needed = system.Def.PassivePowerDrain * deltaTime;
                 float shortfall = needed - m_Power.Draw(needed);
                 system.Health.Damage(shortfall * m_UnpoweredDamagePerPower);
@@ -496,9 +499,10 @@ namespace PewPewPew.Ships
         private void StepRepairs(float deltaTime)
         {
             m_Armour.Repair(m_HullDef.ArmourRepairRate * deltaTime);
-            foreach (ShipSystem system in m_Systems.Where(s => !s.Health.IsDestroyed))
+            for (int i = 0; i < m_Systems.Count; i++)
             {
-                system.Health.Repair(system.Def.AutoRepairRate * deltaTime);
+                ShipSystem system = m_Systems[i];
+                if (!system.Health.IsDestroyed) system.Health.Repair(system.Def.AutoRepairRate * deltaTime);
             }
         }
 
