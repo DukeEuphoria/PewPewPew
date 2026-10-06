@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ShipCatalog
   m_Hulls:
   - {fileID: 11400000, guid: c62a257dee9c08747b0c3cf501e32266, type: 2}
+  - {fileID: 11400000, guid: 8e862cb649c9b174691906d24f9ee5d4, type: 2}
   m_Shields:
   - {fileID: 11400000, guid: ade6892f6ec45fb4d95322c2977ac6fd, type: 2}
   m_MainGuns:
@@ -26,6 +27,7 @@ MonoBehaviour:
   m_Thrusters:
   - {fileID: 11400000, guid: db93b4f63dc695540ba9297cafc8b54e, type: 2}
   - {fileID: 11400000, guid: e2d41a03bac820e4fa9cb46198b99d8c, type: 2}
+  - {fileID: 11400000, guid: ba1483e81abaeae4e9e5a793e9460861, type: 2}
   m_SubSystems:
   - {fileID: 11400000, guid: ab43ac7267f00c64cb7eaabe5931d034, type: 2}
   - {fileID: 11400000, guid: b497119e4f2248b9882c728c4de9be9c, type: 2}

@@ -44,7 +44,7 @@ namespace PewPewPew.Ships
 
             if (points.Count > needed)
             {
-                bool isCentre(Transform point) => Mathf.Abs(point.position.x) <= CentreTolerance;
+                bool isCentre(Transform point) => Mathf.Abs(point.localPosition.x) <= CentreTolerance;
                 if (needed % 2 == 0)
                 {
                     List<Transform> offCentre = points.FindAll(point => !isCentre(point));
