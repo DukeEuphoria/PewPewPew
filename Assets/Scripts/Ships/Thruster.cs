@@ -28,7 +28,7 @@ namespace PewPewPew.Ships
             m_Throttle = ThrusterMath.Ramp(m_Throttle, target, Def.RampUpTime, Def.RampDownTime, deltaTime);
         }
 
-        /// Force is split evenly over the points in use, each pushing along its own +Y.
+        /// Force is per emission point. Thus more visible engines, more oomph
         public void Apply(Rigidbody2D body)
         {
             if (m_Throttle <= 0f) return;

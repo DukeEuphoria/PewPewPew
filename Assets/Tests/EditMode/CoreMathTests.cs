@@ -65,6 +65,44 @@ namespace PewPewPew.Tests
     public class GravityMathTests
     {
         [Test]
+        public void CircularSpeed_CentripetalAccelerationMatchesGravity()
+        {
+            const float mass = 5000f, g = 1.5f, softening = 2f, distance = 120f;
+            float speed = GravityMath.CircularSpeed(mass, g, softening, distance);
+            float gravity = GravityMath.Force(new Vector2(distance, 0f), mass, 1f, g, softening, 1000f).magnitude;
+            Assert.AreEqual(gravity, speed * speed / distance, 1e-4f);
+            Assert.AreEqual(0f, GravityMath.CircularSpeed(mass, g, softening, 0f));
+        }
+
+        [Test]
+        public void OrbitVelocity_ZeroEccentricityIsCircular()
+        {
+            Vector2 velocity = GravityMath.OrbitVelocity(4f, 0f, 1.3f);
+            Assert.AreEqual(0f, velocity.x, 1e-6f);
+            Assert.AreEqual(4f, velocity.y, 1e-6f);
+        }
+
+        [Test]
+        public void OrbitVelocity_SatisfiesVisViva()
+        {
+            // With GM/r = circular^2, vis-viva gives v^2 = circular^2 * (2 - r/a) where r/a = (1 - e^2) / (1 + e cos nu).
+            const float circular = 3f, eccentricity = 0.6f, anomaly = 2.1f;
+            Vector2 velocity = GravityMath.OrbitVelocity(circular, eccentricity, anomaly);
+            float rOverA = (1f - eccentricity * eccentricity) / (1f + eccentricity * Mathf.Cos(anomaly));
+            Assert.AreEqual(circular * circular * (2f - rOverA), velocity.sqrMagnitude, 1e-4f);
+            Assert.Greater(velocity.x, 0f); // Heading out from periapsis toward apoapsis.
+        }
+
+        [Test]
+        public void OrbitVelocity_PeriapsisIsFasterThanApoapsis()
+        {
+            float periapsis = GravityMath.OrbitVelocity(1f, 0.5f, 0f).y;
+            float apoapsis = GravityMath.OrbitVelocity(1f, 0.5f, Mathf.PI).y;
+            Assert.AreEqual(Mathf.Sqrt(1.5f), periapsis, 1e-5f);
+            Assert.AreEqual(Mathf.Sqrt(0.5f), apoapsis, 1e-5f);
+        }
+
+        [Test]
         public void Force_FollowsInverseSquare()
         {
             Vector2 near = GravityMath.Force(new Vector2(10, 0), 100, 1, 1, 0, 1000);
@@ -324,6 +362,15 @@ namespace PewPewPew.Tests
 
     public class AsteroidMathTests
     {
+        [Test]
+        public void SpinSpeed_SmallerSpinsFaster()
+        {
+            Assert.AreEqual(120f, AsteroidMath.SpinSpeed(1, 120f));
+            Assert.AreEqual(30f, AsteroidMath.SpinSpeed(4, 120f));
+            Assert.Greater(AsteroidMath.SpinSpeed(2, 120f), AsteroidMath.SpinSpeed(10, 120f));
+            Assert.AreEqual(120f, AsteroidMath.SpinSpeed(0, 120f));
+        }
+
         [Test]
         public void Density_IsWithinZeroToOneAndDeterministic()
         {
