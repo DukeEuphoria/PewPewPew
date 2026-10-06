@@ -32,6 +32,30 @@ namespace PewPewPew.GameSystems
 
         public void Unregister(GravitySource source) => m_Sources.Remove(source);
 
+        /// The source pulling hardest on position within maxDistance, and the speed of a circular orbit around it.
+        public bool TryGetOrbit(Vector2 position, float maxDistance, out GravitySource dominant, out float speed)
+        {
+            dominant = null;
+            speed = 0f;
+            float range = Mathf.Min(maxDistance, m_MaxGravityDistance);
+            float strongest = 0f;
+            foreach (GravitySource source in m_Sources)
+            {
+                Vector2 toSource = (Vector2)source.transform.position - position;
+                if (toSource.sqrMagnitude > range * range) continue;
+
+                float pull = GravityMath.Force(toSource, source.Mass, 1f, m_GravityConstant, m_Softening, m_MaxGravityDistance).sqrMagnitude;
+                if (pull <= strongest) continue;
+                strongest = pull;
+                dominant = source;
+            }
+            if (dominant == null) return false;
+
+            float distance = Vector2.Distance(position, dominant.transform.position);
+            speed = GravityMath.CircularSpeed(dominant.Mass, m_GravityConstant, m_Softening, distance);
+            return true;
+        }
+
         /// Total gravitational force, including the edge fence, on a body of the given mass.
         public Vector2 ForceOn(Vector2 position, float mass)
         {

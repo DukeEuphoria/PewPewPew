@@ -14,6 +14,24 @@ namespace PewPewPew.Core
             return toSource.normalized * magnitude;
         }
 
+        /// Speed for a circular orbit at distance under the softened force in Force.
+        public static float CircularSpeed(float sourceMass, float g, float softening, float distance)
+        {
+            if (distance <= 0f) return 0f;
+            return Mathf.Sqrt(g * sourceMass * distance / (distance * distance + softening * softening));
+        }
+
+        /// Radial (outward) and tangential speed at trueAnomaly on an orbit of the given eccentricity, scaled from the
+        /// circular speed at the current distance. trueAnomaly is in radians; 0 is periapsis.
+        public static Vector2 OrbitVelocity(float circularSpeed, float eccentricity, float trueAnomaly)
+        {
+            float shape = 1f + eccentricity * Mathf.Cos(trueAnomaly);
+            if (shape <= 0f) return new Vector2(0f, circularSpeed);
+
+            float root = Mathf.Sqrt(shape);
+            return new Vector2(circularSpeed * eccentricity * Mathf.Sin(trueAnomaly) / root, circularSpeed * root);
+        }
+
         /// Inward force that grows with the square of the distance beyond radius, fencing in the world.
         public static Vector2 EdgeForce(Vector2 offsetFromCenter, float radius, float strength, float bodyMass)
         {

@@ -13,6 +13,12 @@ namespace PewPewPew.Core
             return Mathf.Pow(noise, sharpness);
         }
 
+        /// Typical spin in degrees per second, inversely proportional to size so small rocks spin faster.
+        public static float SpinSpeed(int size, float spinAtSizeOne)
+        {
+            return spinAtSizeOne / Mathf.Max(1, size);
+        }
+
         /// Random fragment sizes that sum to size, 2..size pieces, each at least 1. Size 1 does not split.
         public static int[] Split(int size, Random random)
         {

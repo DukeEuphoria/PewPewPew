@@ -23,6 +23,9 @@ namespace PewPewPew.Presentation
         /// Smoothed speed of the followed ship, from its movement on screen so it works whatever drives the ship.
         public float Speed { get; private set; }
 
+        /// Smoothed velocity of the followed ship, in world units per second.
+        public Vector2 Velocity { get; private set; }
+
         public float SpeedForMaxSize => m_SpeedForMaxSize;
 
         private void Awake()
@@ -46,9 +49,11 @@ namespace PewPewPew.Presentation
         {
             if (m_Target == null) return;
 
-            float rawSpeed = (m_Target.position - m_LastTargetPosition).magnitude / Time.deltaTime;
+            Vector2 rawVelocity = (m_Target.position - m_LastTargetPosition) / Time.deltaTime;
             m_LastTargetPosition = m_Target.position;
-            Speed = Mathf.Lerp(Speed, rawSpeed, 1f - Mathf.Exp(-m_SpeedSmoothing * Time.deltaTime));
+            float smoothing = 1f - Mathf.Exp(-m_SpeedSmoothing * Time.deltaTime);
+            Speed = Mathf.Lerp(Speed, rawVelocity.magnitude, smoothing);
+            Velocity = Vector2.Lerp(Velocity, rawVelocity, smoothing);
 
             transform.position = new Vector3(m_Target.position.x, m_Target.position.y, transform.position.z);
             float targetSize = SpeedMath.Blend(Speed, m_MinSize, m_MaxSize, m_SpeedForMaxSize);

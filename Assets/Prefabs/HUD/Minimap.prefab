@@ -50,7 +50,7 @@ MonoBehaviour:
   m_Activation: 0
   m_DefaultEmitter: {fileID: 11400000, guid: 4a3b25e8d70948a2a1d5c65e9b067831, type: 2}
   m_DisplayRange: 500
-  m_DisplayRefreshRate: 30
+  m_DisplayRefreshRate: 15
   m_FadeContacts: 1
   m_ContactLifetime: 3
   m_BackgroundOpacity: 0.35

@@ -46,5 +46,13 @@ namespace PewPewPew.World
             Vector2 offset = OrbitMath.Position(m_MinAltitude, m_MaxAltitude, m_PhaseAngle, m_PrecessionRate, m_Period, (float)time);
             return m_Parent.PositionAt(time) + offset;
         }
+
+        public Vector2 VelocityAt(double time)
+        {
+            if (m_Parent == null) return Vector2.zero;
+
+            const double step = 0.01;
+            return (PositionAt(time + step) - PositionAt(time - step)) / (float)(2.0 * step);
+        }
     }
 }

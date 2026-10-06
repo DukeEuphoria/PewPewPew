@@ -54,7 +54,8 @@ namespace PewPewPew.Presentation
                 Vector2 position = center + offset * scale;
                 Color tint = m_Root.ContactColor(contact);
                 if (contact.Source is Ships.Ship) Triangle(mesh, position, contact.Forward, 5f, tint);
-                else Circle(mesh, position, Mathf.Max(2f, contact.WorldRadius * scale), tint, 12);
+                else if (contact.WorldRadius * scale > 2f) Circle(mesh, position, contact.WorldRadius * scale, tint, 12);
+                else Square(mesh, position, 2f, tint);
             }
             Triangle(mesh, center, m_Root.LocalShip.transform.up, 6f, m_Root.PlayerColor);
         }
@@ -108,6 +109,17 @@ namespace PewPewPew.Presentation
             mesh.AddVert(center - forward * size * 0.6f + right * size * 0.6f, tint, Vector2.zero);
             mesh.AddVert(center - forward * size * 0.6f - right * size * 0.6f, tint, Vector2.zero);
             mesh.AddTriangle(index, index + 1, index + 2);
+        }
+
+        private static void Square(VertexHelper mesh, Vector2 center, float halfSize, Color tint)
+        {
+            int index = mesh.currentVertCount;
+            mesh.AddVert(center + new Vector2(-halfSize, -halfSize), tint, Vector2.zero);
+            mesh.AddVert(center + new Vector2(-halfSize, halfSize), tint, Vector2.zero);
+            mesh.AddVert(center + new Vector2(halfSize, halfSize), tint, Vector2.zero);
+            mesh.AddVert(center + new Vector2(halfSize, -halfSize), tint, Vector2.zero);
+            mesh.AddTriangle(index, index + 1, index + 2);
+            mesh.AddTriangle(index, index + 2, index + 3);
         }
 
         private static void Circle(VertexHelper mesh, Vector2 center, float radius, Color tint, int segments)

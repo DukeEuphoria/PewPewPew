@@ -456,7 +456,6 @@ GameObject:
   - component: {fileID: 339851127}
   - component: {fileID: 339851126}
   - component: {fileID: 339851125}
-  - component: {fileID: 339851124}
   m_Layer: 0
   m_Name: BackgroundQuad
   m_TagString: Untagged
@@ -464,28 +463,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!64 &339851124
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 339851123}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &339851125
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -494,7 +471,7 @@ MeshRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 339851123}
   m_Enabled: 1
-  m_CastShadows: 1
+  m_CastShadows: 0
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
@@ -552,11 +529,11 @@ Transform:
   m_GameObject: {fileID: 339851123}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 1000}
-  m_LocalScale: {x: 999.99994, y: 1000, z: 1}
+  m_LocalPosition: {x: 0, y: -1, z: 200}
+  m_LocalScale: {x: 1000, y: 1000, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1736620757}
+  m_Father: {fileID: 961739753}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &452212818
 GameObject:
@@ -777,7 +754,7 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   m_Prefab: {fileID: -5408043447532512473, guid: 2c5a49b6703718749b2591508366ffc6, type: 3}
-  m_TargetCount: 500
+  m_TargetCount: 250
   m_MinSize: 1
   m_MaxSize: 10
   m_MinSpeed: 3
@@ -787,6 +764,12 @@ MonoBehaviour:
   m_DensitySharpness: 2
   m_DensitySeed: 17
   m_MaxPlacementAttempts: 20
+  m_OrbitDistance: 300
+  m_OrbitSpeedVariation: 0.05
+  m_OrbitClockwise: 0
+  m_OrbitEllipticity: 0
+  m_SpinAtSizeOne: 120
+  m_SpinVariation: 0.5
 --- !u!1 &557398541
 GameObject:
   m_ObjectHideFlags: 0
@@ -1163,6 +1146,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1554690181}
+  - {fileID: 339851127}
   m_Father: {fileID: 1124461378}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &961739754
@@ -1334,7 +1318,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d793604c73979e6408aea79df58fd446, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.World.GravitySource
-  m_Mass: 500
+  m_Mass: 160
 --- !u!114 &1083440521
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1528,7 +1512,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d793604c73979e6408aea79df58fd446, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.World.GravitySource
-  m_Mass: 5000
+  m_Mass: 1000
 --- !u!114 &1371941124
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1852,8 +1836,38 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5b998901d09d1849955536b2f6e6e0f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Presentation.SpaceDust
-  m_RateAtRest: 2
-  m_RateAtFullSpeed: 60
+  m_Layers:
+  - Count: 70
+    Depth: 0.025
+    Size: 0.01
+    Tint: {r: 0.7, g: 0.8, b: 1, a: 0.45}
+    Z: 30
+    SortingOrder: -30
+  - Count: 50
+    Depth: 0.55
+    Size: 0.01
+    Tint: {r: 0.8, g: 0.9, b: 1, a: 0.65}
+    Z: 20
+    SortingOrder: -20
+  - Count: 35
+    Depth: 1
+    Size: 0.015
+    Tint: {r: 1, g: 1, b: 1, a: 0.85}
+    Z: 10
+    SortingOrder: -10
+  - Count: 8
+    Depth: 1.4
+    Size: 0.02
+    Tint: {r: 1, g: 1, b: 1, a: 0.5}
+    Z: -10
+    SortingOrder: 10
+  m_MinLifetime: 4
+  m_MaxLifetime: 8
+  m_FadeTime: 0.6
+  m_StreakStart: 0.5
+  m_StreakSeconds: 0.08
+  m_MaxStreak: 0.15
+  m_MinScreenSize: 0.003
 --- !u!199 &1554690183
 ParticleSystemRenderer:
   serializedVersion: 7
@@ -2124,7 +2138,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 1, g: 1, b: 1, a: 1}
+      maxColor: {r: 0.1976986, g: 1, b: 0, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -2188,7 +2202,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 50
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -6718,10 +6732,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 16687cb5f2c6c454cb0f8ad45a9a69c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.GameSystems.GameWorld
-  m_GravityConstant: 1
+  m_GravityConstant: 10
   m_Softening: 1
-  m_MaxGravityDistance: 1000
-  m_WorldRadius: 1000
+  m_MaxGravityDistance: 500
+  m_WorldRadius: 750
   m_EdgeStrength: 500
 --- !u!4 &1736620757
 Transform:
@@ -6739,7 +6753,6 @@ Transform:
   - {fileID: 535179244}
   - {fileID: 1371941122}
   - {fileID: 1083440519}
-  - {fileID: 339851127}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1743046953
@@ -9084,7 +9097,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!23 &6432813971311905901
 MeshRenderer:
   m_ObjectHideFlags: 0

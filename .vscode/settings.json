@@ -67,5 +67,8 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "PewPewPew.slnx"
+    "dotnet.defaultSolution": "PewPewPew.slnx",
+    "chat.tools.terminal.autoApprove": {
+        "dotnet build": true
+    }
 }
