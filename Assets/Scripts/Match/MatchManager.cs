@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using Mirror;
+using PewPewPew.Core;
 using PewPewPew.Ships;
 using UnityEngine;
 
@@ -7,7 +9,7 @@ namespace PewPewPew.Match
 {
     public enum MatchState : byte { Lobby, Running, Ended }
 
-    /// Timed free-for-all. The host starts the match from the lobby; players can deploy at any time while it runs, including late joiners.
+    /// Timed free-for-all. All connected players readying starts the lobby; running matches allow individual deployment.
     public class MatchManager : NetworkBehaviour
     {
         [SerializeField] private Ship m_ShipPrefab;
@@ -38,17 +40,37 @@ namespace PewPewPew.Match
         [ServerCallback]
         private void Update()
         {
+            if (m_State == MatchState.Lobby) TryStartMatch();
             if (m_State == MatchState.Running && NetworkTime.time >= m_EndTime) EndMatch();
         }
 
         [Command(requiresAuthority = false)]
         public void CmdStartMatch(NetworkConnectionToClient sender = null)
         {
-            if (sender != NetworkServer.localConnection || m_State != MatchState.Lobby) return;
+            if (sender != NetworkServer.localConnection) return;
+            TryStartMatch();
+        }
+
+        [Server]
+        private void TryStartMatch()
+        {
+            if (m_State != MatchState.Lobby) return;
+            PlayerState[] players = PlayerState.All.Where(player => player.isServer).ToArray();
+            if (!LobbyReadiness.CanStart(players.Length, players.Count(player => player.Ready))) return;
+            // A connection still loading its player must not be excluded from the ready gate.
+            if (NetworkServer.connections.Values.Any(connection => connection.isAuthenticated && connection.identity == null)) return;
+            foreach (PlayerState player in players)
+            {
+                string problem = ShipCatalog.Instance.LaunchProblem(player.Loadout);
+                if (problem == null) continue;
+                Debug.LogWarning($"Cannot start: {player.Name}: {problem}", player);
+                player.ServerSetReady(false);
+                return;
+            }
 
             m_State = MatchState.Running;
             m_EndTime = NetworkTime.time + m_MatchDuration;
-            foreach (PlayerState player in PlayerState.All)
+            foreach (PlayerState player in players)
             {
                 player.ServerResetScore();
                 if (player.Ready) SpawnShip(player);
@@ -69,6 +91,11 @@ namespace PewPewPew.Match
         public void ServerDeploy(PlayerState player)
         {
             if (m_State == MatchState.Ended || player.Ship != null || NetworkTime.time < player.RespawnAt) return;
+            if (m_State == MatchState.Lobby && player.Ready)
+            {
+                player.ServerSetReady(false);
+                return;
+            }
 
             string problem = ShipCatalog.Instance.LaunchProblem(player.Loadout);
             if (problem != null)
@@ -98,6 +125,7 @@ namespace PewPewPew.Match
             if (victim != null)
             {
                 victim.ServerAddDeath();
+                victim.ServerSetReady(false);
                 victim.ServerSetShip(null, NetworkTime.time + m_RespawnDelay);
             }
 
@@ -113,6 +141,7 @@ namespace PewPewPew.Match
             {
                 if (player.Ship != null) NetworkServer.Destroy(player.Ship.gameObject);
                 player.ServerSetShip(null, 0.0);
+                player.ServerSetReady(false);
             }
         }
     }

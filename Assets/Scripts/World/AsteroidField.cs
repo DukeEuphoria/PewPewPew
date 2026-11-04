@@ -69,7 +69,7 @@ namespace PewPewPew.World
 
         public void Spawn(int size, Vector2 position, Vector2 velocity)
         {
-            Asteroid asteroid = Instantiate(m_Prefab, position, Quaternion.identity);
+            Asteroid asteroid = Instantiate(m_Prefab, position, Quaternion.identity,transform.parent);
             asteroid.Initialize(size);
             var body = asteroid.GetComponent<Rigidbody2D>();
             body.linearVelocity = velocity;

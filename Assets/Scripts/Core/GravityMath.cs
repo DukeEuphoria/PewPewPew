@@ -8,7 +8,7 @@ namespace PewPewPew.Core
         public static Vector2 Force(Vector2 toSource, float sourceMass, float bodyMass, float g, float softening, float maxDistance)
         {
             float sqrDistance = toSource.sqrMagnitude;
-            if (sqrDistance > maxDistance * maxDistance || sqrDistance < Mathf.Epsilon) return Vector2.zero;
+//            if (sqrDistance > maxDistance * maxDistance || sqrDistance < Mathf.Epsilon) return Vector2.zero;
 
             float magnitude = g * sourceMass * bodyMass / (sqrDistance + softening * softening);
             return toSource.normalized * magnitude;

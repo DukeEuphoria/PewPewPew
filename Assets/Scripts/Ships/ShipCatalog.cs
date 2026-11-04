@@ -72,10 +72,31 @@ namespace PewPewPew.Ships
             return hull.SelectPoints(hull.ThrusterPoints, thruster.EmissionPointsUsed) != null;
         }
 
+        /// Requires an in-range loadout. Purchasing can later replace the definition's initial lock rule.
+        public string LockedProblem(ShipLoadout loadout)
+        {
+            ShipComponentDef[] major =
+            {
+                m_Hulls[loadout.Hull], m_Shields[loadout.Shield], m_MainGuns[loadout.MainGun],
+                m_SecondaryGuns[loadout.SecondaryGun], m_Thrusters[loadout.Thruster]
+            };
+            foreach (ShipComponentDef component in major)
+                if (component.IsLocked) return $"{component.DisplayName} is locked (price: {component.Price}).";
+            for (int slot = 0; slot < ShipLoadout.SubSystemSlots; slot++)
+            {
+                int index = loadout.GetSubSystem(slot);
+                if (index >= 0 && m_SubSystems[index].IsLocked)
+                    return $"{m_SubSystems[index].DisplayName} is locked (price: {m_SubSystems[index].Price}).";
+            }
+            return null;
+        }
+
         /// Null if the loadout can launch; otherwise why not. The chosen guns and thruster need enough emission points on the hull.
         public string LaunchProblem(ShipLoadout loadout)
         {
             if (!IsValid(loadout)) return "The loadout is out of range.";
+            string locked = LockedProblem(loadout);
+            if (locked != null) return locked;
 
             HullDef hull = m_Hulls[loadout.Hull];
             if (hull.HullPoints == null) return $"{hull.name} has no hull prefab.";

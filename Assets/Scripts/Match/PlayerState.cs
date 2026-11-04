@@ -14,6 +14,7 @@ namespace PewPewPew.Match
         public static readonly List<PlayerState> All = new List<PlayerState>();
 
         [SyncVar] private string m_Name = "Player";
+        [SyncVar] private ulong m_SteamId;
         [SyncVar] private int m_Kills;
         [SyncVar] private int m_Deaths;
         [SyncVar] private bool m_Ready;
@@ -24,6 +25,8 @@ namespace PewPewPew.Match
         public static PlayerState Local { get; private set; }
 
         public string Name => m_Name;
+        // Cosmetic identity for avatar lookup, not authentication or ownership.
+        public ulong SteamId => m_SteamId;
         public int Kills => m_Kills;
         public int Deaths => m_Deaths;
         public bool Ready => m_Ready;
@@ -58,7 +61,8 @@ namespace PewPewPew.Match
         public override void OnStartLocalPlayer()
         {
             Local = this;
-            CmdSetName(Steamworks.SteamClient.IsValid ? Steamworks.SteamClient.Name : "Player");
+            CmdSetIdentity(Steamworks.SteamClient.IsValid ? Steamworks.SteamClient.Name : "Player",
+                Steamworks.SteamClient.IsValid ? Steamworks.SteamClient.SteamId.Value : 0);
         }
 
         public override void OnStopLocalPlayer()
@@ -72,18 +76,30 @@ namespace PewPewPew.Match
         }
 
         [Command]
-        private void CmdSetName(string playerName)
+        private void CmdSetIdentity(string playerName, ulong steamId)
         {
             playerName = playerName?.Trim();
             if (string.IsNullOrEmpty(playerName)) return;
 
             m_Name = playerName.Length > MaxNameLength ? playerName.Substring(0, MaxNameLength) : playerName;
+            m_SteamId = steamId;
         }
 
         [Command]
         public void CmdSetLoadout(ShipLoadout loadout)
         {
+            if (m_Ready || m_HasShip)
+            {
+                Debug.LogWarning($"Rejected loadout change for {m_Name}: unready before editing.", this);
+                return;
+            }
             if (!ShipCatalog.Instance.IsValid(loadout)) return;
+            string locked = ShipCatalog.Instance.LockedProblem(loadout);
+            if (locked != null)
+            {
+                Debug.LogWarning($"Rejected loadout for {m_Name}: {locked}", this);
+                return;
+            }
 
             if (PlayerPalette.IndexOf(loadout.Colour0) < 0) loadout.Colour0 = PlayerPalette.DefaultPrimary;
             if (PlayerPalette.IndexOf(loadout.Colour1) < 0) loadout.Colour1 = PlayerPalette.DefaultSecondary;

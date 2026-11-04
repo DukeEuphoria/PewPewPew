@@ -508,6 +508,23 @@ namespace PewPewPew.Tests
         }
     }
 
+    public class LobbyReadinessTests
+    {
+        [TestCase(0, 0, false)]
+        [TestCase(1, 0, false)]
+        [TestCase(1, 1, true)]
+        [TestCase(7, 6, false)]
+        [TestCase(7, 7, true)]
+        [TestCase(16, 15, false)]
+        [TestCase(16, 16, true)]
+        [TestCase(17, 17, false)]
+        [TestCase(2, 3, false)]
+        public void CanStart_RequiresEveryPlayerWithinTheCapacity(int players, int ready, bool expected)
+        {
+            Assert.AreEqual(expected, LobbyReadiness.CanStart(players, ready));
+        }
+    }
+
     public class LoadoutMathTests
     {
         [Test]
