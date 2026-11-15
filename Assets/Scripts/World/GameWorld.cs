@@ -12,6 +12,8 @@ namespace PewPewPew.GameSystems
         [SerializeField] private float m_GravityConstant = 1f;
         [SerializeField] private float m_Softening = 1f;
         [SerializeField] private float m_MaxGravityDistance = 1000f;
+        [SerializeField, Min(0f), Tooltip("Net gravitational acceleration above which ship friction falls off inversely. Includes the edge fence; independent of ship mass.")]
+        private float m_FrictionGravityThreshold = 1f;
         [SerializeField] private float m_WorldRadius = 1000f;
         [SerializeField] private float m_EdgeStrength = 50f;
 
@@ -20,6 +22,7 @@ namespace PewPewPew.GameSystems
         public static GameWorld Instance { get; private set; }
 
         public float WorldRadius => m_WorldRadius;
+        public float FrictionGravityThreshold => m_FrictionGravityThreshold;
 
         private void Awake() => Instance = this;
 

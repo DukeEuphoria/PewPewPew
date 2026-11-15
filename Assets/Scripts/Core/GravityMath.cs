@@ -47,5 +47,12 @@ namespace PewPewPew.Core
         {
             return -velocity * (coefficient * velocity.magnitude);
         }
+
+        /// Full friction through threshold, then inverse falloff with net gravitational acceleration.
+        public static float FrictionScale(Vector2 gravityAcceleration, float threshold)
+        {
+            float acceleration = gravityAcceleration.magnitude;
+            return acceleration <= threshold ? 1f : threshold / acceleration;
+        }
     }
 }

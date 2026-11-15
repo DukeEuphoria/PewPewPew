@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53804a4127cf1d34996726807830c5aa, type: 3}
+  m_Name: Arrow Hull
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullDef
+  m_DisplayName: Dave
+  m_Description: Pointy Pointy
+  m_ButtonArtwork: {fileID: 0}
+  m_Price: 0
+  m_Mass: 10
+  m_PassivePowerDrain: -10
+  m_ActivePowerDrain: 0
+  m_MaxHealth: 100
+  m_AutoRepairRate: 0.1
+  m_HullPoints: {fileID: 1006, guid: 13b5ead2b2ef19b438f03dedab001fdd, type: 3}
+  m_Armour: 10
+  m_ArmourBar: {fileID: 104, guid: d4f3a4b5c6d77e8fb0a1b2c3d4e5f607, type: 3}
+  m_PowerBar: {fileID: 104, guid: f6b5c6d7e8f990a1d2c3d4e5f6071829, type: 3}
+  m_ArmourRepairRate: 0.25
+  m_ArmourWearRatio: 0.1
+  m_MaxPowerStorage: 100
+  m_SubSystemSlots: 4
+  m_Friction: 0.05
+  m_AngularAcceleration: 800
+  m_AngularDamping: 4

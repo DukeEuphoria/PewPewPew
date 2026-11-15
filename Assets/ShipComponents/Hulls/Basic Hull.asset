@@ -12,7 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53804a4127cf1d34996726807830c5aa, type: 3}
   m_Name: Basic Hull
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullDef
-  m_Mass: 1
+  m_DisplayName: 
+  m_Description: 'Basic '
+  m_ButtonArtwork: {fileID: 0}
+  m_Price: 0
+  m_Mass: 10
   m_PassivePowerDrain: -10
   m_ActivePowerDrain: 0
   m_MaxHealth: 100
@@ -25,6 +29,6 @@ MonoBehaviour:
   m_ArmourWearRatio: 0.1
   m_MaxPowerStorage: 100
   m_SubSystemSlots: 2
-  m_Friction: 0.001
+  m_Friction: 0.05
   m_AngularAcceleration: 600
   m_AngularDamping: 2

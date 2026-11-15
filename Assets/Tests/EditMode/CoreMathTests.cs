@@ -141,6 +141,58 @@ namespace PewPewPew.Tests
             Assert.AreEqual(-2f, slow.x, 1e-5f);
             Assert.AreEqual(4f, fast.x / slow.x, 1e-5f);
         }
+
+        [TestCase(0f, 1f)]
+        [TestCase(0.5f, 1f)]
+        [TestCase(1f, 1f)]
+        [TestCase(2f, 0.5f)]
+        [TestCase(10f, 0.1f)]
+        public void FrictionScale_FullThroughThresholdThenFallsOffInversely(float acceleration, float expected)
+        {
+            Assert.AreEqual(expected, GravityMath.FrictionScale(new Vector2(acceleration, 0f), 1f), 1e-6f);
+        }
+
+        [Test]
+        public void FrictionScale_UsesNetMagnitudeNotDirectionOrIndividualPulls()
+        {
+            Assert.AreEqual(0.2f, GravityMath.FrictionScale(new Vector2(-3f, 4f), 1f), 1e-6f);
+            Vector2 cancelled = new Vector2(10f, 0f) + new Vector2(-10f, 0f);
+            Assert.AreEqual(1f, GravityMath.FrictionScale(cancelled, 1f));
+        }
+
+        [TestCase(1f)]
+        [TestCase(5f)]
+        public void FrictionScale_SameGravityFieldIsIndependentOfBodyMass(float bodyMass)
+        {
+            Vector2 force = GravityMath.Force(new Vector2(10f, 0f), 200f, bodyMass, 1f, 0f, 1000f);
+            Assert.AreEqual(0.5f, GravityMath.FrictionScale(force / bodyMass, 1f), 1e-6f);
+        }
+
+        [Test]
+        public void FrictionScale_UsesConfiguredThresholdAndHandlesZeroThreshold()
+        {
+            Assert.AreEqual(0.25f, GravityMath.FrictionScale(new Vector2(4f, 0f), 1f));
+            Assert.AreEqual(0.5f, GravityMath.FrictionScale(new Vector2(4f, 0f), 2f));
+            Assert.AreEqual(1f, GravityMath.FrictionScale(Vector2.zero, 0f));
+            Assert.AreEqual(0f, GravityMath.FrictionScale(Vector2.up, 0f));
+        }
+
+        [Test]
+        public void Drag_GravityFalloffPreservesFlatSpaceBrakingAndReducesStrongFieldDrag()
+        {
+            Vector2 velocity = new Vector2(10f, 0f);
+            Vector2 flat = GravityMath.Drag(velocity, 0.05f * GravityMath.FrictionScale(Vector2.zero, 1f));
+            Vector2 strong = GravityMath.Drag(velocity, 0.05f * GravityMath.FrictionScale(new Vector2(10f, 0f), 1f));
+            Assert.AreEqual(-5f, flat.x, 1e-6f);
+            Assert.AreEqual(-0.5f, strong.x, 1e-6f);
+            Assert.AreEqual(Vector2.zero, GravityMath.Drag(Vector2.zero, 0.05f));
+
+            for (int step = 0; step < 10000; step++)
+                velocity += GravityMath.Drag(velocity, 0.05f) * 0.02f;
+
+            Assert.GreaterOrEqual(velocity.x, 0f);
+            Assert.Less(velocity.magnitude, 0.1f);
+        }
     }
 
     public class DamageMathTests
@@ -655,6 +707,55 @@ namespace PewPewPew.Tests
             Assert.AreEqual(-1.1f, DustMath.Wrap(1.3f, 1.2f), 1e-5f);
             Assert.AreEqual(1.1f, DustMath.Wrap(-1.3f, 1.2f), 1e-5f);
             Assert.AreEqual(0.2f, DustMath.Wrap(5f, 1.2f), 1e-4f);
+        }
+    }
+
+    public class CameraZoomMathTests
+    {
+        [TestCase(0f, 0f)]
+        [TestCase(25f, 0f)]
+        [TestCase(-25f, 0f)]
+        [TestCase(0f, 15f)]
+        public void TargetSize_VisibleFootprintEnforcesMinimum(float x, float y)
+        {
+            Assert.AreEqual(40f, CameraZoomMath.TargetSize(10f, 2f, new Vector2(x, y), 5f, 40f, 50f));
+        }
+
+        [Test]
+        public void TargetSize_NearbyBlendsAndDistantObjectsHaveNoEffect()
+        {
+            Assert.AreEqual(25f, CameraZoomMath.TargetSize(10f, 2f, new Vector2(50f, 0f), 5f, 40f, 50f));
+            Assert.AreEqual(10f, CameraZoomMath.TargetSize(10f, 2f, new Vector2(75f, 0f), 5f, 40f, 50f));
+            Assert.AreEqual(10f, CameraZoomMath.TargetSize(10f, 2f, new Vector2(100f, 0f), 5f, 40f, 50f));
+        }
+
+        [Test]
+        public void TargetSize_CornerDistanceUsesCircularFootprint()
+        {
+            Assert.AreEqual(40f, CameraZoomMath.TargetSize(10f, 2f, new Vector2(23f, 14f), 5f, 40f, 0f));
+            Assert.AreEqual(10f, CameraZoomMath.TargetSize(10f, 2f, new Vector2(24f, 14f), 5f, 40f, 0f));
+        }
+
+        [Test]
+        public void TargetSize_NeverReducesSpeedZoomAndCanExceedSpeedMaximum()
+        {
+            Assert.AreEqual(20f, CameraZoomMath.TargetSize(20f, 1f, Vector2.zero, 5f, 5f, 50f));
+            Assert.AreEqual(80f, CameraZoomMath.TargetSize(50f, 1f, Vector2.zero, 5f, 80f, 50f));
+        }
+
+        [Test]
+        public void TargetSize_AspectControlsHorizontalReach()
+        {
+            Assert.AreEqual(40f, CameraZoomMath.TargetSize(10f, 2f, new Vector2(20f, 0f), 0f, 40f, 0f));
+            Assert.AreEqual(10f, CameraZoomMath.TargetSize(10f, 0.5f, new Vector2(20f, 0f), 0f, 40f, 0f));
+        }
+
+        [Test]
+        public void TargetSize_BaselineViewDoesNotLatchToExpandedZoom()
+        {
+            Vector2 offset = new Vector2(80f, 0f);
+            Assert.AreEqual(10f, CameraZoomMath.TargetSize(10f, 1f, offset, 5f, 80f, 50f));
+            Assert.AreEqual(80f, CameraZoomMath.TargetSize(80f, 1f, offset, 5f, 80f, 50f));
         }
     }
 

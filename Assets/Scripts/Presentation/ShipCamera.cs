@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace PewPewPew.Presentation
 {
-    /// Follows the local ship and zooms out as it speeds up.
+    /// Follows the local ship and zooms out with speed and nearby large-object size hints.
     [RequireComponent(typeof(Camera))]
     public class ShipCamera : MonoBehaviour
     {
@@ -12,6 +12,8 @@ namespace PewPewPew.Presentation
         [SerializeField] private float m_SpeedForMaxSize = 100f;
         [SerializeField] private float m_ZoomSmoothTime = 0.5f;
         [SerializeField] private float m_SpeedSmoothing = 5f;
+        [SerializeField, Min(0f), Tooltip("World-unit margin outside the speed-based view over which large-object size hints blend in.")]
+        private float m_SizeHintMargin = 50f;
 
         private Camera m_Camera;
         private Transform m_Target;
@@ -56,7 +58,19 @@ namespace PewPewPew.Presentation
             Velocity = Vector2.Lerp(Velocity, rawVelocity, smoothing);
 
             transform.position = new Vector3(m_Target.position.x, m_Target.position.y, transform.position.z);
-            float targetSize = SpeedMath.Blend(Speed, m_MinSize, m_MaxSize, m_SpeedForMaxSize);
+            float baselineSize = SpeedMath.Blend(Speed, m_MinSize, m_MaxSize, m_SpeedForMaxSize);
+            float targetSize = baselineSize;
+            foreach (CameraSizeHint hint in CameraSizeHint.ActiveHints)
+            {
+                if ((m_Camera.cullingMask & (1 << hint.gameObject.layer)) == 0) continue;
+                Vector3 offset = hint.transform.position - transform.position;
+                float depth = Vector3.Dot(offset, transform.forward);
+                if (depth + hint.Radius < m_Camera.nearClipPlane || depth - hint.Radius > m_Camera.farClipPlane) continue;
+
+                Vector2 viewOffset = new Vector2(Vector3.Dot(offset, transform.right), Vector3.Dot(offset, transform.up));
+                targetSize = Mathf.Max(targetSize, CameraZoomMath.TargetSize(
+                    baselineSize, m_Camera.aspect, viewOffset, hint.Radius, hint.MinimumSize, m_SizeHintMargin));
+            }
             m_Camera.orthographicSize = Mathf.SmoothDamp(m_Camera.orthographicSize, targetSize, ref m_ZoomVelocity, m_ZoomSmoothTime);
         }
     }

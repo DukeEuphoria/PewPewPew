@@ -129,6 +129,44 @@ Missing or duplicate catalog entries and exceeded capacities are reported as
 errors. Restore removed definitions rather than silently shifting indices.
 Radar definitions used by subsystems are not a separate fitting category.
 
+## Ship friction and gravity
+
+Hull **Friction** is the flat-space quadratic drag coefficient; both supplied
+hulls use `0.05`. On the server, ship drag opposes velocity with magnitude
+`Friction * speed^2 * frictionScale`. Releasing thrust in flat space slows the
+ship toward rest; quadratic drag approaches zero speed asymptotically.
+
+**Friction Gravity Threshold** on `GameWorld`, alongside the gravity factors,
+defaults to `1` acceleration unit. Full friction applies at or below it. Above
+it, `frictionScale = threshold / netGravityAcceleration`: twice the threshold
+gives half friction, ten times gives one tenth. A zero threshold keeps full
+friction only where net gravity is zero.
+
+The net acceleration is the magnitude of the summed gravitational force,
+including the world edge fence, divided by ship mass. Opposing pulls cancel,
+and ships of different masses receive the same friction scale in the same
+field. Thrust and rotational damping are unchanged.
+
+## Ship camera size hints
+
+Attach `CameraSizeHint` to a large object's root to request a **Minimum Size**
+(camera orthographic half-height in world units). **Radius** is its circular
+world-space footprint centered on that transform; it does not inherit scale.
+Disabled or inactive hints are ignored, as are camera-excluded layers and
+objects outside the camera's depth range.
+
+`ShipCamera` takes the largest request and its normal speed-based zoom, then
+uses its existing zoom smoothing. Hints may exceed the speed-zoom maximum.
+They apply fully when the footprint intersects the speed-based view and blend
+in across **Size Hint Margin** outside it (currently `50` world units). Testing
+against the speed-based view, not the expanded view, prevents zoom from sticking
+out after an object passes. Aspect ratio and camera rotation affect that view.
+
+The saved planet and moon have hints alongside their gravity sources: minimum
+sizes `20` and `5`, with radii `12.5` and `4.75`. These requested absolute
+minimums do not add zoom while the ship camera's own minimum remains `20`;
+raise them in the Inspector to produce additional large-object zoom.
+
 ## Maintenance and validation
 
 Edit existing scene controls directly to customize layout and styling.

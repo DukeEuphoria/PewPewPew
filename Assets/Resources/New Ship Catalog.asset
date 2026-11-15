@@ -15,6 +15,7 @@ MonoBehaviour:
   m_Hulls:
   - {fileID: 11400000, guid: c62a257dee9c08747b0c3cf501e32266, type: 2}
   - {fileID: 11400000, guid: 8e862cb649c9b174691906d24f9ee5d4, type: 2}
+  - {fileID: 11400000, guid: 681e1f48cfd064c4ea6261fa6224836e, type: 2}
   m_Shields:
   - {fileID: 11400000, guid: ade6892f6ec45fb4d95322c2977ac6fd, type: 2}
   m_MainGuns:

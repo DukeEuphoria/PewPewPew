@@ -12,13 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83df16d1b165b714eb77c76937203041, type: 3}
   m_Name: Basic Gun Double
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Weapons.GunDef
+  m_DisplayName: 
+  m_Description: 
+  m_ButtonArtwork: {fileID: 0}
+  m_Price: 0
   m_Mass: 1
   m_PassivePowerDrain: 0.1
   m_ActivePowerDrain: 5
   m_MaxHealth: 100
   m_AutoRepairRate: 0
-  m_FireRate: 5
-  m_LaunchSpeed: 40
+  m_FireRate: 10
+  m_LaunchSpeed: 100
   m_MinLaunchAngle: -5
   m_MaxLaunchAngle: 5
   m_BulletsPerBurst: 1

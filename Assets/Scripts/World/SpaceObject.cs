@@ -10,6 +10,7 @@ namespace PewPewPew.World
     public abstract class SpaceObject : NetworkBehaviour
     {
         protected Rigidbody2D m_Body;
+        protected Vector2 GravityForce { get; private set; }
         private static readonly HashSet<SpaceObject> m_ActiveObjects = new HashSet<SpaceObject>();
 
         public static IReadOnlyCollection<SpaceObject> ActiveObjects => m_ActiveObjects;
@@ -33,7 +34,8 @@ namespace PewPewPew.World
 
         public void ApplyGravity()
         {
-            m_Body.AddForce(GameWorld.Instance.ForceOn(m_Body.position, m_Body.mass));
+            GravityForce = GameWorld.Instance.ForceOn(m_Body.position, m_Body.mass);
+            m_Body.AddForce(GravityForce);
         }
     }
 }

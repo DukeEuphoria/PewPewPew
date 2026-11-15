@@ -12,7 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53804a4127cf1d34996726807830c5aa, type: 3}
   m_Name: Slab Hull
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullDef
-  m_Mass: 5
+  m_DisplayName: 
+  m_Description: Slab
+  m_ButtonArtwork: {fileID: 0}
+  m_Price: 0
+  m_Mass: 50
   m_PassivePowerDrain: -15
   m_ActivePowerDrain: 0
   m_MaxHealth: 125
@@ -25,6 +29,6 @@ MonoBehaviour:
   m_ArmourWearRatio: 0.1
   m_MaxPowerStorage: 150
   m_SubSystemSlots: 4
-  m_Friction: 0.002
+  m_Friction: 0.05
   m_AngularAcceleration: 400
   m_AngularDamping: 1

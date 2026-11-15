@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Mirror;
 using PewPewPew.Core;
+using PewPewPew.GameSystems;
 using PewPewPew.Match;
 using PewPewPew.Weapons;
 using PewPewPew.World;
@@ -225,7 +226,8 @@ namespace PewPewPew.Ships
             if (!isServer || m_Hull.Health.IsDestroyed) return;
 
             float deltaTime = Time.fixedDeltaTime;
-            m_Body.AddForce(GravityMath.Drag(m_Body.linearVelocity, m_HullDef.Friction));
+            float frictionScale = GravityMath.FrictionScale(GravityForce / m_Body.mass, GameWorld.Instance.FrictionGravityThreshold);
+            m_Body.AddForce(GravityMath.Drag(m_Body.linearVelocity, m_HullDef.Friction * frictionScale));
             StepRotation(deltaTime);
             StepPower(deltaTime);
             StepShield(deltaTime);

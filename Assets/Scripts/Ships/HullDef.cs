@@ -17,7 +17,7 @@ namespace PewPewPew.Ships
         [SerializeField, Tooltip("Armour lost per point of damage it blocks.")] private float m_ArmourWearRatio = 0.1f;
         [SerializeField] private float m_MaxPowerStorage = 100f;
         [SerializeField, Range(0, 4)] private int m_SubSystemSlots = 2;
-        [SerializeField, Tooltip("Quadratic drag coefficient: drag force = friction * speed^2.")] private float m_Friction = 0.01f;
+        [SerializeField, Tooltip("Flat-space quadratic drag coefficient: drag force = friction * speed^2. Reduced above GameWorld's gravity threshold.")] private float m_Friction = 0.01f;
         [SerializeField] private float m_AngularAcceleration = 360f;
         [SerializeField] private float m_AngularDamping = 2f;
 

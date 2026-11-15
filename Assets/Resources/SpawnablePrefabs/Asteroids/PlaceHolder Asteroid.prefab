@@ -191,9 +191,9 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
-  m_ScalePerSize: 0.5
+  m_ScalePerSize: 1
   m_MassPerCubicSize: 1
-  m_HealthPerSize: 20
+  m_HealthPerSize: 5
   m_FragmentScatterSpeed: 2
   m_CollisionDamageMultiplier: 1
   m_OrbitalBodyDamageMultiplier: 100

@@ -12,13 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 05d3fb52dff18284d91fd3603fbc4587, type: 3}
   m_Name: Basic Thruster Double
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ThrusterDef
+  m_DisplayName: 
+  m_Description: 
+  m_ButtonArtwork: {fileID: 0}
+  m_Price: 0
   m_Mass: 2
   m_PassivePowerDrain: 0.1
   m_ActivePowerDrain: 5
   m_MaxHealth: 100
   m_AutoRepairRate: 0
-  m_Force: 100
+  m_Force: 250
   m_EmissionPointsUsed: 2
-  m_RampUpTime: 0.3
-  m_RampDownTime: 0.5
+  m_RampUpTime: 0.1
+  m_RampDownTime: 0
   m_Effect: {fileID: 829224330183055217, guid: 99e7fd631b079b34f8b75b9069c22d5f, type: 3}
