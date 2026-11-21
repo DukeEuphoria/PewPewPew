@@ -2,12 +2,9 @@ using UnityEngine;
 
 namespace PewPewPew.Ships
 {
-    /// Scene anchor for the local ship's HUD, placed in the lower-left of a Canvas. Rows run top to bottom: three bars,
-    /// then weapons, then sub systems as squares one quarter of the row wide.
     public class ShipHudRoot : MonoBehaviour
     {
-        public const int SubSystemRow = 4;
-
+        private const int SubSystemColumns = 4;
         [SerializeField] private float m_Width = 240f;
         [SerializeField] private float m_BarHeight = 16f;
         [SerializeField] private float m_Gap = 4f;
@@ -15,29 +12,37 @@ namespace PewPewPew.Ships
         public static ShipHudRoot Instance { get; private set; }
 
         private void Awake() => Instance = this;
+        private void OnDestroy() { if (Instance == this) Instance = null; }
 
-        private void OnDestroy()
+        public void PlaceBar(RectTransform element, int row, int barCount, int subSystemCount)
         {
-            if (Instance == this) Instance = null;
+            int subRows = (subSystemCount + SubSystemColumns - 1) / SubSystemColumns;
+            float subSize = (m_Width - m_Gap * (SubSystemColumns - 1)) / SubSystemColumns;
+            float bottom = subRows * (subSize + m_Gap) + (barCount - row - 1) * (m_BarHeight + m_Gap);
+            Place(element, new Vector2(m_Width * 0.5f, bottom + m_BarHeight * 0.5f),
+                new Vector2(m_Width, m_BarHeight));
+            HudGauge gauge = element.GetComponent<HudGauge>();
+            if (gauge != null && gauge.PlaceIcon(m_Gap))
+                element.anchoredPosition += Vector2.right * (m_BarHeight + m_Gap);
         }
 
-        /// Sets the element's parent, anchors and size so it fills one cell of the given row.
-        public void Place(RectTransform element, int row, int column, int columns)
+        public void PlaceSubSystem(RectTransform element, int index)
         {
-            float cellWidth = (m_Width - m_Gap * (columns - 1)) / columns;
-            float subSystemSize = (m_Width - m_Gap * 3f) / 4f;
-            float height = row == SubSystemRow ? subSystemSize : m_BarHeight;
-            float bottom = row == SubSystemRow ? 0f : subSystemSize + m_Gap + (SubSystemRow - 1 - row) * (m_BarHeight + m_Gap);
+            float size = (m_Width - m_Gap * (SubSystemColumns - 1)) / SubSystemColumns;
+            int row = index / SubSystemColumns;
+            int column = index % SubSystemColumns;
+            Place(element, new Vector2(column * (size + m_Gap) + size * 0.5f, row * (size + m_Gap) + size * 0.5f),
+                Vector2.one * size);
+        }
 
+        private void Place(RectTransform element, Vector2 position, Vector2 size)
+        {
             element.SetParent(transform, false);
             element.anchorMin = Vector2.zero;
             element.anchorMax = Vector2.zero;
             element.pivot = Vector2.one * 0.5f;
-            element.anchoredPosition = new Vector2(column * (cellWidth + m_Gap) + cellWidth * 0.5f, bottom + height * 0.5f);
-            element.sizeDelta = new Vector2(cellWidth, height);
-            HudGauge gauge = element.GetComponent<HudGauge>();
-            if (row != SubSystemRow && gauge != null && gauge.PlaceIcon(m_Gap))
-                element.anchoredPosition += Vector2.right * (height + m_Gap);
+            element.anchoredPosition = position;
+            element.sizeDelta = size;
         }
     }
 }

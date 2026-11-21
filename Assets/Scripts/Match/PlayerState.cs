@@ -43,7 +43,11 @@ namespace PewPewPew.Match
             GetComponent<NetworkIdentity>().visibility = Visibility.ForceShown;
         }
 
-        public override void OnStartServer() => Register();
+        public override void OnStartServer()
+        {
+            m_Loadout = ShipCatalog.Instance.DefaultLoadout(0);
+            Register();
+        }
 
         // Interest management measures distance from this object, so it must travel with the ship.
         [ServerCallback]
@@ -93,7 +97,11 @@ namespace PewPewPew.Match
                 Debug.LogWarning($"Rejected loadout change for {m_Name}: unready before editing.", this);
                 return;
             }
-            if (!ShipCatalog.Instance.IsValid(loadout)) return;
+            if (!ShipCatalog.Instance.IsValid(loadout))
+            {
+                Debug.LogWarning($"Rejected invalid loadout for {m_Name}.", this);
+                return;
+            }
             string locked = ShipCatalog.Instance.LockedProblem(loadout);
             if (locked != null)
             {

@@ -10,6 +10,7 @@ namespace PewPewPew.Ships
         [SerializeField] private RawImage m_Icon;
 
         public RectTransform Rect => (RectTransform)transform;
+        public Color FillColor => m_Fill != null ? m_Fill.color : Color.white;
 
         public bool PlaceIcon(float gap)
         {

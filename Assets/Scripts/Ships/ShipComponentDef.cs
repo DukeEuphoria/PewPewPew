@@ -2,6 +2,22 @@ using UnityEngine;
 
 namespace PewPewPew.Ships
 {
+    public enum ComponentSize
+    {
+        Small,
+        Medium,
+        Large
+    }
+
+    public enum ComponentType
+    {
+        Hull = 0,
+        Shield = 1,
+        Gun = 2,
+        Thruster = 3,
+        SubSystem = 4
+    }
+
     /// Shared ratings for every ship component. Negative passive drain means the component generates power.
     public abstract class ShipComponentDef : ScriptableObject
     {
@@ -10,6 +26,7 @@ namespace PewPewPew.Ships
         [SerializeField, TextArea(3, 8)] private string m_Description;
         [SerializeField] private Sprite m_ButtonArtwork;
         [SerializeField, Min(0), Tooltip("Components with a price above zero remain locked until purchasing is implemented.")] private int m_Price;
+        [SerializeField] private ComponentSize m_Size;
 
         [SerializeField] private float m_Mass = 1f;
         [SerializeField] protected float m_PassivePowerDrain;
@@ -22,6 +39,8 @@ namespace PewPewPew.Ships
         public Sprite ButtonArtwork => m_ButtonArtwork;
         public int Price => Mathf.Max(0, m_Price);
         public bool IsLocked => Price > 0;
+        public ComponentSize Size => m_Size;
+        public abstract ComponentType Type { get; }
 
         public float Mass => m_Mass;
         public float PassivePowerDrain => m_PassivePowerDrain;

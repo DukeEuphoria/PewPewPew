@@ -31,5 +31,6 @@ namespace PewPewPew.Ships
         public float ArmourStrengthMultiplier => Mathf.Max(1f, m_ArmourStrengthMultiplier);
         public HudGauge Gauge => m_Gauge;
         public RadarEmitterDef Radar => m_Radar;
+        public override ComponentType Type => ComponentType.SubSystem;
     }
 }

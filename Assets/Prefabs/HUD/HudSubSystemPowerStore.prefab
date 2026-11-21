@@ -67,7 +67,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: b0b473211885cae4cae8fab8bec51436, type: 3}
-  m_Type: 0
+  m_Type: 3
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 0
@@ -88,5 +88,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1c0d1e2f3a44b5c8d6e7f8091a2b3c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HudGauge
-  m_Fill: {fileID: 0}
+  m_Fill: {fileID: 103}
   m_Icon: {fileID: 0}

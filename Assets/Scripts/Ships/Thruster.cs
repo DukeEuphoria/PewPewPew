@@ -28,17 +28,11 @@ namespace PewPewPew.Ships
             m_Throttle = ThrusterMath.Ramp(m_Throttle, target, Def.RampUpTime, Def.RampDownTime, deltaTime);
         }
 
-        /// Force is per emission point. Thus more visible engines, more oomph
         public void Apply(Rigidbody2D body)
         {
             if (m_Throttle <= 0f) return;
-
-            int used = Mathf.Min(Def.EmissionPointsUsed, System.Points.Length);
-            for (int i = 0; i < used; i++)
-            {
-                Transform point = System.Points[i];
-                body.AddForceAtPosition((Vector2)point.up * (Def.Force * ForceMultiplier * m_Throttle), point.position);
-            }
+            Transform point = System.Points[0];
+            body.AddForceAtPosition(-(Vector2)point.up * (Def.Force * ForceMultiplier * m_Throttle), point.position);
         }
     }
 }

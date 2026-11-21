@@ -1,3 +1,4 @@
+using System;
 using PewPewPew.Core;
 using PewPewPew.Weapons;
 using UnityEngine;
@@ -11,11 +12,7 @@ namespace PewPewPew.Ships
         private static ShipCatalog s_Instance;
 
         [SerializeField] private HullDef[] m_Hulls;
-        [SerializeField] private ShieldDef[] m_Shields;
-        [SerializeField] private GunDef[] m_MainGuns;
-        [SerializeField] private GunDef[] m_SecondaryGuns;
-        [SerializeField] private ThrusterDef[] m_Thrusters;
-        [SerializeField] private SubSystemDef[] m_SubSystems;
+        [SerializeField] private ShipComponentDef[] m_Components;
 
         /// The first ShipCatalog asset found in any Resources folder.
         public static ShipCatalog Instance
@@ -33,97 +30,88 @@ namespace PewPewPew.Ships
         }
 
         public HullDef[] Hulls => m_Hulls;
-        public ShieldDef[] Shields => m_Shields;
-        public GunDef[] MainGuns => m_MainGuns;
-        public GunDef[] SecondaryGuns => m_SecondaryGuns;
-        public ThrusterDef[] Thrusters => m_Thrusters;
-        public SubSystemDef[] SubSystems => m_SubSystems;
+        public ShipComponentDef[] Components => m_Components;
 
-        /// Indices in range, and no more sub systems than the hull has slots.
-        public bool IsValid(ShipLoadout loadout)
+        public ShipLoadout DefaultLoadout(int hullIndex)
         {
-            if (!LoadoutMath.InRange(loadout.Hull, m_Hulls.Length, false) ||
-                !LoadoutMath.InRange(loadout.Shield, m_Shields.Length, false) ||
-                !LoadoutMath.InRange(loadout.MainGun, m_MainGuns.Length, false) ||
-                !LoadoutMath.InRange(loadout.SecondaryGun, m_SecondaryGuns.Length, false) ||
-                !LoadoutMath.InRange(loadout.Thruster, m_Thrusters.Length, false))
-            {
-                return false;
-            }
+            if (m_Hulls == null || !LoadoutMath.InRange(hullIndex, m_Hulls.Length, false) || m_Hulls[hullIndex] == null)
+                throw new ArgumentOutOfRangeException(nameof(hullIndex));
+            HullPoints hull = m_Hulls[hullIndex].HullPoints;
+            if (hull == null)
+                throw new InvalidOperationException($"{m_Hulls[hullIndex].name} has no hull points.");
+            HullPoint[] points = hull.Points;
 
-            int slots = m_Hulls[loadout.Hull].SubSystemSlots;
-            for (int slot = 0; slot < ShipLoadout.SubSystemSlots; slot++)
+            ShipComponentDef[] components = Components;
+            var loadout = ShipLoadout.Empty;
+            loadout.Hull = hullIndex;
+            loadout.MountComponents = new int[points.Length];
+            for (int i = 0; i < points.Length; i++)
             {
-                int index = loadout.GetSubSystem(slot);
-                if (!LoadoutMath.InRange(index, m_SubSystems.Length, true)) return false;
-                if (index >= 0 && slot >= slots) return false;
+                HullPoint point = points[i];
+                if (point == null) throw new InvalidOperationException($"{hull.name} has a missing hull point at index {i}.");
+                if (point.DefaultComponent == null)
+                {
+                    loadout.MountComponents[i] = -1;
+                    continue;
+                }
+                int component = Array.IndexOf(components, point.DefaultComponent);
+                if (component < 0 || !point.AcceptsComponent(point.DefaultComponent))
+                    throw new InvalidOperationException($"{hull.name}: invalid default component at {point.name}.");
+                loadout.MountComponents[i] = component;
+            }
+            return loadout;
+        }
+
+        public bool IsMountLoadoutValid(ShipLoadout loadout)
+        {
+            if (m_Hulls == null || m_Components == null ||
+                !LoadoutMath.InRange(loadout.Hull, m_Hulls.Length, false) || m_Hulls[loadout.Hull] == null) return false;
+            HullPoints hull = m_Hulls[loadout.Hull].HullPoints;
+            if (hull == null || loadout.MountComponents == null) return false;
+            HullPoint[] points = hull.Points;
+            if (loadout.MountComponents.Length != points.Length) return false;
+            ShipComponentDef[] components = Components;
+            for (int i = 0; i < points.Length; i++)
+            {
+                int index = loadout.MountComponents[i];
+                if (!LoadoutMath.InRange(index, components.Length, true) || points[i] == null) return false;
+                if (index >= 0 && (components[index] == null || !points[i].AcceptsComponent(components[index]))) return false;
             }
             return true;
         }
 
-        public bool IsCompatible(HullDef hull, GunDef gun, bool secondary)
-        {
-            Transform[] points = secondary ? hull.SecondaryWeaponPoints : hull.MainWeaponPoints;
-            return hull.SelectPoints(points, gun.MaxEmissionPointsConsidered) != null;
-        }
-
-        public bool IsCompatible(HullDef hull, ThrusterDef thruster)
-        {
-            return hull.SelectPoints(hull.ThrusterPoints, thruster.EmissionPointsUsed) != null;
-        }
+        public bool IsValid(ShipLoadout loadout) => IsMountLoadoutValid(loadout);
 
         /// Requires an in-range loadout. Purchasing can later replace the definition's initial lock rule.
         public string LockedProblem(ShipLoadout loadout)
         {
-            ShipComponentDef[] major =
+            HullDef hull = m_Hulls[loadout.Hull];
+            if (hull.IsLocked) return $"{hull.DisplayName} is locked (price: {hull.Price}).";
+            ShipComponentDef[] components = Components;
+            foreach (int index in loadout.MountComponents)
             {
-                m_Hulls[loadout.Hull], m_Shields[loadout.Shield], m_MainGuns[loadout.MainGun],
-                m_SecondaryGuns[loadout.SecondaryGun], m_Thrusters[loadout.Thruster]
-            };
-            foreach (ShipComponentDef component in major)
-                if (component.IsLocked) return $"{component.DisplayName} is locked (price: {component.Price}).";
-            for (int slot = 0; slot < ShipLoadout.SubSystemSlots; slot++)
-            {
-                int index = loadout.GetSubSystem(slot);
-                if (index >= 0 && m_SubSystems[index].IsLocked)
-                    return $"{m_SubSystems[index].DisplayName} is locked (price: {m_SubSystems[index].Price}).";
+                if (index >= 0 && components[index].IsLocked)
+                    return $"{components[index].DisplayName} is locked (price: {components[index].Price}).";
             }
             return null;
         }
 
-        /// Null if the loadout can launch; otherwise why not. The chosen guns and thruster need enough emission points on the hull.
+        /// Null if the loadout can launch; otherwise why not.
         public string LaunchProblem(ShipLoadout loadout)
         {
             if (!IsValid(loadout)) return "The loadout is out of range.";
             string locked = LockedProblem(loadout);
             if (locked != null) return locked;
-
-            HullDef hull = m_Hulls[loadout.Hull];
-            if (hull.HullPoints == null) return $"{hull.name} has no hull prefab.";
-            if (m_Shields[loadout.Shield].Visual == null) return $"{m_Shields[loadout.Shield].name} has no shield visual.";
-
-            GunDef main = m_MainGuns[loadout.MainGun];
-            if (!IsCompatible(hull, main, false))
-                return $"{hull.name} has too few main weapon points for {main.name} (needs {main.MaxEmissionPointsConsidered}).";
-
-            GunDef secondary = m_SecondaryGuns[loadout.SecondaryGun];
-            if (!IsCompatible(hull, secondary, true))
-                return $"{hull.name} has too few secondary weapon points for {secondary.name} (needs {secondary.MaxEmissionPointsConsidered}).";
-
-            ThrusterDef thruster = m_Thrusters[loadout.Thruster];
-            if (!IsCompatible(hull, thruster))
-                return $"{hull.name} has too few thruster points for {thruster.name} (needs {thruster.EmissionPointsUsed}).";
-
-            Transform[] mounts = hull.HullPoints.SubSystems;
-            for (int slot = 0; slot < hull.SubSystemSlots; slot++)
+            ShipComponentDef[] components = Components;
+            foreach (int index in loadout.MountComponents)
             {
-                int index = loadout.GetSubSystem(slot);
-                if (index < 0 || m_SubSystems[index].Radar == null) continue;
-                if (mounts == null || slot >= mounts.Length || mounts[slot] == null ||
-                    hull.Bind(new[] { mounts[slot] }, hull.HullPoints.transform).Length == 0)
-                    return $"{hull.name} needs a subsystem attachment point in slot {slot + 1} for radar.";
+                if (index < 0) continue;
+                ShipComponentDef component = components[index];
+                if (component is ShieldDef shield && shield.Visual == null)
+                    return $"{shield.name} has no shield visual.";
+                if (component is GunDef gun && gun.BulletPrefab == null)
+                    return $"{gun.name} has no bullet prefab.";
             }
-
             return null;
         }
     }

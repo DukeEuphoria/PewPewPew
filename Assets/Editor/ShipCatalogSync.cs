@@ -23,17 +23,16 @@ namespace PewPewPew.Editor
 
             var catalog = AssetDatabase.LoadAssetAtPath<ShipCatalog>(AssetDatabase.GUIDToAssetPath(catalogs[0]));
             var serialized = new SerializedObject(catalog);
-            Append<HullDef>(serialized, "m_Hulls", "Hulls", 16);
-            Append<ShieldDef>(serialized, "m_Shields", "Shields", 16);
-            Append<GunDef>(serialized, "m_MainGuns", "MainWeapons", 16);
-            Append<GunDef>(serialized, "m_SecondaryGuns", "SecondaryWeapons", 16);
-            Append<ThrusterDef>(serialized, "m_Thrusters", "Thrusters", 16);
-            Append<SubSystemDef>(serialized, "m_SubSystems", "SubSystems", 64);
+            Append<HullDef>(serialized, "m_Hulls", "Hulls");
+            Append<ShieldDef>(serialized, "m_Components", "Shields");
+            Append<GunDef>(serialized, "m_Components", "Weapons");
+            Append<ThrusterDef>(serialized, "m_Components", "Thrusters");
+            Append<SubSystemDef>(serialized, "m_Components", "SubSystems");
             serialized.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.SaveAssets();
         }
 
-        private static void Append<T>(SerializedObject catalog, string property, string folder, int capacity)
+        private static void Append<T>(SerializedObject catalog, string property, string folder)
             where T : ShipComponentDef
         {
             SerializedProperty array = catalog.FindProperty(property);
@@ -50,9 +49,6 @@ namespace PewPewPew.Editor
             var discovered = AssetDatabase.FindAssets("t:" + typeof(T).Name, new[] { path })
                 .Select(AssetDatabase.GUIDToAssetPath).OrderBy(p => p, StringComparer.Ordinal)
                 .Select(AssetDatabase.LoadAssetAtPath<T>).Where(item => !existing.Contains(item)).ToArray();
-            if (array.arraySize + discovered.Length > capacity)
-                throw new InvalidOperationException($"{property} exceeds the supported {capacity} definitions.");
-
             // Existing indices are part of the network loadout; only append newly discovered definitions.
             foreach (T definition in discovered)
             {

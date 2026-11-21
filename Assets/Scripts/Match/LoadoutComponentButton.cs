@@ -31,13 +31,13 @@ namespace PewPewPew.Match
         {
             gameObject.SetActive(definition != null);
             if (definition == null) return;
-            m_NameLabel.text = definition.DisplayName;
+            m_NameLabel.text = definition.DisplayName + "\n" + definition.Size;
             m_Artwork.sprite = definition.ButtonArtwork;
             m_Artwork.gameObject.SetActive(definition.ButtonArtwork != null);
             m_Price.text = definition.IsLocked ? $"LOCKED - {definition.Price}" : string.Empty;
             m_Selected.SetActive(selected);
             m_Button.interactable = unavailable == null;
-            m_Details = definition.DisplayName + "\n" + definition.Description;
+            m_Details = $"{definition.DisplayName} ({definition.Size} {definition.Type})\n{definition.Description}";
             if (unavailable != null) m_Details += "\n\n" + unavailable;
             if (m_Hovered) m_Hover?.Invoke(m_Details);
         }

@@ -12,6 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0674ad328d403241b7322bfd7f1adcd, type: 3}
   m_Name: Basic Shield
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ShieldDef
+  m_DisplayName:
+  m_Description:
+  m_ButtonArtwork: {fileID: 0}
+  m_Price: 0
+  m_Size: 1
   m_Mass: 1
   m_PassivePowerDrain: 1
   m_ActivePowerDrain: 3

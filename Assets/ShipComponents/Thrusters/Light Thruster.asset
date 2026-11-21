@@ -10,19 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 05d3fb52dff18284d91fd3603fbc4587, type: 3}
-  m_Name: Basic Thruster Quad
+  m_Name: Light Thruster
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ThrusterDef
   m_DisplayName: 
   m_Description: 
   m_ButtonArtwork: {fileID: 0}
   m_Price: 0
-  m_Mass: 3
-  m_PassivePowerDrain: 0.2
-  m_ActivePowerDrain: 8
+  m_Size: 1
+  m_Mass: 1
+  m_PassivePowerDrain: 0.1
+  m_ActivePowerDrain: 1.25
   m_MaxHealth: 100
   m_AutoRepairRate: 0
-  m_Force: 250
-  m_EmissionPointsUsed: 4
+  m_Force: 125
   m_RampUpTime: 0.1
   m_RampDownTime: 0
   m_Effect: {fileID: 829224330183055217, guid: 99e7fd631b079b34f8b75b9069c22d5f, type: 3}

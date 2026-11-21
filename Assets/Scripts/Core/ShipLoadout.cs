@@ -3,54 +3,27 @@ using UnityEngine;
 
 namespace PewPewPew.Core
 {
-    /// A ship's chosen components as indices into the ShipCatalog; sub system slots use -1 for empty. Colour0 and Colour1 are the player's two ship colours.
+    /// A ship's hull and per-point component indices into the ShipCatalog; -1 means an empty point.
     public struct ShipLoadout
     {
-        public const int SubSystemSlots = 4;
-
         public int Hull;
-        public int Shield;
-        public int MainGun;
-        public int SecondaryGun;
-        public int Thruster;
-        public int SubSystem0;
-        public int SubSystem1;
-        public int SubSystem2;
-        public int SubSystem3;
+        public int[] MountComponents;
         public Color32 Colour0;
         public Color32 Colour1;
 
         public static ShipLoadout Empty => new ShipLoadout
         {
-            SubSystem0 = -1,
-            SubSystem1 = -1,
-            SubSystem2 = -1,
-            SubSystem3 = -1,
             Colour0 = PlayerPalette.DefaultPrimary,
             Colour1 = PlayerPalette.DefaultSecondary,
         };
 
-        public int GetSubSystem(int slot)
+        public void SetMountComponent(int mount, int index)
         {
-            switch (slot)
-            {
-                case 0: return SubSystem0;
-                case 1: return SubSystem1;
-                case 2: return SubSystem2;
-                case 3: return SubSystem3;
-                default: return -1;
-            }
-        }
-
-        public void SetSubSystem(int slot, int index)
-        {
-            switch (slot)
-            {
-                case 0: SubSystem0 = index; break;
-                case 1: SubSystem1 = index; break;
-                case 2: SubSystem2 = index; break;
-                case 3: SubSystem3 = index; break;
-            }
+            if (MountComponents == null) throw new InvalidOperationException("The loadout has no mount assignments.");
+            if (mount < 0 || mount >= MountComponents.Length) throw new ArgumentOutOfRangeException(nameof(mount));
+            int[] updated = (int[])MountComponents.Clone();
+            updated[mount] = index;
+            MountComponents = updated;
         }
     }
 

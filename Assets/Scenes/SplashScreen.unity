@@ -8093,10 +8093,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Networking.MenuRaycastButton
   m_ScreenFlow: {fileID: 6865094263743335050}
-  m_Destination: 5
+  m_Destination: 1
   m_OnActivate:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 7331236670586724124}
+        m_TargetAssemblyTypeName: PewPewPew.Networking.MenuButtonFunctions, Assembly-CSharp
+        m_MethodName: StartSoloGame
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: ""
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!222 &7732670259098128617
 CanvasRenderer:
   m_ObjectHideFlags: 0

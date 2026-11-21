@@ -27,6 +27,7 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -45,10 +46,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2d8ea29fb250e554b81702219e08d183, type: 3}
-  m_Name: ''
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Presentation.MinimapRoot
   m_Activation: 0
-  m_DefaultEmitter: {fileID: 11400000, guid: 4a3b25e8d70948a2a1d5c65e9b067831, type: 2}
+  m_DefaultEmitter: {fileID: 11400000, guid: 561b27d29f3341d5be2b2dc67ec6fb9a, type: 2}
   m_DisplayRange: 500
   m_DisplayRefreshRate: 15
   m_FadeContacts: 1
@@ -62,4 +63,6 @@ MonoBehaviour:
   m_ShipColor: {r: 1, g: 0.4, b: 0.3, a: 1}
   m_OrbitalColor: {r: 0.3, g: 0.8, b: 1, a: 1}
   m_AsteroidColor: {r: 0.75, g: 0.75, b: 0.7, a: 1}
+  m_WorldEdgeColor: {r: 1, g: 0.8, b: 0.2, a: 0.9}
+  m_WorldEdgeWidth: 2
   m_ShowScan: 1

@@ -10,26 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 83df16d1b165b714eb77c76937203041, type: 3}
-  m_Name: Basic Gun Single
+  m_Name: Basic Gun Shotgun
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Weapons.GunDef
   m_DisplayName: 
   m_Description: 
   m_ButtonArtwork: {fileID: 0}
   m_Price: 0
-  m_Mass: 1
+  m_Size: 1
+  m_Mass: 5
   m_PassivePowerDrain: 0.1
-  m_ActivePowerDrain: 1.5
+  m_ActivePowerDrain: 10
   m_MaxHealth: 100
   m_AutoRepairRate: 0
-  m_FireRate: 10
+  m_FireRate: 1
   m_LaunchSpeed: 100
-  m_MinLaunchAngle: -5
-  m_MaxLaunchAngle: 5
-  m_BulletsPerBurst: 1
-  m_EmissionPointsUsed: 1
-  m_MaxEmissionPointsConsidered: 1
-  m_SweepSpeed: 3
-  m_Pattern: 2
+  m_MinLaunchAngle: -10
+  m_MaxLaunchAngle: 10
+  m_BulletsPerBurst: 10
+  m_SweepSpeed: 0
+  m_Pattern: 0
   m_BulletPrefab: {fileID: 6268373826673617405, guid: 868a92a0ce788b84c923cc3b71e2f8a5, type: 3}
   m_LaunchEffect: {fileID: 0}
   m_LaunchSound: {fileID: 0}

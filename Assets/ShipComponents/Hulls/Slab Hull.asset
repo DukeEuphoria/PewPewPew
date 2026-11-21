@@ -28,7 +28,6 @@ MonoBehaviour:
   m_ArmourRepairRate: 0.25
   m_ArmourWearRatio: 0.1
   m_MaxPowerStorage: 150
-  m_SubSystemSlots: 4
   m_Friction: 0.05
   m_AngularAcceleration: 400
   m_AngularDamping: 1

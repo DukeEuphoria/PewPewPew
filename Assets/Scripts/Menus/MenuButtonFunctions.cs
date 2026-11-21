@@ -10,6 +10,18 @@ namespace PewPewPew.Networking
 
         private bool m_IsQuitting;
 
+        /// Starts a local host without creating or joining a Steam lobby.
+        public void StartSoloGame()
+        {
+            if (!(NetworkManager.singleton is GameNetworkManager gameNetworkManager))
+            {
+                Debug.LogError("Cannot start a solo game without a GameNetworkManager.", this);
+                return;
+            }
+
+            gameNetworkManager.StartOfflineGame();
+        }
+
         /// Leaves the match and lobby, then returns to the title scene.
         public void QuitToMainMenu()
         {
@@ -40,6 +52,12 @@ namespace PewPewPew.Networking
         {
             NetworkManager networkManager = NetworkManager.singleton;
             if (networkManager == null) return;
+
+            if (networkManager is GameNetworkManager gameNetworkManager && gameNetworkManager.IsOfflineGame)
+            {
+                gameNetworkManager.StopOfflineGame();
+                return;
+            }
 
             if (NetworkServer.active && NetworkClient.active)
             {

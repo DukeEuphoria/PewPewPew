@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Mirror;
 using PewPewPew.Core;
 using PewPewPew.Networking;
@@ -43,8 +44,8 @@ namespace PewPewPew.Match
         private ShipCatalog m_Catalog;
         private ShipLoadout m_Pending;
         private int m_Category;
+        private int m_SelectedPoint;
         public bool CanEdit => m_Player == null || (!m_Player.Ready && !m_Player.HasShip);
-
         public ShipLoadout Pending => m_Pending;
 
         private void Awake()
@@ -57,22 +58,34 @@ namespace PewPewPew.Match
             {
                 if (CanEdit) m_ColoursPanel.SetActive(!m_ColoursPanel.activeSelf);
             });
+            m_Catalog = ShipCatalog.Instance;
+            if (m_Catalog == null) { enabled = false; return; }
             for (int category = 0; category < m_Categories.Length; category++)
             {
                 int capturedCategory = category;
-                m_Categories[category].Tab.onClick.AddListener(() => ShowCategory(capturedCategory));
-                for (int index = 0; index < m_Categories[category].Buttons.Length; index++)
+                var view = m_Categories[category];
+                view.Tab.onClick.AddListener(() => ShowCategory(capturedCategory));
+                int required = Items(category).Length;
+                if (required > view.Buttons.Length)
+                {
+                    if (view.Buttons.Length == 0) throw new InvalidOperationException("The loadout category has no button template.");
+                    int oldLength = view.Buttons.Length;
+                    Array.Resize(ref view.Buttons, required);
+                    for (int index = oldLength; index < required; index++)
+                        view.Buttons[index] = Instantiate(view.Buttons[0], view.Grid.transform);
+                }
+                for (int index = 0; index < view.Buttons.Length; index++)
                 {
                     int capturedIndex = index;
-                    m_Categories[category].Buttons[index].Initialize(
-                        () => SelectComponent(capturedCategory, capturedIndex), ShowHover);
+                    view.Buttons[index].Initialize(() => SelectComponent(capturedCategory, capturedIndex), ShowHover);
                 }
             }
+            m_Categories[2].Tab.gameObject.SetActive(false);
+            TMP_Text gunTab = m_Categories[1].Tab.GetComponentInChildren<TMP_Text>();
+            if (gunTab != null) gunTab.text = "GUNS";
             for (int slot = 0; slot < m_Slots.Length; slot++)
-            {
-                int captured = slot;
-                m_Slots[slot].onClick.AddListener(() => ClearSlot(captured));
-            }
+                m_Slots[slot].gameObject.SetActive(slot == 0);
+            m_Slots[0].onClick.AddListener(ClearSelectedPoint);
             for (int index = 0; index < PlayerPalette.Count; index++)
             {
                 int captured = index;
@@ -92,13 +105,6 @@ namespace PewPewPew.Match
                 m_Player = local;
                 if (local != null)
                 {
-                    m_Catalog = ShipCatalog.Instance;
-                    if (!ValidateCatalog())
-                    {
-                        m_Panel.SetActive(false);
-                        enabled = false;
-                        return;
-                    }
                     m_Pending = local.Loadout;
                     if (CanEdit) PlayerColourStore.Current.Load(out m_Pending.Colour0, out m_Pending.Colour1);
                     Normalize();
@@ -121,114 +127,60 @@ namespace PewPewPew.Match
             }
         }
 
-        private bool ValidateCatalog()
-        {
-            if (m_Catalog == null) return false; // ShipCatalog logs the missing asset.
-            if (m_Catalog.Hulls == null || m_Catalog.Hulls.Length == 0 || Array.Exists(m_Catalog.Hulls, h => h == null))
-            {
-                Debug.LogError("Loadout menu requires a non-empty hull catalog with no missing definitions.", this);
-                return false;
-            }
-            for (int category = 0; category < m_Categories.Length; category++)
-            {
-                ShipComponentDef[] items = Items(category);
-                if (items == null || (category != 4 && items.Length == 0) || Array.Exists(items, item => item == null) ||
-                    items.Length > m_Categories[category].Buttons.Length)
-                {
-                    Debug.LogError($"Loadout category {category} is empty, contains missing definitions, or exceeds its static button capacity.", this);
-                    return false;
-                }
-            }
-            return true;
-        }
-
         private ShipComponentDef[] Items(int category)
         {
+            ShipComponentDef[] items = m_Catalog.Components;
             switch (category)
             {
-                case 0: return m_Catalog.Shields;
-                case 1: return m_Catalog.MainGuns;
-                case 2: return m_Catalog.SecondaryGuns;
-                case 3: return m_Catalog.Thrusters;
-                case 4: return m_Catalog.SubSystems;
+                case 0: return items.Where(item => item.Type == ComponentType.Shield).ToArray();
+                case 1: return items.Where(item => item.Type == ComponentType.Gun).ToArray();
+                case 2: return Array.Empty<ShipComponentDef>();
+                case 3: return items.Where(item => item.Type == ComponentType.Thruster).ToArray();
+                case 4: return items.Where(item => item.Type == ComponentType.SubSystem).ToArray();
                 default: throw new ArgumentOutOfRangeException(nameof(category));
             }
         }
 
-        private int Selected(int category)
+        private HullPoint SelectedPoint
         {
-            switch (category)
+            get
             {
-                case 0: return m_Pending.Shield;
-                case 1: return m_Pending.MainGun;
-                case 2: return m_Pending.SecondaryGun;
-                case 3: return m_Pending.Thruster;
-                default: return -1;
+                HullPoint[] points = m_Catalog.Hulls[m_Pending.Hull].HullPoints.Points;
+                return m_SelectedPoint >= 0 && m_SelectedPoint < points.Length ? points[m_SelectedPoint] : null;
             }
         }
 
-        private string Unavailable(int category, int index)
+        private string Unavailable(ShipComponentDef definition, HullPoint point)
         {
-            ShipComponentDef definition = Items(category)[index];
             if (definition.IsLocked) return $"Locked - price: {definition.Price}";
-            HullDef hull = m_Catalog.Hulls[m_Pending.Hull];
-            bool compatible = category == 1 ? m_Catalog.IsCompatible(hull, m_Catalog.MainGuns[index], false) :
-                category == 2 ? m_Catalog.IsCompatible(hull, m_Catalog.SecondaryGuns[index], true) :
-                category == 3 ? m_Catalog.IsCompatible(hull, m_Catalog.Thrusters[index]) : true;
-            if (!compatible) return "This hull does not have enough attachment points.";
-            if (category == 4 && FirstEmptySlot() < 0) return "All subsystem slots are full. Clear a slot to fit this component.";
+            if (point == null) return "Select a hull point.";
+            if (!point.AcceptsComponent(definition))
+                return $"This point does not accept a {definition.Size} {definition.Type}.";
             return null;
-        }
-
-        private int FirstEmptySlot()
-        {
-            int count = m_Catalog.Hulls[m_Pending.Hull].SubSystemSlots;
-            for (int slot = 0; slot < count; slot++)
-                if (m_Pending.GetSubSystem(slot) < 0) return slot;
-            return -1;
         }
 
         private void Normalize()
         {
-            if (!LoadoutMath.InRange(m_Pending.Hull, m_Catalog.Hulls.Length, false)) m_Pending.Hull = 0;
-            for (int category = 0; category < 4; category++)
+            if (!m_Catalog.IsValid(m_Pending))
             {
-                int index = Selected(category);
-                if (LoadoutMath.InRange(index, Items(category).Length, false) && Unavailable(category, index) == null) continue;
-                int replacement = Array.FindIndex(Items(category), item => !item.IsLocked);
-                for (int candidate = 0; candidate < Items(category).Length; candidate++)
-                    if (Unavailable(category, candidate) == null) { replacement = candidate; break; }
-                SetMajor(category, replacement >= 0 ? replacement : 0);
+                int hull = LoadoutMath.InRange(m_Pending.Hull, m_Catalog.Hulls.Length, false) ? m_Pending.Hull : 0;
+                Color32 primary = m_Pending.Colour0;
+                Color32 secondary = m_Pending.Colour1;
+                m_Pending = m_Catalog.DefaultLoadout(hull);
+                m_Pending.Colour0 = primary;
+                m_Pending.Colour1 = secondary;
             }
-            for (int slot = 0; slot < ShipLoadout.SubSystemSlots; slot++)
-            {
-                int index = m_Pending.GetSubSystem(slot);
-                if (slot >= m_Catalog.Hulls[m_Pending.Hull].SubSystemSlots ||
-                    !LoadoutMath.InRange(index, m_Catalog.SubSystems.Length, true) ||
-                    (index >= 0 && m_Catalog.SubSystems[index].IsLocked))
-                    m_Pending.SetSubSystem(slot, -1);
-            }
-        }
-
-        private void SetMajor(int category, int index)
-        {
-            switch (category)
-            {
-                case 0: m_Pending.Shield = index; break;
-                case 1: m_Pending.MainGun = index; break;
-                case 2: m_Pending.SecondaryGun = index; break;
-                case 3: m_Pending.Thruster = index; break;
-                default: throw new ArgumentOutOfRangeException(nameof(category));
-            }
+            if (m_SelectedPoint >= m_Pending.MountComponents.Length) m_SelectedPoint = 0;
         }
 
         public void SelectComponent(int category, int index)
         {
             if (!CanEdit) return;
-            string unavailable = Unavailable(category, index);
+            ShipComponentDef[] items = Items(category);
+            if (index < 0 || index >= items.Length) return;
+            string unavailable = Unavailable(items[index], SelectedPoint);
             if (unavailable != null) { ShowHover(unavailable); return; }
-            if (category == 4) m_Pending.SetSubSystem(FirstEmptySlot(), index);
-            else SetMajor(category, index);
+            m_Pending.SetMountComponent(m_SelectedPoint, Array.IndexOf(m_Catalog.Components, items[index]));
             Submit();
             Refresh();
         }
@@ -236,16 +188,34 @@ namespace PewPewPew.Match
         public void CycleHull(int step)
         {
             if (!CanEdit) return;
-            m_Pending.Hull = LoadoutMath.Cycle(m_Pending.Hull, m_Catalog.Hulls.Length, step, false);
-            Normalize();
+            int hull = LoadoutMath.Cycle(m_Pending.Hull, m_Catalog.Hulls.Length, step, false);
+            Color32 primary = m_Pending.Colour0;
+            Color32 secondary = m_Pending.Colour1;
+            m_Pending = m_Catalog.DefaultLoadout(hull);
+            m_Pending.Colour0 = primary;
+            m_Pending.Colour1 = secondary;
+            m_SelectedPoint = 0;
             Submit();
             Refresh();
         }
 
-        public void ClearSlot(int slot)
+        private void SelectPoint(int point)
         {
             if (!CanEdit) return;
-            m_Pending.SetSubSystem(slot, -1);
+            m_SelectedPoint = point;
+            HullPoint selectedPoint = SelectedPoint;
+            if (!Items(m_Category).Any(item => selectedPoint.AcceptsComponent(item)))
+            {
+                foreach (int category in new[] { 0, 1, 3, 4 })
+                    if (Items(category).Any(item => selectedPoint.AcceptsComponent(item))) { m_Category = category; break; }
+            }
+            Refresh();
+        }
+
+        private void ClearSelectedPoint()
+        {
+            if (!CanEdit || SelectedPoint == null) return;
+            m_Pending.SetMountComponent(m_SelectedPoint, -1);
             Submit();
             Refresh();
         }
@@ -279,10 +249,8 @@ namespace PewPewPew.Match
             Refresh();
         }
 
-        private void ShowHover(string description)
-        {
-            m_HoverDescription.text = description ?? "Hover over a component to see its description and availability.";
-        }
+        private void ShowHover(string description) =>
+            m_HoverDescription.text = description ?? "Select a hull point, then choose a compatible component.";
 
         private void Refresh()
         {
@@ -291,6 +259,9 @@ namespace PewPewPew.Match
             m_HullDescription.text = hull.Description;
             if (hull.IsLocked) m_HullDescription.text += $"\nLocked - price: {hull.Price}";
             m_PreviousHull.interactable = m_NextHull.interactable = m_Catalog.Hulls.Length > 1;
+            ShipComponentDef[] all = m_Catalog.Components;
+            HullPoint point = SelectedPoint;
+            int selected = point == null ? -1 : m_Pending.MountComponents[m_SelectedPoint];
             for (int category = 0; category < m_Categories.Length; category++)
             {
                 LoadoutCategoryView view = m_Categories[category];
@@ -298,25 +269,15 @@ namespace PewPewPew.Match
                 view.Tab.interactable = category != m_Category;
                 ShipComponentDef[] items = Items(category);
                 for (int index = 0; index < view.Buttons.Length; index++)
-                {
-                    bool selected = Selected(category) == index;
-                    if (category == 4)
-                        for (int slot = 0; slot < hull.SubSystemSlots; slot++)
-                            selected |= m_Pending.GetSubSystem(slot) == index;
-                    view.Buttons[index].Bind(index < items.Length ? items[index] : null, selected,
-                        index < items.Length ? Unavailable(category, index) : null);
-                }
+                    view.Buttons[index].Bind(index < items.Length ? items[index] : null,
+                        index < items.Length && selected >= 0 && all[selected] == items[index],
+                        index < items.Length ? Unavailable(items[index], point) : null);
             }
-            for (int slot = 0; slot < m_Slots.Length; slot++)
-            {
-                int index = m_Pending.GetSubSystem(slot);
-                bool available = slot < hull.SubSystemSlots;
-                m_Slots[slot].interactable = available && index >= 0;
-                m_SlotLabels[slot].text = !available ? "Unavailable" : index < 0 ? "Empty" :
-                    m_Catalog.SubSystems[index].DisplayName + "\nClick to clear";
-            }
+            m_Slots[0].interactable = point != null && selected >= 0;
+            m_SlotLabels[0].text = point == null ? "No point" :
+                $"{point.name} ({point.Size})\n{(selected < 0 ? "Empty" : "Click to clear")}";
             m_ColourLabel.text = $"Primary: {PlayerPalette.IndexOf(m_Pending.Colour0) + 1}   Secondary: {PlayerPalette.IndexOf(m_Pending.Colour1) + 1}";
-            m_Preview.Show(m_Pending);
+            m_Preview.Show(m_Pending, m_SelectedPoint, SelectPoint);
         }
 
         private void UpdateDeploy(MatchManager match)

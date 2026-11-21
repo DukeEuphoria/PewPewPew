@@ -1848,10 +1848,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Networking.MenuRaycastButton
   m_ScreenFlow: {fileID: 0}
-  m_Destination: 5
+  m_Destination: 1
   m_OnActivate:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 7123900765123831451}
+        m_TargetAssemblyTypeName: PewPewPew.Networking.MenuButtonFunctions, Assembly-CSharp
+        m_MethodName: StartSoloGame
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: ""
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!1 &2727282640020122047
 GameObject:
   m_ObjectHideFlags: 0
@@ -3626,6 +3638,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5353566048282017358}
+  - component: {fileID: 7123900765123831451}
   m_Layer: 0
   m_Name: FrontEndMenus
   m_TagString: Untagged
@@ -3633,6 +3646,18 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &7123900765123831451
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5724160648931248862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 56176f15275e457abcae094cd2561e4e, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Networking.MenuButtonFunctions
 --- !u!4 &5353566048282017358
 Transform:
   m_ObjectHideFlags: 0

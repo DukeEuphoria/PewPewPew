@@ -14,20 +14,22 @@ namespace PewPewPew.Ships
             public float MaxSpeed;
         }
 
-        private readonly List<Emitter> m_Emitters = new List<Emitter>();
+        private readonly List<List<Emitter>> m_EmitterGroups = new List<List<Emitter>>();
 
-        public void Build(ThrusterDef def, Transform[] points)
+        public int Build(ThrusterDef def, Transform[] points)
         {
-            if (def.Effect == null) return;
+            var emitters = new List<Emitter>();
+            int group = m_EmitterGroups.Count;
+            m_EmitterGroups.Add(emitters);
+            if (def.Effect == null) return group;
 
-            int used = Mathf.Min(def.EmissionPointsUsed, points.Length);
-            for (int i = 0; i < used; i++)
+            for (int i = 0; i < points.Length; i++)
             {
                 GameObject effect = Instantiate(def.Effect, points[i]);
                 effect.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
                 foreach (ParticleSystem particles in effect.GetComponentsInChildren<ParticleSystem>())
                 {
-                    m_Emitters.Add(new Emitter
+                    emitters.Add(new Emitter
                     {
                         Particles = particles,
                         MaxRate = particles.emission.rateOverTimeMultiplier,
@@ -35,13 +37,22 @@ namespace PewPewPew.Ships
                     });
                 }
             }
-            SetThrottle(0f);
+            SetThrottle(group, 0f);
+            return group;
         }
 
         public void SetThrottle(float throttle)
         {
+            if (m_EmitterGroups.Count > 0) SetThrottle(0, throttle);
+        }
+
+        public void SetThrottle(int group, float throttle)
+        {
+            if (group < 0) return;
+            if (group >= m_EmitterGroups.Count) throw new System.ArgumentOutOfRangeException(nameof(group));
+
             throttle = Mathf.Clamp01(throttle);
-            foreach (Emitter emitter in m_Emitters)
+            foreach (Emitter emitter in m_EmitterGroups[group])
             {
                 ParticleSystem.EmissionModule emission = emitter.Particles.emission;
                 emission.enabled = throttle > 0f;

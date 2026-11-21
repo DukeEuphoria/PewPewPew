@@ -18,6 +18,7 @@ namespace PewPewPew.Ships
         public float ShieldCapacity => m_ShieldCapacity;
         public float MaxSingleImpact => m_MaxSingleImpact;
         public float RechargeRate => m_RechargeRate;
+        public override ComponentType Type => ComponentType.Shield;
         public override bool TakesFullDamage => true;
     }
 }

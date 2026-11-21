@@ -32,10 +32,8 @@ namespace PewPewPew.Weapons
             if (System.Health.IsDestroyed || time < m_NextFireTime) return null;
             if (!power.TryDraw(Def.ActivePowerDrain)) return null;
 
-            int considered = Mathf.Min(Def.MaxEmissionPointsConsidered, System.Points.Length);
-            int used = Mathf.Min(Def.EmissionPointsUsed, considered);
             Shot[] shots = FireMath.Burst(Def.Pattern, Def.BulletsPerBurst, Def.MinLaunchAngle, Def.MaxLaunchAngle,
-                m_SweepPhase, m_BurstIndex, used, considered, random);
+                m_SweepPhase, m_BurstIndex, 1, 1, random);
 
             m_BurstIndex++;
             m_NextFireTime = time + 1f / (Def.FireRate * RateMultiplier);

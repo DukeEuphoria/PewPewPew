@@ -6,8 +6,11 @@ namespace PewPewPew.Ships
     public struct ShipControls
     {
         public float Thrust;
+        public float ReverseThrust;
+        public float SideThrust;
         public Vector2 AimPoint;
         public bool FireMain;
         public bool FireSecondary;
+        public bool HoldShields;
     }
 }

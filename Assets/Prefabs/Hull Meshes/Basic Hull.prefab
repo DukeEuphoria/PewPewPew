@@ -32,20 +32,21 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2001}
-  - {fileID: 7980965833523059853}
-  - {fileID: 2011}
-  - {fileID: 2021}
-  - {fileID: 5111115675155262544}
-  - {fileID: 2031}
-  - {fileID: 2041}
-  - {fileID: 2051}
   - {fileID: 2710316240342829829}
   - {fileID: 3092410901022940979}
+  - {fileID: 7980965833523059853}
+  - {fileID: 2001}
+  - {fileID: 2011}
+  - {fileID: 2041}
+  - {fileID: 2051}
+  - {fileID: 5111115675155262544}
+  - {fileID: 2021}
+  - {fileID: 2031}
   - {fileID: 6001}
   - {fileID: 6011}
   - {fileID: 6021}
   - {fileID: 6031}
+  - {fileID: 7320949467910113414}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &1002
@@ -117,22 +118,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5f4a5b6c7d88e9fa0b1c2d3e4f50617, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoints
-  m_MainWeapon:
-  - {fileID: 7980965833523059853}
-  - {fileID: 2001}
-  - {fileID: 2011}
-  m_SecondaryWeapon:
-  - {fileID: 2041}
-  - {fileID: 2051}
-  m_Thruster:
-  - {fileID: 5111115675155262544}
-  - {fileID: 2021}
-  - {fileID: 2031}
-  m_SubSystems:
-  - {fileID: 6001}
-  - {fileID: 6011}
-  - {fileID: 6021}
-  - {fileID: 6031}
 --- !u!1 &2000
 GameObject:
   m_ObjectHideFlags: 0
@@ -142,6 +127,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2001}
+  - component: {fileID: 7558073442980230948}
   m_Layer: 0
   m_Name: MainPointL
   m_TagString: Untagged
@@ -164,6 +150,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7558073442980230948
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 12
+  m_Size: 1
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &2010
 GameObject:
   m_ObjectHideFlags: 0
@@ -173,6 +175,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2011}
+  - component: {fileID: 5610832843953569654}
   m_Layer: 0
   m_Name: MainPointR
   m_TagString: Untagged
@@ -195,6 +198,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5610832843953569654
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 12
+  m_Size: 1
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &2020
 GameObject:
   m_ObjectHideFlags: 0
@@ -204,6 +223,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2021}
+  - component: {fileID: 6882124468869419149}
   m_Layer: 0
   m_Name: ThrusterPointL
   m_TagString: Untagged
@@ -219,13 +239,29 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2020}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 1, w: 0}
   m_LocalPosition: {x: -0.66, y: -1.25, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -180}
+--- !u!114 &6882124468869419149
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2020}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 8
+  m_Size: 1
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &2030
 GameObject:
   m_ObjectHideFlags: 0
@@ -235,6 +271,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2031}
+  - component: {fileID: 5359991873487429068}
   m_Layer: 0
   m_Name: ThrusterPointR
   m_TagString: Untagged
@@ -250,13 +287,29 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2030}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 1, w: 0}
   m_LocalPosition: {x: 0.66, y: -1.25, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -180}
+--- !u!114 &5359991873487429068
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 8
+  m_Size: 1
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &2040
 GameObject:
   m_ObjectHideFlags: 0
@@ -266,6 +319,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2041}
+  - component: {fileID: 3310255227161710496}
   m_Layer: 0
   m_Name: SecondaryPointL
   m_TagString: Untagged
@@ -288,6 +342,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3310255227161710496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 12
+  m_Size: 2
+  m_GunRole: 1
+  m_DefaultComponent: {fileID: 11400000, guid: a99c3271ae21d66438bc92870c2b3d2f, type: 2}
 --- !u!1 &2050
 GameObject:
   m_ObjectHideFlags: 0
@@ -297,6 +367,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2051}
+  - component: {fileID: 7802458740345510427}
   m_Layer: 0
   m_Name: SecondaryPointR
   m_TagString: Untagged
@@ -319,6 +390,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7802458740345510427
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 12
+  m_Size: 1
+  m_GunRole: 1
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &6000
 GameObject:
   m_ObjectHideFlags: 0
@@ -328,6 +415,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6001}
+  - component: {fileID: 3903985678386233504}
   m_Layer: 0
   m_Name: SubSystemPoint1
   m_TagString: Untagged
@@ -344,12 +432,28 @@ Transform:
   m_GameObject: {fileID: 6000}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.5, z: 0}
+  m_LocalPosition: {x: 0, y: 0.4, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3903985678386233504
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 18
+  m_Size: 2
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &6010
 GameObject:
   m_ObjectHideFlags: 0
@@ -359,6 +463,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6011}
+  - component: {fileID: 274452092730761625}
   m_Layer: 0
   m_Name: SubSystemPoint2
   m_TagString: Untagged
@@ -374,13 +479,29 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6010}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: -0.7071068, w: 0.7071068}
-  m_LocalPosition: {x: 0.5, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -90}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &274452092730761625
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 18
+  m_Size: 1
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &6020
 GameObject:
   m_ObjectHideFlags: 0
@@ -390,6 +511,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6021}
+  - component: {fileID: 4328061357037298301}
   m_Layer: 0
   m_Name: SubSystemPoint3
   m_TagString: Untagged
@@ -405,13 +527,29 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6020}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 1, w: 0}
-  m_LocalPosition: {x: 0, y: -0.5, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 180}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4328061357037298301
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6020}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 18
+  m_Size: 1
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &6030
 GameObject:
   m_ObjectHideFlags: 0
@@ -421,6 +559,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6031}
+  - component: {fileID: 8294747647516893786}
   m_Layer: 0
   m_Name: SubSystemPoint4
   m_TagString: Untagged
@@ -436,13 +575,29 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6030}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
-  m_LocalPosition: {x: -0.5, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 90}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8294747647516893786
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 18
+  m_Size: 1
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 0}
 --- !u!1 &704029457747372195
 GameObject:
   m_ObjectHideFlags: 0
@@ -452,6 +607,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7980965833523059853}
+  - component: {fileID: 5655841499440852951}
   m_Layer: 0
   m_Name: MainPointC
   m_TagString: Untagged
@@ -474,6 +630,70 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5655841499440852951
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 704029457747372195}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 4
+  m_Size: 2
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 11400000, guid: a34c1f1292b218445ae722274065ddc8, type: 2}
+--- !u!1 &2007983161614890479
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7320949467910113414}
+  - component: {fileID: 3469477832668786258}
+  m_Layer: 0
+  m_Name: ShieldPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7320949467910113414
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2007983161614890479}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.559, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3469477832668786258
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2007983161614890479}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 2
+  m_Size: 2
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 11400000, guid: ade6892f6ec45fb4d95322c2977ac6fd, type: 2}
 --- !u!1 &4614517507597361268
 GameObject:
   m_ObjectHideFlags: 0
@@ -663,6 +883,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5111115675155262544}
+  - component: {fileID: 7670966286864835781}
   m_Layer: 0
   m_Name: ThrusterPointC
   m_TagString: Untagged
@@ -678,10 +899,26 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7389903510842286834}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 1, w: 0}
   m_LocalPosition: {x: 0, y: -1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -180}
+--- !u!114 &7670966286864835781
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7389903510842286834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Accepts: 8
+  m_Size: 2
+  m_GunRole: 0
+  m_DefaultComponent: {fileID: 11400000, guid: db93b4f63dc695540ba9297cafc8b54e, type: 2}

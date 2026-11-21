@@ -337,9 +337,17 @@ namespace PewPewPew.Tests
     public class PowerBankTests
     {
         [Test]
+        public void NewBank_StartsFullyCharged()
+        {
+            var bank = new PowerBank(50);
+            Assert.AreEqual(50f, bank.Stored);
+        }
+
+        [Test]
         public void Charge_ClampsAtMax()
         {
             var bank = new PowerBank(50);
+            bank.Draw(40);
             bank.Charge(80);
             Assert.AreEqual(50f, bank.Stored);
         }
@@ -348,7 +356,7 @@ namespace PewPewPew.Tests
         public void TryDraw_IsAllOrNothing()
         {
             var bank = new PowerBank(50);
-            bank.Charge(10);
+            bank.Draw(40);
             Assert.IsFalse(bank.TryDraw(15));
             Assert.AreEqual(10f, bank.Stored);
             Assert.IsTrue(bank.TryDraw(10));
@@ -359,7 +367,7 @@ namespace PewPewPew.Tests
         public void Draw_TakesWhatIsAvailable()
         {
             var bank = new PowerBank(50);
-            bank.Charge(10);
+            bank.Draw(40);
             Assert.AreEqual(10f, bank.Draw(25));
             Assert.AreEqual(0f, bank.Stored);
         }
@@ -620,13 +628,15 @@ namespace PewPewPew.Tests
         }
 
         [Test]
-        public void SubSystemSlots_RoundTripAndEmptyDefaultsToNone()
+        public void MountAssignments_CopyOnWriteAndSupportMoreThanFour()
         {
-            ShipLoadout loadout = ShipLoadout.Empty;
-            Assert.AreEqual(-1, loadout.GetSubSystem(2));
-            loadout.SetSubSystem(2, 5);
-            Assert.AreEqual(5, loadout.GetSubSystem(2));
-            Assert.AreEqual(-1, loadout.GetSubSystem(9));
+            ShipLoadout original = ShipLoadout.Empty;
+            original.MountComponents = new[] { -1, -1, -1, -1, -1, -1 };
+            ShipLoadout edited = original;
+            edited.SetMountComponent(5, 3);
+            Assert.AreEqual(-1, original.MountComponents[5]);
+            Assert.AreEqual(3, edited.MountComponents[5]);
+            Assert.Throws<ArgumentOutOfRangeException>(() => edited.SetMountComponent(6, 0));
         }
     }
 
@@ -775,7 +785,7 @@ namespace PewPewPew.Tests
         private static PowerBank Charged(float amount)
         {
             var bank = new PowerBank(1000);
-            bank.Charge(amount);
+            bank.Draw(bank.Max - amount);
             return bank;
         }
 
@@ -954,22 +964,31 @@ namespace PewPewPew.Tests
 
     public class VitalsMathTests
     {
+        [TestCase(220f, 1f, 1f, 1f)]
+        [TestCase(190f, 1f, 0.7f, 1f)]
+        [TestCase(100f, 1f, 0f, 0.5f)]
+        [TestCase(40f, 0.5f, 0f, 0f)]
+        [TestCase(0f, 0f, 0f, 0f)]
+        public void PowerSegments_DrainInOrderAndRechargeInReverse(
+            float stored, float hull, float first, float second)
+        {
+            Assert.AreEqual(hull, VitalsMath.PowerSegmentFraction(stored, 0f, 80f), 1e-6f);
+            Assert.AreEqual(first, VitalsMath.PowerSegmentFraction(stored, 120f, 100f), 1e-6f);
+            Assert.AreEqual(second, VitalsMath.PowerSegmentFraction(stored, 80f, 40f), 1e-6f);
+        }
+
+        [Test]
+        public void PowerSegment_EmptyCapacityHasNoFill()
+        {
+            Assert.AreEqual(0f, VitalsMath.PowerSegmentFraction(100f, 0f, 0f));
+        }
+
         [Test]
         public void Byte_RoundTripsWithinQuantisationAndClamps()
         {
             Assert.AreEqual(0.5f, VitalsMath.FromByte(VitalsMath.ToByte(0.5f)), 1f / 255f);
             Assert.AreEqual(255, VitalsMath.ToByte(2f));
             Assert.AreEqual(0, VitalsMath.ToByte(-1f));
-        }
-
-        [Test]
-        public void SubSystemSlots_StoreLevelAndState()
-        {
-            var vitals = new ShipVitals();
-            vitals.SetSubSystem(2, 1f, HudState.Cooling);
-            Assert.AreEqual(255, vitals.GetLevel(2));
-            Assert.AreEqual(HudState.Cooling, vitals.GetState(2));
-            Assert.AreEqual(HudState.Off, vitals.GetState(0));
         }
 
         [Test]

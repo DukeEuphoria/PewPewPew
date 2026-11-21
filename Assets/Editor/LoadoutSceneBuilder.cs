@@ -137,7 +137,7 @@ namespace PewPewPew.Editor
             Set(controllerFields, "m_Preview", preview);
             controllerFields.ApplyModifiedPropertiesWithoutUndo();
             AddShipHoverArea(preview);
-            preview.Show(ShipLoadout.Empty);
+            preview.Show(ShipCatalog.Instance.DefaultLoadout(0));
             // Render textures are runtime resources; do not persist a transient texture reference.
             render.texture = null;
             if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Unable to save rendered ship pane.");
@@ -374,7 +374,14 @@ namespace PewPewPew.Editor
             string[] names = { "Shields", "MainGuns", "SecondaryGuns", "Thrusters", "SubSystems" };
             var categories = new LoadoutCategoryView[5];
             var catalog = ShipCatalog.Instance;
-            ShipComponentDef[][] definitions = { catalog.Shields, catalog.MainGuns, catalog.SecondaryGuns, catalog.Thrusters, catalog.SubSystems };
+            ShipComponentDef[][] definitions =
+            {
+                catalog.Components.Where(item => item.Type == ComponentType.Shield).ToArray(),
+                catalog.Components.Where(item => item.Type == ComponentType.Gun).ToArray(),
+                Array.Empty<ShipComponentDef>(),
+                catalog.Components.Where(item => item.Type == ComponentType.Thruster).ToArray(),
+                catalog.Components.Where(item => item.Type == ComponentType.SubSystem).ToArray()
+            };
             for (int category = 0; category < 5; category++)
             {
                 Button tab = MakeButton(names[category] + "Tab", left, titles[category], 20 + category * 174, 56, 166, 42);
@@ -403,7 +410,7 @@ namespace PewPewPew.Editor
             var slotLabels = new TMP_Text[4];
             for (int slot = 0; slot < slots.Length; slot++)
             {
-                slots[slot] = MakeButton("Slot" + (slot + 1), left, slot < catalog.Hulls[0].SubSystemSlots ? "Empty" : "Unavailable",
+                slots[slot] = MakeButton("Slot" + (slot + 1), left, "Empty",
                     20 + slot * 217, 568, 209, 54);
                 slots[slot].interactable = false;
                 slotLabels[slot] = slots[slot].GetComponentInChildren<TMP_Text>();

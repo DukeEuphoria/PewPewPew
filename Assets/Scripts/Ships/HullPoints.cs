@@ -2,19 +2,13 @@ using UnityEngine;
 
 namespace PewPewPew.Ships
 {
-    /// On the hull prefab's root: which of its own child transforms are weapon and thruster emission points.
-    /// Each transform's position and local +Y give the point and its direction.
+    /// Hierarchy order determines mount indices in network loadouts.
     public class HullPoints : MonoBehaviour
     {
-        public const int MaxEmissionPoints = 4;
-        [SerializeField] private Transform[] m_MainWeapon;
-        [SerializeField] private Transform[] m_SecondaryWeapon;
-        [SerializeField] private Transform[] m_Thruster;
-        [SerializeField] private Transform[] m_SubSystems = new Transform[4];
+        // Unity's script reload otherwise restores an uninitialized prefab cache as an empty array.
+        [System.NonSerialized] private HullPoint[] m_Points;
+        public HullPoint[] Points => m_Points ?? GetComponentsInChildren<HullPoint>(true);
 
-        public Transform[] MainWeapon => m_MainWeapon;
-        public Transform[] SecondaryWeapon => m_SecondaryWeapon;
-        public Transform[] Thruster => m_Thruster;
-        public Transform[] SubSystems => m_SubSystems;
+        private void Awake() => m_Points = GetComponentsInChildren<HullPoint>(true);
     }
 }
