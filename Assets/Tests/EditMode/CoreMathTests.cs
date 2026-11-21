@@ -1,8 +1,11 @@
 using System;
+using System.Collections;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using PewPewPew.Core;
 using UnityEngine;
+using UnityEngine.Events;
 using Random = System.Random;
 
 namespace PewPewPew.Tests
@@ -60,6 +63,243 @@ namespace PewPewPew.Tests
             Assert.AreEqual(0f, RadarMath.Fade(3d, 2f));
             Assert.AreEqual(0f, RadarMath.Fade(0d, 0f));
         }
+    }
+
+    public class MinimapEmitterTests
+    {
+        private const BindingFlags InstanceFields = BindingFlags.Instance | BindingFlags.NonPublic;
+        private GameObject m_RootObject;
+        private GameObject m_MountA;
+        private GameObject m_MountB;
+        private Component m_Root;
+        private ScriptableObject m_EmitterA;
+        private ScriptableObject m_EmitterB;
+
+        [SetUp]
+        public void SetUp()
+        {
+            Type rootType = GameType("PewPewPew.Presentation.MinimapRoot");
+            Type emitterType = GameType("PewPewPew.Presentation.RadarEmitterDef");
+            m_RootObject = new GameObject("Minimap test", typeof(RectTransform));
+            m_Root = m_RootObject.AddComponent(rootType);
+            m_MountA = new GameObject("First mount");
+            m_MountB = new GameObject("Second mount");
+            m_EmitterA = ScriptableObject.CreateInstance(emitterType);
+            m_EmitterB = ScriptableObject.CreateInstance(emitterType);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            UnityEngine.Object.DestroyImmediate(m_RootObject);
+            UnityEngine.Object.DestroyImmediate(m_MountA);
+            UnityEngine.Object.DestroyImmediate(m_MountB);
+            UnityEngine.Object.DestroyImmediate(m_EmitterA);
+            UnityEngine.Object.DestroyImmediate(m_EmitterB);
+        }
+
+        [Test]
+        public void LateUpdate_TracksActiveSubsystemsAndDefaultEmitter()
+        {
+            var shipObject = new GameObject("Local radar ship");
+            Type subsystemDefType = GameType("PewPewPew.Ships.SubSystemDef");
+            var defA = ScriptableObject.CreateInstance(subsystemDefType);
+            var defB = ScriptableObject.CreateInstance(subsystemDefType);
+            Component ship = null;
+            try
+            {
+                Component identity = shipObject.AddComponent(FindType("Mirror.NetworkIdentity"));
+                identity.GetType().GetProperty("isClient").SetValue(identity, true);
+                identity.GetType().GetProperty("isOwned").SetValue(identity, true);
+                ship = shipObject.AddComponent(GameType("PewPewPew.Ships.Ship"));
+                ship.GetType().GetProperty("netIdentity").SetValue(ship, identity);
+                ship.GetType().BaseType.GetMethod("OnEnable", InstanceFields).Invoke(ship, null);
+                Set(defA, "m_Radar", m_EmitterA);
+                Set(defB, "m_Radar", m_EmitterB);
+                Set(m_EmitterA, "m_Range", 300f);
+                Set(m_EmitterB, "m_Range", 900f);
+                Type systemType = GameType("PewPewPew.Ships.SubSystem");
+                object systemA = Activator.CreateInstance(systemType, defA, m_MountA.transform, shipObject.transform);
+                object systemB = Activator.CreateInstance(systemType, defB, m_MountB.transform, shipObject.transform);
+                MethodInfo setHud = systemType.GetMethod("SetHud");
+                setHud.Invoke(systemA, new object[] { 1f, HudState.Active });
+                setHud.Invoke(systemB, new object[] { 1f, HudState.Active });
+                var systems = (IList)Get(ship, "m_SubSystems");
+                systems.Add(systemA);
+                systems.Add(systemB);
+                if (Get(m_Root, "m_Display") == null) Call(m_Root, "Awake");
+                Set(m_Root, "m_Activation", Enum.ToObject(GameType("PewPewPew.Presentation.MinimapActivation"), 1));
+                Call(m_Root, "LateUpdate");
+                Assert.AreEqual(900f, Get(m_Root, "m_DisplayRange"));
+                Assert.IsTrue(((GameObject)Get(m_Root, "m_Display")).activeSelf);
+
+                int redraws = 0;
+                var markers = (Component)Get(m_Root, "m_Markers");
+                markers.GetType().GetMethod("RegisterDirtyVerticesCallback")
+                    .Invoke(markers, new object[] { new UnityAction(() => redraws++) });
+                Set(m_Root, "m_RecordContact", null);
+                Call(m_Root, "LateUpdate");
+                Assert.Greater(redraws, 0, "Display redraws even when no emitter samples again.");
+                Assert.IsNotNull(Get(m_Root, "m_RecordContact"));
+
+                setHud.Invoke(systemA, new object[] { 0f, HudState.Off });
+                Call(m_Root, "LateUpdate");
+                Assert.AreEqual(900f, Get(m_Root, "m_DisplayRange"));
+
+                setHud.Invoke(systemA, new object[] { 1f, HudState.Active });
+                setHud.Invoke(systemB, new object[] { 0f, HudState.Off });
+                Call(m_Root, "LateUpdate");
+                Assert.AreEqual(300f, Get(m_Root, "m_DisplayRange"));
+                Set(m_EmitterA, "m_Range", 450f);
+                Call(m_Root, "LateUpdate");
+                Assert.AreEqual(450f, Get(m_Root, "m_DisplayRange"));
+
+                setHud.Invoke(systemA, new object[] { 0f, HudState.Off });
+                Call(m_Root, "LateUpdate");
+                Assert.IsFalse(((GameObject)Get(m_Root, "m_Display")).activeSelf);
+                Set(m_Root, "m_DefaultEmitter", m_EmitterB);
+                Set(m_Root, "m_Activation", Enum.ToObject(GameType("PewPewPew.Presentation.MinimapActivation"), 0));
+                Call(m_Root, "LateUpdate");
+                Assert.AreEqual(900f, Get(m_Root, "m_DisplayRange"));
+                Assert.IsTrue(((GameObject)Get(m_Root, "m_Display")).activeSelf);
+            }
+            finally
+            {
+                if (ship != null) ship.GetType().BaseType.GetMethod("OnDisable", InstanceFields).Invoke(ship, null);
+                UnityEngine.Object.DestroyImmediate(shipObject);
+                UnityEngine.Object.DestroyImmediate(defA);
+                UnityEngine.Object.DestroyImmediate(defB);
+            }
+        }
+
+        [Test]
+        public void Scan_UsesEachMountRangeAndCone()
+        {
+            Set(m_EmitterA, "m_Range", 100f);
+            Set(m_EmitterA, "m_HalfAngle", 45f);
+            m_MountA.transform.position = new Vector3(50f, 0f, 0f);
+            AddEmitter(m_EmitterA, m_MountA.transform);
+            GameObject inRange = MakeClientAsteroid(new Vector3(50f, 100f, 0f));
+            GameObject outsideRange = MakeClientAsteroid(new Vector3(50f, 101f, 0f));
+            GameObject outsideCone = MakeClientAsteroid(new Vector3(140f, 0f, 0f));
+            var shipObject = new GameObject("Local ship");
+            var graphicObject = new GameObject("Radar contacts", typeof(RectTransform), typeof(CanvasRenderer));
+            try
+            {
+                Sample(Emitters()[0], 0d);
+                var contacts = (IDictionary)Get(m_Root, "m_Contacts");
+                Assert.IsTrue(contacts.Contains(inRange.GetComponent(GameType("PewPewPew.World.Asteroid"))));
+                Assert.IsFalse(contacts.Contains(outsideRange.GetComponent(GameType("PewPewPew.World.Asteroid"))));
+                Assert.IsFalse(contacts.Contains(outsideCone.GetComponent(GameType("PewPewPew.World.Asteroid"))));
+                Assert.IsTrue((bool)Call(m_Root, "IsWithinScanRange", new Vector2(50f, 100f)));
+                Assert.IsFalse((bool)Call(m_Root, "IsWithinScanRange", new Vector2(50f, 101f)));
+                object contact = contacts[inRange.GetComponent(GameType("PewPewPew.World.Asteroid"))];
+                inRange.transform.position = new Vector3(50f, 80f, 0f);
+                Sample(Emitters()[0], 0.1d);
+                Assert.AreEqual(new Vector2(50f, 100f), Get(contact, "Position"));
+                Sample(Emitters()[0], 0.5d);
+                Assert.AreEqual(new Vector2(50f, 80f), Get(contact, "Position"));
+                inRange.transform.position = new Vector3(50f, 100f, 0f);
+                Sample(Emitters()[0], 1d);
+
+                shipObject.AddComponent(FindType("Mirror.NetworkIdentity"));
+                Set(m_Root, "m_Ship", shipObject.AddComponent(GameType("PewPewPew.Ships.Ship")));
+                Set(m_Root, "m_ShowScan", false);
+                Set(m_Root, "m_DisplayRange", 100f);
+                Component graphic = graphicObject.AddComponent(GameType("PewPewPew.Presentation.MinimapGraphic"));
+                Type layerType = graphic.GetType().GetNestedType("Layer", BindingFlags.NonPublic);
+                Call(graphic, "Initialize", m_Root, Enum.Parse(layerType, "Contacts"));
+                Type meshType = FindType("UnityEngine.UI.VertexHelper");
+                MethodInfo populate = graphic.GetType().GetMethod("OnPopulateMesh", InstanceFields, null, new[] { meshType }, null);
+                using (var mesh = (IDisposable)Activator.CreateInstance(meshType))
+                {
+                    populate.Invoke(graphic, new object[] { mesh });
+                    Assert.AreEqual(7, mesh.GetType().GetProperty("currentVertCount").GetValue(mesh));
+                    m_MountA.transform.position = new Vector3(500f, 0f, 0f);
+                    populate.Invoke(graphic, new object[] { mesh });
+                    Assert.AreEqual(3, mesh.GetType().GetProperty("currentVertCount").GetValue(mesh));
+                }
+                Assert.IsFalse((bool)Call(m_Root, "IsWithinScanRange", new Vector2(50f, 100f)));
+                Set(m_EmitterB, "m_Range", 20f);
+                m_MountB.transform.position = new Vector3(50f, 80f, 0f);
+                AddEmitter(m_EmitterB, m_MountB.transform);
+                Assert.IsTrue((bool)Call(m_Root, "IsWithinScanRange", new Vector2(50f, 100f)));
+                Assert.IsFalse((bool)Call(m_Root, "IsWithinScanRange", new Vector2(50f, 101f)));
+                m_MountB.transform.position = new Vector3(140f, -10f, 0f);
+                Sample(Emitters()[1], 0d);
+                Assert.IsTrue(contacts.Contains(outsideCone.GetComponent(GameType("PewPewPew.World.Asteroid"))));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(graphicObject);
+                UnityEngine.Object.DestroyImmediate(shipObject);
+                DisableAsteroid(inRange);
+                DisableAsteroid(outsideRange);
+                DisableAsteroid(outsideCone);
+                UnityEngine.Object.DestroyImmediate(inRange);
+                UnityEngine.Object.DestroyImmediate(outsideRange);
+                UnityEngine.Object.DestroyImmediate(outsideCone);
+            }
+        }
+
+        [Test]
+        public void PulseEmitter_AddsContactOnlyWhenPulseReachesIt()
+        {
+            Type scanMode = GameType("PewPewPew.Presentation.RadarScanMode");
+            Set(m_EmitterA, "m_Mode", Enum.Parse(scanMode, "CircularPulse"));
+            Set(m_EmitterA, "m_Range", 200f);
+            Set(m_EmitterA, "m_PulseSpeed", 100f);
+            Set(m_EmitterA, "m_SampleRate", 10f);
+            AddEmitter(m_EmitterA, m_MountA.transform);
+            GameObject target = MakeClientAsteroid(new Vector3(0f, 100f, 0f));
+            try
+            {
+                var contacts = (IDictionary)Get(m_Root, "m_Contacts");
+                Sample(Emitters()[0], 0.5d);
+                Assert.AreEqual(0, contacts.Count);
+                Sample(Emitters()[0], 1d);
+                Assert.IsTrue(contacts.Contains(target.GetComponent(GameType("PewPewPew.World.Asteroid"))));
+            }
+            finally
+            {
+                DisableAsteroid(target);
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
+        private GameObject MakeClientAsteroid(Vector3 position)
+        {
+            var target = new GameObject("Radar contact");
+            target.transform.position = position;
+            Component identity = target.AddComponent(FindType("Mirror.NetworkIdentity"));
+            Component asteroid = target.AddComponent(GameType("PewPewPew.World.Asteroid"));
+            identity.GetType().GetProperty("isClient").SetValue(identity, true);
+            asteroid.GetType().GetProperty("netIdentity").SetValue(asteroid, identity);
+            asteroid.GetType().BaseType.GetMethod("OnEnable", InstanceFields).Invoke(asteroid, null);
+            return target;
+        }
+
+        private static void DisableAsteroid(GameObject target)
+        {
+            Component asteroid = target.GetComponent(GameType("PewPewPew.World.Asteroid"));
+            asteroid.GetType().BaseType.GetMethod("OnDisable", InstanceFields).Invoke(asteroid, null);
+        }
+
+        private void AddEmitter(ScriptableObject def, Transform mount) => Call(m_Root, "AddEmitter", def, def, mount, 0d);
+        private IList Emitters() => (IList)Get(m_Root, "m_Emitters");
+        private void Sample(object emitter, double now)
+        {
+            Type callbackType = typeof(Action<,>).MakeGenericType(GameType("PewPewPew.World.SpaceObject"), typeof(double));
+            Delegate callback = Delegate.CreateDelegate(callbackType, m_Root, m_Root.GetType().GetMethod("RecordContact", InstanceFields));
+            Call(emitter, "Sample", now, null, callback);
+        }
+        private static Type GameType(string name) => FindType(name);
+        private static Type FindType(string name) => AppDomain.CurrentDomain.GetAssemblies()
+            .Select(assembly => assembly.GetType(name)).First(type => type != null);
+        private static object Get(object obj, string name) => obj.GetType().GetField(name, InstanceFields).GetValue(obj);
+        private static void Set(object obj, string name, object value) => obj.GetType().GetField(name, InstanceFields).SetValue(obj, value);
+        private static object Call(object obj, string name, params object[] args) =>
+            obj.GetType().GetMethod(name, InstanceFields).Invoke(obj, args);
     }
 
     public class GravityMathTests

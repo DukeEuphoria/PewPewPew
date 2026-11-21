@@ -11,9 +11,7 @@ It only runs in Play Mode and always hides without a living locally owned ship.
   disables the display.
 - RectTransform: screen size and placement. The display remains circular even
   when its rectangle is not square.
-- Display Range: radius in world units; contacts outside this radius are hidden.
-  Each emitter also has its own detection range.
-- Display Refresh Rate: UI redraws per second, independent of detection timing.
+- The display uses the largest active emitter scan range and redraws every frame.
 - Background Opacity, Marker Opacity, Border Width and colours: visual tuning.
 - Fade Contacts: progressively fade stale detections. Disabling it keeps their
   opacity constant until expiry; it does not enable live tracking.
@@ -26,6 +24,7 @@ Create settings with Assets > Create > PewPewPew > Radar Emitter. The scene
 minimap and subsystem definitions reference these assets. Runtime scan clocks
 are independent even when several subsystems reference the same asset.
 
+- Range: detection radius in world units, measured from the emitter's mount.
 - Refresh: refresh every contact in range and cone at Refresh Rate per second.
 - Pulse: launch expanding pulses at Refresh Rate per second, travelling at
   Pulse Speed world units per second. Overlapping pulses are supported.
@@ -39,6 +38,9 @@ are independent even when several subsystems reference the same asset.
 Detected contacts retain their last observed world position and heading. Those
 positions are displayed relative to the ship's current position. Ships use
 directional markers, orbital bodies use scaled circles, and asteroids use dots.
+Contacts are shown only while their last observed positions are within at least
+one active emitter's detection range. If an offset mount detects a contact
+beyond the ship-centred display radius, its marker is clamped to the edge.
 Any emitter may refresh the shared contact; overlapping cones do not duplicate
 markers. Detection uses client-known objects, not server-side fog of war.
 
@@ -48,8 +50,9 @@ Basic SubSystem Radar and Basic SubSystem Radar Cone are appended to the ship
 catalog. Both are toggle systems with 0 passive and 3 active power/second.
 Use the existing slot keys (1-4) to toggle installed systems. Destruction or
 insufficient power switches a radar off through normal subsystem activation.
-If another radar remains active, existing contacts continue fading. If none
-remain active, the display hides and its contacts are cleared.
+If another radar remains active, previously detected contacts in its range
+continue fading. If none remain active, the display hides and its contacts are
+cleared.
 
 HullPoints now has a Sub Systems attachment array indexed by loadout slot,
 including empty slots. Configure child transforms on the hull prefab; their
@@ -66,6 +69,8 @@ using the same ShipSystem point handling as weapons.
 RadarMathTests in the existing EditMode test assembly cover delayed pulse
 crossings, low-frequency updates, sweep wraparound, reflected cone sweeps,
 contact fade expiry, and the radar's active power drain and shutdown.
+MinimapEmitterTests cover display scaling, active-emitter changes, scan timing,
+and detection and display boundaries.
 
 For a multiplayer smoke test, check both a host and a remote client: toggle
 each radar, rotate the ship with two different mounted cones, exhaust power,

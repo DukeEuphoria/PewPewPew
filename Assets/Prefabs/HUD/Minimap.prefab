@@ -48,10 +48,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d8ea29fb250e554b81702219e08d183, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Presentation.MinimapRoot
-  m_Activation: 0
+  m_Activation: 1
   m_DefaultEmitter: {fileID: 11400000, guid: 561b27d29f3341d5be2b2dc67ec6fb9a, type: 2}
-  m_DisplayRange: 500
-  m_DisplayRefreshRate: 15
   m_FadeContacts: 1
   m_ContactLifetime: 3
   m_BackgroundOpacity: 0.35

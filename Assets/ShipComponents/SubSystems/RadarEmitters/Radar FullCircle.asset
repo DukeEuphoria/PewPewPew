@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cd1d76e7425f8864187ca2276e728035, type: 3}
-  m_Name: Radar Pulse
+  m_Name: Radar FullCircle
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Presentation.RadarEmitterDef
   m_Range: 500
-  m_Mode: 1
-  m_RefreshRate: 0.2
+  m_Mode: 2
+  m_RefreshRate: 5
   m_SampleRate: 5
   m_PulseSpeed: 500
   m_SweepSpeed: 90

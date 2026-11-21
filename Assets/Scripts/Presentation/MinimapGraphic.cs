@@ -50,8 +50,8 @@ namespace PewPewPew.Presentation
             foreach (MinimapRoot.Contact contact in m_Root.Contacts)
             {
                 Vector2 offset = contact.Position - origin;
-                if (offset.sqrMagnitude > m_Root.DisplayRange * m_Root.DisplayRange) continue;
-                Vector2 position = center + offset * scale;
+                if (!m_Root.IsWithinScanRange(contact.Position)) continue;
+                Vector2 position = center + Vector2.ClampMagnitude(offset * scale, Mathf.Max(0f, radius - 6f));
                 Color tint = m_Root.ContactColor(contact);
                 if (contact.Source is Ships.Ship) Triangle(mesh, position, contact.Forward, 5f, tint);
                 else if (contact.WorldRadius * scale > 2f) Circle(mesh, position, contact.WorldRadius * scale, tint, 12);
@@ -64,7 +64,7 @@ namespace PewPewPew.Presentation
         {
             Color tint = m_Root.PlayerColor;
             tint.a *= 0.3f;
-            foreach (MinimapRoot.Emitter emitter in m_Root.Emitters)
+            foreach (RadarEmitter emitter in m_Root.Emitters)
             {
                 double elapsed = Time.timeAsDouble - emitter.Started;
                 Vector2 position = center + ((Vector2)emitter.Mount.position - origin) * scale;

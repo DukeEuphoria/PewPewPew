@@ -15,7 +15,7 @@ MonoBehaviour:
   m_Range: 500
   m_Mode: 2
   m_RefreshRate: 2
-  m_SampleRate: 20
+  m_SampleRate: 5
   m_PulseSpeed: 500
-  m_SweepSpeed: 90
-  m_HalfAngle: 45
+  m_SweepSpeed: 45
+  m_HalfAngle: 22.5
