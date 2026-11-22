@@ -17,11 +17,13 @@ namespace PewPewPew.Ships
 
     public class HullPoint : MonoBehaviour
     {
+        [SerializeField, TextArea(2, 5)] private string m_Description;
         [SerializeField] private AcceptedComponents m_Accepts;
         [SerializeField] private ComponentSize m_Size;
         [SerializeField] private GunControlRole m_GunRole;
         [SerializeField] private ShipComponentDef m_DefaultComponent;
 
+        public string Description => m_Description;
         public AcceptedComponents Accepts => m_Accepts;
         public ComponentSize Size => m_Size;
         public GunControlRole GunRole => m_GunRole;

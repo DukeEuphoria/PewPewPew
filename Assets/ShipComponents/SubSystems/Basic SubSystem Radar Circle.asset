@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Basic SubSystem Radar Circle
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.SubSystemDef
   m_DisplayName: 
-  m_Description: 
-  m_ButtonArtwork: {fileID: 0}
+  m_Description: Small subsystem providing CircularPulse radar.
+  m_ButtonArtwork: {fileID: 21300000, guid: 871b52918da74f03923c4366f6187c4a, type: 3}
+  m_Tint: {r: 0.25, g: 0.9, b: 1, a: 1}
   m_Price: 0
   m_Size: 0
   m_Mass: 1

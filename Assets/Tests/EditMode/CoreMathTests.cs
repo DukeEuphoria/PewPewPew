@@ -1505,6 +1505,26 @@ namespace PewPewPew.Tests
             Assert.AreEqual(PlayerPalette.DefaultPrimary, loadout.Colour0);
             Assert.AreEqual(PlayerPalette.DefaultSecondary, loadout.Colour1);
         }
+
+        [Test]
+        public void Palette_FreeColoursAreBrightHuesAndGreys()
+        {
+            for (int i = 0; i < PlayerPalette.Count; i++)
+            {
+                Assert.AreEqual(i < 16 ? 0 : 100, PlayerPalette.Price(i));
+                Assert.AreEqual(i < 16, PlayerPalette.IsAvailable(PlayerPalette.Colour(i)));
+                if (i >= 8 && i < 16)
+                {
+                    Color32 grey = PlayerPalette.Colour(i);
+                    Assert.AreEqual(grey.r, grey.g);
+                    Assert.AreEqual(grey.r, grey.b);
+                }
+            }
+            Assert.AreEqual(new Color32(255, 0, 0, 255), PlayerPalette.DefaultPrimary);
+            Assert.AreEqual(new Color32(255, 255, 255, 255), PlayerPalette.DefaultSecondary);
+            Assert.IsFalse(PlayerPalette.IsAvailable(new Color32(1, 2, 3, 255)));
+            Assert.Throws<ArgumentOutOfRangeException>(() => PlayerPalette.Price(-1));
+        }
     }
 
     public class VitalsMathTests

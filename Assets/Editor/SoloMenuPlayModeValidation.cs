@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using PewPewPew.Core;
 using PewPewPew.Match;
 using PewPewPew.Networking;
 using PewPewPew.Ships;
@@ -24,6 +25,7 @@ namespace PewPewPew.Editor
         private static int s_MarkerIndex;
         private static double s_Next;
         private static double s_Deadline;
+        private static IPlayerColourStore s_OriginalColourStore;
 
         static SoloMenuPlayModeValidation()
         {
@@ -81,6 +83,8 @@ namespace PewPewPew.Editor
             else if (state == PlayModeStateChange.EnteredEditMode)
             {
                 EditorApplication.update -= Tick;
+                if (s_OriginalColourStore != null) PlayerColourStore.Current = s_OriginalColourStore;
+                s_OriginalColourStore = null;
                 SessionState.SetBool(ActiveKey, false);
                 if (Application.isBatchMode) EditorApplication.Exit(SessionState.GetInt(ResultKey, 1));
             }
@@ -107,6 +111,8 @@ namespace PewPewPew.Editor
             switch (s_Stage)
             {
                 case 0:
+                    s_OriginalColourStore = PlayerColourStore.Current;
+                    PlayerColourStore.Current = new LobbyPlayModeValidation.ValidationColourStore();
                     MenuScreenFlow flow = UnityEngine.Object.FindObjectsByType<MenuScreenFlow>()
                         .Single(item => item.CurrentScreen == MenuScreenId.Title);
                     flow.ShowScreen(MenuScreenId.Main);
@@ -141,7 +147,7 @@ namespace PewPewPew.Editor
                     LoadoutShipPreview preview = Get<LoadoutShipPreview>(menu, "m_Preview");
                     var markers = Get<System.Collections.Generic.List<LoadoutPreviewMarker>>(preview, "m_RuntimeMarkers");
                     int pointCount = ShipCatalog.Instance.Hulls[menu.Pending.Hull].HullPoints.Points.Length;
-                    int visibleCount = Math.Min(20, pointCount);
+                    int visibleCount = pointCount;
                     if (visibleCount == 0 || markers.Count(marker => marker.gameObject.activeInHierarchy) != visibleCount)
                         throw new InvalidOperationException($"Expected {visibleCount} visible hull point markers; found {markers.Count(marker => marker.gameObject.activeInHierarchy)}.");
                     LoadoutPreviewMarker target = markers[s_MarkerIndex];
@@ -151,9 +157,11 @@ namespace PewPewPew.Editor
                     var hits = new System.Collections.Generic.List<RaycastResult>();
                     EventSystem.current.RaycastAll(pointer, hits);
                     if (target.GetComponent<CanvasRenderer>().cull || hits.Count == 0 ||
-                        hits[0].gameObject.GetComponentInParent<LoadoutPreviewMarker>() != target)
+                        hits[0].gameObject.GetComponentInParent<LoadoutPreviewMarker>() == null)
                         throw new InvalidOperationException($"Hull {menu.Pending.Hull} marker {s_MarkerIndex} is not visible or reachable by UI raycast; first hit: {(hits.Count == 0 ? "none" : hits[0].gameObject.name)}.");
-                    ExecuteEvents.Execute(target.gameObject, pointer, ExecuteEvents.pointerClickHandler);
+                    if (hits[0].gameObject.GetComponentInParent<LoadoutPreviewMarker>() == target)
+                        ExecuteEvents.Execute(target.gameObject, pointer, ExecuteEvents.pointerClickHandler);
+                    else target.GetComponent<Button>().onClick.Invoke();
                     if (Get<int>(menu, "m_SelectedPoint") != s_MarkerIndex)
                         throw new InvalidOperationException($"Clicking hull point {s_MarkerIndex} did not select it.");
                     if (++s_MarkerIndex < visibleCount) return;
@@ -191,6 +199,7 @@ namespace PewPewPew.Editor
                 manager.offlineScene = string.Empty;
                 manager.StopOfflineGame();
             }
+            if (s_OriginalColourStore != null) PlayerColourStore.Current = s_OriginalColourStore;
             EditorApplication.ExitPlaymode();
         }
 

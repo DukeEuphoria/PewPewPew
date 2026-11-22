@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace PewPewPew.Core
 {
-    /// The 64 fixed swatches players pick their two ship colours from: an 8x8 grid of seven hue rows and a grey row.
+    /// The 64 fixed swatches players pick their two ship colours from.
     public static class PlayerPalette
     {
         public const int Columns = 8;
@@ -13,12 +13,41 @@ namespace PewPewPew.Core
         private static readonly float[] RowValue = { 1f, 1f, 1f, 0.75f, 0.5f, 0.5f, 0.3f };
 
         public static Color32 DefaultPrimary => Colour(0 * Columns + 0);
-        public static Color32 DefaultSecondary => Colour(Columns * (Rows - 1) + Columns - 1);
+        public static Color32 DefaultSecondary => Colour(2 * Columns - 1);
+
+        public static int Price(int index)
+        {
+            if (index < 0 || index >= Count) throw new System.ArgumentOutOfRangeException(nameof(index));
+            return index < 2 * Columns ? 0 : 100;
+        }
+
+        public static bool IsAvailable(Color32 colour)
+        {
+            int index = IndexOf(colour);
+            return index >= 0 && Price(index) == 0;
+        }
+
+        public static string Description(int index)
+        {
+            if (index < 0 || index >= Count) throw new System.ArgumentOutOfRangeException(nameof(index));
+            string[] hues = { "Red", "Orange", "Yellow-green", "Green", "Cyan", "Blue", "Violet", "Magenta" };
+            if (index >= Columns && index < 2 * Columns)
+            {
+                if (index == Columns) return "Black";
+                if (index == 2 * Columns - 1) return "White";
+                return $"Grey shade {index - Columns + 1}";
+            }
+            int oldRow = index < Columns ? 0 : index / Columns - 1;
+            string shade = oldRow == 0 ? "Bright" : $"Shade {oldRow + 1}";
+            return $"{shade} {hues[index % Columns]}";
+        }
 
         public static Color32 Colour(int index)
         {
             index = Mathf.Clamp(index, 0, Count - 1);
             int row = index / Columns;
+            if (row == 1) row = Rows - 1;
+            else if (row > 1) row--;
             int column = index % Columns;
             if (row == Rows - 1)
             {

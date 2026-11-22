@@ -33,6 +33,7 @@ namespace PewPewPew.Match
             if (definition == null) return;
             m_NameLabel.text = definition.DisplayName + "\n" + definition.Size;
             m_Artwork.sprite = definition.ButtonArtwork;
+            m_Artwork.color = definition.Tint;
             m_Artwork.gameObject.SetActive(definition.ButtonArtwork != null);
             m_Price.text = definition.IsLocked ? $"LOCKED - {definition.Price}" : string.Empty;
             m_Selected.SetActive(selected);

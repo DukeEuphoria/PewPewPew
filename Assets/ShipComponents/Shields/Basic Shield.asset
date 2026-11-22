@@ -13,8 +13,10 @@ MonoBehaviour:
   m_Name: Basic Shield
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ShieldDef
   m_DisplayName:
-  m_Description:
-  m_ButtonArtwork: {fileID: 0}
+  m_Description: Medium shield generator covering 180 degrees on either side of its
+    mount.
+  m_ButtonArtwork: {fileID: 21300000, guid: 6a19ef6b7f164bbbba317a9a0f19abff, type: 3}
+  m_Tint: {r: 0.72, g: 0.38, b: 1, a: 1}
   m_Price: 0
   m_Size: 1
   m_Mass: 1

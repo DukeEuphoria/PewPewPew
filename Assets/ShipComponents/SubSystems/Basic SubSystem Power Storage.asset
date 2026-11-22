@@ -12,6 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce4478d1cdebda1469ceb754a2cebeee, type: 3}
   m_Name: Basic SubSystem Power Storage
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.SubSystemDef
+  m_Description: Small subsystem providing additional power storage.
+  m_ButtonArtwork: {fileID: 21300000, guid: 0f381e62a0a7463b85d5785dcca86427, type: 3}
+  m_Tint: {r: 0.25, g: 0.9, b: 1, a: 1}
   m_Mass: 1
   m_PassivePowerDrain: 0
   m_ActivePowerDrain: 0

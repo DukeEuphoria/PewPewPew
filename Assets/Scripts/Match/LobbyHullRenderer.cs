@@ -14,7 +14,7 @@ namespace PewPewPew.Match
         public RenderTexture Render(ShipLoadout loadout) => Render(loadout, 256, 256, out _);
 
         /// Frame is in hull-root local XY coordinates, shared by the rendered model and UI attachment overlays.
-        public RenderTexture Render(ShipLoadout loadout, int width, int height, out Rect frame)
+        public RenderTexture Render(ShipLoadout loadout, int width, int height, out Rect frame, bool includePoints = false)
         {
             if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(width), "Preview dimensions must be positive.");
             ShipCatalog catalog = ShipCatalog.Instance;
@@ -51,11 +51,19 @@ namespace PewPewPew.Match
                 ShipColours.Apply(root, loadout);
                 Bounds bounds = renderers[0].bounds;
                 foreach (Renderer renderer in renderers) bounds.Encapsulate(renderer.bounds);
+                if (includePoints)
+                {
+                    foreach (HullPoint point in hull.HullPoints.Points)
+                    {
+                        Vector3 local = hull.HullPoints.transform.InverseTransformPoint(point.transform.position);
+                        bounds.Encapsulate(root.transform.TransformPoint(local));
+                    }
+                }
                 m_Camera.transform.position = bounds.center + Vector3.back * (bounds.extents.z + 10);
                 m_Camera.transform.rotation = Quaternion.identity;
                 float aspect = width / (float)height;
                 m_Camera.aspect = aspect;
-                m_Camera.orthographicSize = Mathf.Max(0.1f, Mathf.Max(bounds.extents.x / aspect, bounds.extents.y) * 1.12f);
+                m_Camera.orthographicSize = Mathf.Max(0.1f, Mathf.Max(bounds.extents.x / aspect, bounds.extents.y) * (includePoints ? 1.25f : 1.12f));
                 Vector3 centre = bounds.center - root.transform.position;
                 Vector2 size = new Vector2(m_Camera.orthographicSize * 2 * aspect, m_Camera.orthographicSize * 2);
                 frame = new Rect((Vector2)centre - size / 2, size);

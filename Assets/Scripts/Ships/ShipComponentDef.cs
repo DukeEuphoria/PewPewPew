@@ -24,7 +24,10 @@ namespace PewPewPew.Ships
         [Header("Loadout menu")]
         [SerializeField] private string m_DisplayName;
         [SerializeField, TextArea(3, 8)] private string m_Description;
-        [SerializeField] private Sprite m_ButtonArtwork;
+        [SerializeField, Tooltip("Square PNG texture imported as a Sprite; drawn at the component's own size.")]
+        private Sprite m_ButtonArtwork;
+        [SerializeField, Tooltip("Multiplied with the button artwork wherever this component is shown.")]
+        private Color m_Tint = Color.white;
         [SerializeField, Min(0), Tooltip("Components with a price above zero remain locked until purchasing is implemented.")] private int m_Price;
         [SerializeField] private ComponentSize m_Size;
 
@@ -37,6 +40,7 @@ namespace PewPewPew.Ships
         public string DisplayName => string.IsNullOrWhiteSpace(m_DisplayName) ? name : m_DisplayName;
         public string Description => m_Description;
         public Sprite ButtonArtwork => m_ButtonArtwork;
+        public Color Tint => m_Tint;
         public int Price => Mathf.Max(0, m_Price);
         public bool IsLocked => Price > 0;
         public ComponentSize Size => m_Size;

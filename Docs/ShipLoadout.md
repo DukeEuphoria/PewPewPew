@@ -1,34 +1,46 @@
 # Ship loadout menu
 
-The `ShipLoadoutMenu` canvas in `Assets/Scenes/GameScene.unity` contains all
-loadout controls as saved scene objects. Additional component and hull-point
-buttons are instantiated when needed.
+The `ShipLoadoutMenu` canvas in `Assets/Scenes/GameScene.unity` provides the
+saved preview, lobby and control templates. The catalog layout and component
+buttons are constructed at runtime.
 `MatchHud` provides the in-flight timer and end-of-match host controls.
 The canvas owns the loadout panes at the top and the lobby strip at the bottom.
 
 ## Layout and fitting
 
-- Select a hull point on the ship preview, then select a shield, gun, thruster,
-  or subsystem in the left panel. Each point holds at most one component. The
-  selected point's button below the categories clears its component.
-- Points accept the component types specified on the prefab, and a component must
-  be no larger than the point (small, medium, or large). The selected point's
-  size and each component's size are shown in the menu. Incompatible or locked
-  components are disabled and show the reason on hover.
+- The equally sized panels show a scrollable, price-sorted component catalog
+  and the ship preview. Page Up and Page Down move between categories. The
+  controller's **Component Hover Delay** sets the hover timing. Its **Catalog
+  layout** settings set **Component Columns** and **Colour Columns** per row; each
+  icon's width is the panel width, less **Category Padding** on both sides and the
+  **Icon Gap** between icons, divided by the column count. **Category Gap** and
+  **Category Title Height** set the spacing between categories and their title bars.
+- Select a component, then click a highlighted compatible point to fit it.
+  Hold Shift to retain the component selection; right-click clears it. Or select
+  a point first, then choose a compatible component from the filtered catalog.
+  A fitted component is replaced. Delete, Backspace or the Delete button clears
+  the selected point. Clicking the right panel outside a point deselects it.
+- Points accept the types specified on the prefab, and a component must be no
+  larger than the point. Locked components remain inspectable but cannot be
+  fitted.
 - A gun's fire role belongs to the point; a thruster's control is determined
   by its point's orientation. Multiple copies can be fitted at compatible points.
-- Hull navigation uses small square backward/forward triangle buttons inside
-  the right-hand rendered image, without word labels. The hull name overlays
-  the image; its description overlays the bottom only while the separate
-  `HullDescriptionHoverArea` rectangle is hovered.
+- Hull navigation uses backward/forward triangle buttons beside the hull name.
+  The details panel shows hull, point, component or colour details based on
+  hover and selection.
   Changing hulls replaces the fitting with that hull's authored defaults.
 - Locked hulls can be browsed, with prices shown with the overlaid hull name,
   but cannot be submitted or deployed.
-- The main hull image fills the pane above the unchanged ship-colour controls.
-  It uses a 1024-by-744 transparent render, with aspect-correct framing.
+- The main hull image uses a 1024-by-744 transparent render, with aspect-correct framing.
   The bottom lobby cards retain their own smaller hull thumbnails.
-- Ship colours retain the two saved 64-colour palettes. Ready/deploy observes
-  the match state, respawn timer and catalog validation.
+- Ship colours retain the two saved 64-colour palettes. The eight bright hues
+  and eight greys are free; the remaining colours cost 100 and cannot be used
+  until purchasing is implemented. Primary and secondary swatches appear in
+  separate catalog sections when no point is selected; clicking a free swatch
+  applies it immediately. Saved locked or invalid colours are replaced
+  with the free red primary or white secondary default. The server also rejects
+  locked colours. Ready/deploy observes the match state, respawn timer and
+  catalog validation.
 - The loadout panel hides during blocking menus, while a ship is alive, and
   after the match ends. The lobby strip also hides while a ship is alive or a
   blocking menu is open, but remains available at match end to show scores.
@@ -73,20 +85,18 @@ It renders again only when hull or colours change; changing components updates
 the UI markers instead of allocating more render textures.
 The texture is released when replaced or when the preview is destroyed.
 
-Every point has a clickable marker, including empty points. Fitted markers use
-the definition's **Button Artwork** sprite or its name when no artwork is set.
-Markers are projected from the authored hull points and separated when they
-overlap. If separation is not possible they use a grid instead. Hulls with more
-than 20 points have previous/next page controls; the point count is not limited
-to the number of saved marker templates.
+Every point has a clickable square marker, including empty points. Empty markers
+show accepted component types in four fixed quadrants. Fitted markers use the
+definition's tinted **Button Artwork**, or the matching component-type symbol.
+The preview's **Marker Sizes** sets the small, medium and large square sizes;
+the fitted icon uses its component's size rather than the point's size.
+Markers are projected directly from the authored hull points. They can overlap,
+and all points are shown regardless of the number of saved marker templates.
 
-The transparent `ShipImage/HullDescriptionHoverArea` scene object defines the
-description's hit area independently of the rendered image. Resize or reposition
-its RectTransform in the Inspector; by default it covers the central 50% of the
-image's width and 60% of its height. Navigation buttons remain above the hit area.
-The description never intercepts raycasts, so appearing text cannot expand the
-active region or cause enter/exit flicker. Its text is display-only rather than
-pointer-scrollable. Disabling the hit area or preview hides the description.
+The hull, marker and catalog hover targets temporarily override the selected
+item's details. The hull details include fitted mass, power and storage totals;
+active subsystem effects are described separately rather than added to passive
+totals.
 
 ## Authoring components
 
@@ -95,7 +105,12 @@ assets, not on the visual prefabs:
 
 - **Display Name**: optional; an empty value uses the asset's name.
 - **Description**: text for the hull or component description window.
-- **Button Artwork**: optional sprite; an unset sprite leaves a name-only button.
+- **Button Artwork**: square PNG texture from `Assets/Art/Loadout Icons/Components`,
+  imported as a single Sprite. It is drawn at the component's own size, never
+  stretched to the slot. An unset value falls back to the type symbol.
+- **Tint**: multiplied with the artwork in the catalog and on fitted slots. Guns
+  use red, shields purple, armour grey and energy components (thrusters, power,
+  storage, radar and energy boosters) cyan. Locked catalog icons are greyed.
 - **Size**: small, medium or large. The component type is determined by its
   definition class.
 - **Price**: zero means available. A positive value means locked until the
@@ -107,7 +122,7 @@ descriptions.
 
 Add a `HullPoint` component to each attachment transform under the hull's
 `HullPoints` component. Points are collected automatically, including inactive
-children, in hierarchy order. Set each point's accepted
+children, in hierarchy order. Set each point's description and accepted
 component-type flags, size, gun control role, and optional default
 component. The default must be in the catalog and fit that point. Hierarchy
 order determines network assignment, shield absorption, and power-storage
@@ -232,26 +247,35 @@ raise them in the Inspector to produce additional large-object zoom.
 
 ## Maintenance and validation
 
-Edit existing scene controls directly to customize layout and styling.
+The controller arranges the saved pane and preview templates and builds the
+catalog at runtime; edit the controller and catalog view to customize that
+layout. Other saved scene controls can still be edited directly.
 **Build static scene UI** is the initial construction tool; it refuses to
 overwrite a canvas that already contains `LoadoutMenuController`.
 
 **PewPewPew > Loadout > Validate static scene UI** reopens the saved GameScene,
 checks point compatibility and sizes, defaults, network serialization, preview
-selection and paging, thruster control directions and effect alignment, then
-discards its temporary test state. Save scene changes before running it.
+selection and projection, catalog layout, hover details, fitted stats, thruster
+control directions and effect alignment, then discards its temporary test state.
+Save scene changes before running it.
 
 The same validation can run with Unity batch mode using
 `-executeMethod PewPewPew.Editor.LoadoutSceneValidation.Validate`.
 
 **PewPewPew > Loadout > Validate lobby in play mode** runs a local Mirror host
 and simulated server-side peer. It checks preview hit targets on all hulls,
-fitting, HUD hit targets, multiple shields and subsystems, ready/stop, server
-fitting rejection, thruster force direction and controls, automatic start,
-respawn delay and redeployment.
+fitting and selection shortcuts, colour migration and locking, HUD hit targets,
+multiple shields and subsystems, ready/stop, server fitting rejection, thruster
+force direction and controls, automatic start, respawn delay and redeployment.
 The batch-mode entry point is
 `-executeMethod PewPewPew.Editor.LobbyPlayModeValidation.Run` (without `-quit`;
 the validator exits after leaving play mode).
+
+Lobby and loadout pictograms (play/stop, kills, deaths, lock, delete and the
+component-type category symbols) are `LobbySymbol` graphics. They draw a square
+texture chosen by their **Kind** from `Assets/Resources/LobbySymbols.asset`. Replace
+the PNGs in `Assets/Art/Loadout Icons/Symbols` to restyle them; no code changes are
+needed. The textures are white on transparency, so each graphic's colour tints them.
 
 The initial **Build static scene UI** command includes the bottom lobby upgrade.
 **Upgrade bottom lobby UI** migrates older top-scoreboard layouts while preserving

@@ -14,6 +14,8 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using Object = UnityEngine.Object;
 
 namespace PewPewPew.Editor
@@ -39,6 +41,9 @@ namespace PewPewPew.Editor
         private static bool s_TestingShieldHold;
         private static Rigidbody2D s_ForceBody;
         private static Vector2 s_ExhaustDirection;
+        private static IPlayerColourStore s_OriginalColourStore;
+        private static ValidationColourStore s_ColourStore;
+        private static bool s_ValidatedCatalogInteractions;
 
         static LobbyPlayModeValidation()
         {
@@ -63,6 +68,7 @@ namespace PewPewPew.Editor
             {
                 s_Stage = 0;
                 s_ValidatedHulls = 0;
+                s_ValidatedCatalogInteractions = false;
                 s_ThrusterDirection = 0;
                 s_Next = EditorApplication.timeSinceStartup + 1;
                 s_Deadline = EditorApplication.timeSinceStartup + 90;
@@ -71,6 +77,8 @@ namespace PewPewPew.Editor
             if (state == PlayModeStateChange.EnteredEditMode)
             {
                 EditorApplication.update -= Tick;
+                if (s_OriginalColourStore != null) PlayerColourStore.Current = s_OriginalColourStore;
+                s_OriginalColourStore = null;
                 SessionState.SetBool(ActiveKey, false);
                 if (Application.isBatchMode) EditorApplication.Exit(SessionState.GetInt(ResultKey, 1));
             }
@@ -100,6 +108,9 @@ namespace PewPewPew.Editor
             {
                 case 0:
                     foreach (MenuScreenFlow flow in Object.FindObjectsByType<MenuScreenFlow>()) flow.enabled = false;
+                    s_OriginalColourStore = PlayerColourStore.Current;
+                    s_ColourStore = new ValidationColourStore(PlayerPalette.Colour(16), new Color32(1, 2, 3, 255));
+                    PlayerColourStore.Current = s_ColourStore;
                     s_Menu = Object.FindAnyObjectByType<LoadoutMenuController>();
                     Check(s_Menu != null && match != null, "Scene controllers exist");
                     var managerObject = new GameObject("Lobby validation host");
@@ -127,23 +138,39 @@ namespace PewPewPew.Editor
                     }
                     var preview = Get<LoadoutShipPreview>(s_Menu, "m_Preview");
                     if (Get<RawImage>(preview, "m_Image").texture == null) return;
+                    Canvas.ForceUpdateCanvases();
+                    var panel = Get<GameObject>(s_Menu, "m_Panel").transform;
+                    var left = (RectTransform)panel.Find("ComponentPanel");
+                    var right = (RectTransform)panel.Find("ShipPanel");
+                    Check(left != null && right != null && Mathf.Approximately(left.rect.width, right.rect.width) &&
+                        Mathf.Approximately(left.rect.height, right.rect.height), "Loadout panels have equal dimensions");
+                    Check(left.TransformPoint(left.rect.xMax, 0, 0).x < right.TransformPoint(right.rect.xMin, 0, 0).x,
+                        "A gap separates the loadout panels");
+                    s_ColourStore.Load(out Color32 primary, out Color32 secondary);
+                    Check(s_ColourStore.SaveCount > 0 && primary.Equals(PlayerPalette.DefaultPrimary) &&
+                        secondary.Equals(PlayerPalette.DefaultSecondary), "Locked and invalid saved colours migrate to free defaults");
                     Check(s_Manager.maxConnections == 16 && NetworkServer.maxConnections == 16, "Server capacity is capped at 16");
                     Check(Get<RawImage>(preview, "m_Image").texture != null, "Main ship pane renders during play");
                     var description = Get<CanvasGroup>(preview, "m_Description");
-                    Check(description.alpha == 0, "Hull description starts hidden");
+                    Check(description.alpha == 1, "Details panel starts visible");
                     var hover = preview.GetComponentInChildren<LoadoutPreviewHoverArea>();
                     ExecuteEvents.Execute(hover.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerEnterHandler);
-                    Check(description.alpha == 1, "Separate hull hover rectangle reveals description");
+                    Check(description.alpha == 1, "Hull hover leaves the details panel visible");
                     ExecuteEvents.Execute(hover.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerExitHandler);
-                    Check(description.alpha == 0, "Leaving hull hover rectangle hides description");
+                    Check(description.alpha == 1, "Leaving hull hover keeps details visible");
                     ExecuteEvents.Execute(hover.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerEnterHandler);
                     hover.gameObject.SetActive(false);
-                    Check(description.alpha == 0, "Disabling hover rectangle hides description in play mode");
+                    Check(description.alpha == 1, "Disabling hull hover keeps details visible");
                     hover.gameObject.SetActive(true);
                     Check(match.State == MatchState.Lobby && !local.Ready, "Unready solo player does not auto-start");
                     if (s_ValidatedHulls < ShipCatalog.Instance.Hulls.Length)
                     {
                         ValidatePreviewHitTargets(s_Menu, local.Loadout);
+                        if (!s_ValidatedCatalogInteractions)
+                        {
+                            ValidateCatalogInteractions(s_Menu, local);
+                            s_ValidatedCatalogInteractions = true;
+                        }
                         ValidateHullFitting(s_Menu, local);
                         s_Menu.CycleHull(1);
                         s_ValidatedHulls++;
@@ -172,6 +199,25 @@ namespace PewPewPew.Editor
                     Check(!s_Menu.CanEdit, "Ready locks editing");
                     var editing = Get<CanvasGroup>(s_Menu, "m_EditingGroup");
                     Check(!editing.interactable, "Ready locks canvas controls");
+                    Set(s_Menu, "m_SelectedComponent", ShipCatalog.Instance.Components[0]);
+                    var readyMouse = InputSystem.AddDevice<Mouse>();
+                    try
+                    {
+                        InputSystem.QueueStateEvent(readyMouse, new MouseState().WithButton(MouseButton.Right));
+                        InputSystem.Update();
+                        readyMouse.MakeCurrent();
+                        Call(s_Menu, "HandleInput");
+                        Check(Get<ShipComponentDef>(s_Menu, "m_SelectedComponent") == null,
+                            "Right-click clears a selected component even while ready");
+                    }
+                    finally { InputSystem.RemoveDevice(readyMouse); }
+                    Set(s_Menu, "m_SelectedPoint", 0);
+                    var readyBackground = Get<LoadoutShipPreview>(s_Menu, "m_Preview")
+                        .GetComponentInParent<LoadoutMenuController.LoadoutPanelBackground>();
+                    ExecuteEvents.Execute(readyBackground.gameObject,
+                        new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left },
+                        ExecuteEvents.pointerClickHandler);
+                    Check(Get<int>(s_Menu, "m_SelectedPoint") < 0, "Right-panel click deselects a point even while ready");
                     Check(Get<LobbySymbol>(s_Menu.GetComponent<LobbyPanel>(), "m_ReadySymbol").Kind == LobbySymbolKind.Stop, "Ready control displays a stop square");
                     var changed = local.Loadout;
                     changed.Hull = (changed.Hull + 1) % ShipCatalog.Instance.Hulls.Length;
@@ -359,14 +405,20 @@ namespace PewPewPew.Editor
                 var preview = Get<LoadoutShipPreview>(s_Menu, "m_Preview");
                 var markers = Get<List<LoadoutPreviewMarker>>(preview, "m_RuntimeMarkers");
                 Button pointButton = markers[firstSubsystem].GetComponent<Button>();
+                Button componentButton = FindCatalogButton(s_Menu, components[subsystem]);
+                componentButton.onClick.Invoke();
+                Check(Get<ShipComponentDef>(s_Menu, "m_SelectedComponent") == components[subsystem],
+                    "Catalog click selects a component without selecting a point");
+                Check(markers[firstSubsystem].GetComponent<Outline>().effectColor == Color.green,
+                    "Compatible point is highlighted for a selected component");
                 pointButton.onClick.Invoke();
-                var categories = Get<LoadoutCategoryView[]>(s_Menu, "m_Categories");
-                categories[4].Tab.onClick.Invoke();
-                var subItems = components.Where(component => component.Type == ComponentType.SubSystem).ToArray();
-                int subButtonIndex = Array.IndexOf(subItems, components[subsystem]);
-                Button fitButton = Get<Button>(categories[4].Buttons[subButtonIndex], "m_Button");
-                Check(fitButton.interactable, "Compatible component button is enabled");
-                fitButton.onClick.Invoke();
+                Check(player.Loadout.MountComponents[firstSubsystem] == subsystem &&
+                    Get<ShipComponentDef>(s_Menu, "m_SelectedComponent") == null,
+                    "Clicking a compatible point fits and clears the component selection");
+                pointButton.onClick.Invoke();
+                Get<Button[]>(s_Menu, "m_Slots")[0].onClick.Invoke();
+                Check(player.Loadout.MountComponents[firstSubsystem] == -1, "Delete clears the selected point");
+                componentButton.onClick.Invoke();
                 Check(player.Loadout.MountComponents[firstSubsystem] == subsystem, "Point selection and component button fit the selected mount");
                 loadout = player.Loadout;
                 foreach (string name in directionPoints)
@@ -460,33 +512,33 @@ namespace PewPewPew.Editor
                 var preview = Get<LoadoutShipPreview>(menu, "m_Preview");
                 var markers = Get<List<LoadoutPreviewMarker>>(preview, "m_RuntimeMarkers");
                 Button marker = markers[point].GetComponent<Button>();
-                ExecuteEvents.Execute(marker.gameObject, CheckHudHitTarget(marker, "Hull point"), ExecuteEvents.pointerClickHandler);
+                marker.onClick.Invoke();
                 if (component >= 0)
                 {
                     Get<Button[]>(menu, "m_Slots")[0].onClick.Invoke();
                     Check(player.Loadout.MountComponents[point] == -1, "Hull " + loadout.Hull + " point can be cleared");
                 }
-                var categories = Get<LoadoutCategoryView[]>(menu, "m_Categories");
-                categories[0].Tab.onClick.Invoke();
                 var shields = catalog.Components.Where(item => item.Type == ComponentType.Shield).ToArray();
                 foreach (float angle in new[] { 90f, 45f, 22.5f })
                 {
                     int variantIndex = Array.FindIndex(shields, item => item is ShieldDef def && def.HalfAngle == angle);
                     Check(variantIndex >= 0, "Directional shield " + angle + " exists in the catalog");
-                    Button variant = Get<Button>(categories[0].Buttons[variantIndex], "m_Button");
-                    Check(variant.interactable, "Directional shield " + angle + " is compatible with the selected point");
-                    variant.onClick.Invoke();
+                    marker.onClick.Invoke();
+                    FindCatalogButton(menu, shields[variantIndex]).onClick.Invoke();
                     Check(player.Loadout.MountComponents[point] == Array.IndexOf(catalog.Components, shields[variantIndex]),
                         "Directional shield " + angle + " can be selected in the loadout");
                 }
                 if (component >= 0)
                 {
                     int indexInCategory = Array.IndexOf(shields, catalog.Components[component]);
-                    Button fit = Get<Button>(categories[0].Buttons[indexInCategory], "m_Button");
-                    Check(fit.interactable, "Original shield is compatible with its point");
-                    fit.onClick.Invoke();
+                    marker.onClick.Invoke();
+                    FindCatalogButton(menu, shields[indexInCategory]).onClick.Invoke();
                 }
-                else Get<Button[]>(menu, "m_Slots")[0].onClick.Invoke();
+                else
+                {
+                    marker.onClick.Invoke();
+                    Get<Button[]>(menu, "m_Slots")[0].onClick.Invoke();
+                }
                 Check(player.Loadout.MountComponents[point] == component, "Hull " + loadout.Hull + " point is restored");
             }
 
@@ -507,8 +559,9 @@ namespace PewPewPew.Editor
                     };
                     var hits = new List<RaycastResult>();
                     EventSystem.current.RaycastAll(pointer, hits);
-                    Check(hits.Count > 0 && hits[0].gameObject == target.gameObject,
-                        "Hull " + loadout.Hull + " point marker " + i + " is reachable by UI raycast at " +
+                    bool hitMarker = hits.Count > 0 && hits[0].gameObject.GetComponentInParent<LoadoutPreviewMarker>() != null;
+                    Check(hitMarker,
+                        "Hull " + loadout.Hull + " point marker " + i + " is reachable or overlapped by another marker at " +
                         pointer.position + " (first hit: " + (hits.Count > 0 ? hits[0].gameObject.name : "none") +
                         ", active: " + target.gameObject.activeInHierarchy + ", culled: " + target.GetComponent<CanvasRenderer>().cull +
                         ", graphic enabled: " + target.GetComponent<Image>().enabled +
@@ -517,6 +570,142 @@ namespace PewPewPew.Editor
                         ", contains: " + RectTransformUtility.RectangleContainsScreenPoint((RectTransform)target.transform, pointer.position) +
                         ", parent contains: " + RectTransformUtility.RectangleContainsScreenPoint((RectTransform)target.transform.parent, pointer.position) +
                         ", bounds: " + ((RectTransform)target.transform).rect + ", parent: " + target.transform.parent.name + ")");
+                }
+            }
+
+            private static Button FindCatalogButton(LoadoutMenuController menu, ShipComponentDef definition)
+            {
+                var panel = Get<LoadoutCatalogPanel>(menu, "m_CatalogPanel");
+                var sections = Get<IList>(panel, "m_Sections");
+                foreach (object section in sections)
+                {
+                    var entries = GetPublic<IList>(section, "Entries");
+                    foreach (object entry in entries)
+                    {
+                        if (GetPublic<ShipComponentDef>(entry, "Component") != definition) continue;
+                        var rect = GetPublic<RectTransform>(entry, "Rect");
+                        Check(rect.gameObject.activeSelf, "Compatible catalog item is visible");
+                        return rect.GetComponent<Button>();
+                    }
+                }
+                throw new InvalidOperationException("Component not found in the catalog: " + definition.name);
+            }
+
+            private static void ValidateCatalogInteractions(LoadoutMenuController menu, PlayerState player)
+            {
+                ShipCatalog catalog = ShipCatalog.Instance;
+                ShipLoadout original = player.Loadout;
+                HullPoint[] points = catalog.Hulls[original.Hull].HullPoints.Points;
+                int point = Array.FindIndex(points, candidate => catalog.Components.Any(item =>
+                    !item.IsLocked && candidate.AcceptsComponent(item)));
+                Check(point >= 0, "A compatible point exists for catalog interaction checks");
+                ShipComponentDef component = catalog.Components.First(item => !item.IsLocked && points[point].AcceptsComponent(item));
+                int index = Array.IndexOf(catalog.Components, component);
+                var markers = Get<List<LoadoutPreviewMarker>>(Get<LoadoutShipPreview>(menu, "m_Preview"), "m_RuntimeMarkers");
+                Button marker = markers[point].GetComponent<Button>();
+                var keyboard = InputSystem.AddDevice<Keyboard>();
+                var mouse = InputSystem.AddDevice<Mouse>();
+                var price = typeof(ShipComponentDef).GetField("m_Price", BindingFlags.Instance | BindingFlags.NonPublic);
+                int originalPrice = (int)price.GetValue(component);
+                try
+                {
+                    FindCatalogButton(menu, component).onClick.Invoke();
+                    Check(Get<ShipComponentDef>(menu, "m_SelectedComponent") == component, "Catalog click selects a component");
+                    marker.onClick.Invoke();
+                    Check(player.Loadout.MountComponents[point] == index &&
+                        Get<ShipComponentDef>(menu, "m_SelectedComponent") == null,
+                        "Component-first fitting replaces the point and clears selection");
+
+                    FindCatalogButton(menu, component).onClick.Invoke();
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.LeftShift));
+                    InputSystem.Update();
+                    keyboard.MakeCurrent();
+                    marker.onClick.Invoke();
+                    Check(Get<ShipComponentDef>(menu, "m_SelectedComponent") == component, "Shift retains component selection");
+                    int otherPoint = Array.FindIndex(player.Loadout.MountComponents, fitted => fitted != index);
+                    Check(otherPoint >= 0, "A different point exists for hover precedence");
+                    int otherFitted = player.Loadout.MountComponents[otherPoint];
+                    Call(menu, "HoverPoint", otherPoint, true);
+                    Check(Get<TMPro.TMP_Text>(menu, "m_HullDescription").text ==
+                        LoadoutDetails.Slot(points[otherPoint], otherFitted < 0 ? null : catalog.Components[otherFitted]),
+                        "Point hover overrides selected component details");
+                    Call(menu, "HoverPoint", otherPoint, false);
+                    Check(Get<TMPro.TMP_Text>(menu, "m_HullDescription").text == LoadoutDetails.Component(component),
+                        "Selected component details return after point hover");
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+                    InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Right));
+                    InputSystem.Update();
+                    mouse.MakeCurrent();
+                    Call(menu, "HandleInput");
+                    Check(Get<ShipComponentDef>(menu, "m_SelectedComponent") == null, "Right-click clears component selection");
+
+                    marker.onClick.Invoke();
+                    Check(Get<int>(menu, "m_SelectedPoint") == point, "Point-first selection filters the catalog");
+                    FindCatalogButton(menu, component).onClick.Invoke();
+                    Check(player.Loadout.MountComponents[point] == index && Get<int>(menu, "m_SelectedPoint") < 0,
+                        "Point-first fitting applies immediately and clears the point selection");
+                    marker.onClick.Invoke();
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Delete));
+                    InputSystem.Update();
+                    keyboard.MakeCurrent();
+                    Call(menu, "HandleInput");
+                    Check(player.Loadout.MountComponents[point] < 0, "Delete clears the selected point");
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+                    InputSystem.Update();
+                    FindCatalogButton(menu, component).onClick.Invoke();
+                    marker.onClick.Invoke();
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Backspace));
+                    InputSystem.Update();
+                    keyboard.MakeCurrent();
+                    Call(menu, "HandleInput");
+                    Check(player.Loadout.MountComponents[point] < 0, "Backspace clears the selected point");
+
+                    var background = Get<LoadoutShipPreview>(menu, "m_Preview")
+                        .GetComponentInParent<LoadoutMenuController.LoadoutPanelBackground>();
+                    ExecuteEvents.Execute(background.gameObject,
+                        new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left },
+                        ExecuteEvents.pointerClickHandler);
+                    Check(Get<int>(menu, "m_SelectedPoint") < 0, "Clicking the right panel deselects the point");
+
+                    price.SetValue(component, 100);
+                    FindCatalogButton(menu, component).onClick.Invoke();
+                    marker.onClick.Invoke();
+                    Check(player.Loadout.MountComponents[point] < 0 &&
+                        Get<ShipComponentDef>(menu, "m_SelectedComponent") == component,
+                        "Locked components remain inspectable but cannot be fitted");
+                    price.SetValue(component, originalPrice);
+                    InputSystem.QueueStateEvent(mouse, new MouseState());
+                    InputSystem.Update();
+                    InputSystem.QueueStateEvent(mouse, new MouseState().WithButton(MouseButton.Right));
+                    InputSystem.Update();
+                    mouse.MakeCurrent();
+                    Call(menu, "HandleInput");
+
+                    Call(menu, "SelectColour", 16, false);
+                    Check(player.Loadout.Colour0.Equals(original.Colour0), "Locked colours cannot be applied");
+                    Call(menu, "SelectColour", 1, false);
+                    Call(menu, "SelectColour", 8, true);
+                    Check(player.Loadout.Colour0.Equals(PlayerPalette.Colour(1)) &&
+                        player.Loadout.Colour1.Equals(PlayerPalette.Colour(8)),
+                        "Free primary and secondary colours apply without a point");
+                    s_ColourStore.Load(out Color32 primary, out Color32 secondary);
+                    Check(primary.Equals(PlayerPalette.Colour(1)) && secondary.Equals(PlayerPalette.Colour(8)),
+                        "Applied colours are saved");
+                    ShipLoadout lockedColour = player.Loadout;
+                    lockedColour.Colour0 = PlayerPalette.Colour(16);
+                    player.CmdSetLoadout(lockedColour);
+                    Check(player.Loadout.Colour0.Equals(PlayerPalette.Colour(1)), "Server rejects locked colours");
+                }
+                finally
+                {
+                    price.SetValue(component, originalPrice);
+                    InputSystem.RemoveDevice(keyboard);
+                    InputSystem.RemoveDevice(mouse);
+                    PlayerColourStore.Current.Save(original.Colour0, original.Colour1);
+                    player.CmdSetLoadout(original);
+                    Set(menu, "m_Pending", original);
+                    Call(menu, "ClearTransientState");
+                    Call(menu, "Refresh");
                 }
             }
 
@@ -654,6 +843,7 @@ namespace PewPewPew.Editor
             EditorApplication.update -= Tick;
             SessionState.SetInt(ResultKey, passed ? 0 : 1);
             if (s_Manager != null) s_Manager.StopHost();
+            if (s_OriginalColourStore != null) PlayerColourStore.Current = s_OriginalColourStore;
             EditorApplication.ExitPlaymode();
         }
 
@@ -676,6 +866,17 @@ namespace PewPewPew.Editor
         {
             public ValidationConnection(int id) : base(id) { }
             protected override void SendToTransport(ArraySegment<byte> segment, int channelId = Channels.Reliable) { }
+        }
+
+        internal sealed class ValidationColourStore : IPlayerColourStore
+        {
+            private Color32 m_Primary;
+            private Color32 m_Secondary;
+            public int SaveCount { get; private set; }
+            public ValidationColourStore() : this(PlayerPalette.DefaultPrimary, PlayerPalette.DefaultSecondary) { }
+            public ValidationColourStore(Color32 primary, Color32 secondary) { m_Primary = primary; m_Secondary = secondary; }
+            public void Load(out Color32 primary, out Color32 secondary) { primary = m_Primary; secondary = m_Secondary; }
+            public void Save(Color32 primary, Color32 secondary) { m_Primary = primary; m_Secondary = secondary; SaveCount++; }
         }
     }
 }

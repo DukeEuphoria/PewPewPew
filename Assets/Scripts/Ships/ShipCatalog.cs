@@ -85,6 +85,8 @@ namespace PewPewPew.Ships
         /// Requires an in-range loadout. Purchasing can later replace the definition's initial lock rule.
         public string LockedProblem(ShipLoadout loadout)
         {
+            if (!PlayerPalette.IsAvailable(loadout.Colour0)) return "Primary colour is locked or invalid.";
+            if (!PlayerPalette.IsAvailable(loadout.Colour1)) return "Secondary colour is locked or invalid.";
             HullDef hull = m_Hulls[loadout.Hull];
             if (hull.IsLocked) return $"{hull.DisplayName} is locked (price: {hull.Price}).";
             ShipComponentDef[] components = Components;

@@ -22,6 +22,8 @@ namespace PewPewPew.Weapons
         private PlayerState m_Attacker;
         private bool m_Spent;
 
+        public float ImpactDamage => m_ImpactDamage;
+
         protected override void Awake()
         {
             base.Awake();

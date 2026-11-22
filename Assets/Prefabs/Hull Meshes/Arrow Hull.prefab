@@ -158,6 +158,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Forward left hull point. Accepts guns, thrusters.
   m_Accepts: 12
   m_Size: 1
   m_GunRole: 0
@@ -206,6 +207,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Forward right hull point. Accepts guns, thrusters.
   m_Accepts: 12
   m_Size: 1
   m_GunRole: 0
@@ -254,6 +256,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Aft left hull point. Accepts thrusters.
   m_Accepts: 8
   m_Size: 1
   m_GunRole: 0
@@ -302,6 +305,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Aft right hull point. Accepts thrusters.
   m_Accepts: 8
   m_Size: 1
   m_GunRole: 0
@@ -350,6 +354,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Aft right hull point. Accepts shields, guns, thrusters.
   m_Accepts: 14
   m_Size: 2
   m_GunRole: 1
@@ -398,6 +403,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Aft left hull point. Accepts shields, guns, thrusters.
   m_Accepts: 14
   m_Size: 1
   m_GunRole: 1
@@ -446,6 +452,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Central centre hull point. Accepts shields, subsystems.
   m_Accepts: 18
   m_Size: 1
   m_GunRole: 0
@@ -494,6 +501,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Aft left hull point. Accepts shields, subsystems.
   m_Accepts: 18
   m_Size: 1
   m_GunRole: 0
@@ -542,6 +550,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Aft right hull point. Accepts shields, subsystems.
   m_Accepts: 18
   m_Size: 1
   m_GunRole: 0
@@ -590,6 +599,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Forward centre hull point. Accepts shields, guns.
   m_Accepts: 6
   m_Size: 2
   m_GunRole: 0
@@ -638,6 +648,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
+  m_Description: Aft centre hull point. Accepts shields, thrusters.
   m_Accepts: 10
   m_Size: 2
   m_GunRole: 0
