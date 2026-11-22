@@ -27,3 +27,10 @@ MonoBehaviour:
   m_ShieldCapacity: 100
   m_MaxSingleImpact: 50
   m_RechargeRate: 5
+  m_HalfAngle: 180
+  m_MeshType: 0
+  m_GridResolution: 24
+  m_GeodesicResolution: 2
+  m_MaxAlpha: 1
+  m_EdgeAlpha: 0
+  m_FadeStartAngle: 135

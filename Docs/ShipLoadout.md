@@ -154,11 +154,37 @@ subsystems 11–20. All subsystem HUD icons can also be clicked.
 
 Each fitted shield has a clickable HUD bar and starts switched on. Hold Space to
 temporarily activate all shields, restoring their individual toggle states on
-release. Shift+Space toggles all shields off if all are on, otherwise on.
+release. While held, working shield visuals stay visible with their current
+charge colour, then fade normally on release; destroyed generators cannot
+produce a held visual. Shift+Space toggles all shields off if all are on, otherwise on.
 Inactive shields retain their charge but do not absorb damage. Active shields
 absorb in hull-point order, each subject to its own charge and impact limit,
 before remaining damage reaches armour. Shields recharge automatically even
 while switched off, subject to power and generator health.
+
+Shield definitions set **Half Angle** around the hull point's local Up direction.
+180 degrees covers the whole ship; the supplied directional variants cover
+90, 45, or 22.5 degrees on either side. Coverage is measured from the centre
+of the hull bounds to the impact point. Only shields covering that direction
+absorb the hit, in hull-point order; uncovered damage reaches armour. Their
+flashes show the same coverage on the shield ellipse.
+
+Each shield definition selects either the original **Grid** mesh or a
+**Geodesic** mesh. Grid resolution is the number of latitude segments (3–64);
+longitude density scales with it. Geodesic resolution is the number of
+icosahedron subdivision steps (0–5). Full grid shields keep the prefab's sphere;
+full geodesic shields use a complete geodesic sphere.
+
+**Max Alpha** controls opacity before the edge fade, **Edge Alpha** controls
+opacity at the arc boundary, and **Fade Start Angle** is measured from the
+point's Up direction. The fade is linear, with its start strictly inside the
+half-angle and edge alpha no greater than maximum alpha. A 180-degree shield
+uses maximum alpha uniformly around its circumference. On the ShieldVisual
+prefab, **Latitude Fade Angle** sets the latitude above and below the ship's
+equator where the shield becomes transparent (0.1–90 degrees, default 45).
+Opacity falls linearly from the equator to that latitude, producing a band.
+These fades multiply the hexagonal texture's alpha and the existing hit-flash
+fade; they do not affect damage coverage.
 
 The power bar shows only the hull's storage. Power-storage subsystem gauges show
 their own share of the same combined power bank: they drain in hull-point order

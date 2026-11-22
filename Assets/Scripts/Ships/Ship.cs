@@ -59,6 +59,7 @@ namespace PewPewPew.Ships
         private readonly List<Transform> m_Visuals = new List<Transform>();
         private readonly List<IHudElement> m_HudElements = new List<IHudElement>();
         private readonly List<GameObject> m_HudObjects = new List<GameObject>();
+        private Vector2 m_ShieldCenter;
         private readonly System.Random m_Random = new System.Random();
         private ShipSystem m_Hull;
         private HullDef m_HullDef;
@@ -76,6 +77,7 @@ namespace PewPewPew.Ships
 
         [SyncVar] private ShipLoadout m_Loadout;
         [SyncVar] private byte[] m_Throttles;
+        [SyncVar(hook = nameof(OnHeldShieldLevelsChanged))] private byte[] m_HeldShieldLevels;
 
         public PlayerState Owner { get; private set; }
         public event Action<Ship> Destroyed;
@@ -105,6 +107,7 @@ namespace PewPewPew.Ships
         public override void OnStartClient()
         {
             ApplyLoadout();
+            ApplyHeldShieldLevels(m_HeldShieldLevels);
             if (isOwned) BuildHud();
         }
 
@@ -120,6 +123,7 @@ namespace PewPewPew.Ships
             ShipColours.Apply(hull.gameObject, m_Loadout);
             m_Visuals.Add(hull.transform);
             Bounds hullBounds = LocalBounds(hull.transform);
+            m_ShieldCenter = hullBounds.center;
             var collider = gameObject.AddComponent<CircleCollider2D>();
             collider.offset = hullBounds.center;
             collider.radius = Mathf.Max(hullBounds.size.x, hullBounds.size.y) * 0.6f;
@@ -154,7 +158,7 @@ namespace PewPewPew.Ships
                 {
                     var generator = new ShipSystem(shieldDef, mount, transform);
                     ShieldVisual visual = Instantiate(shieldDef.Visual, transform);
-                    visual.Fit(hullBounds);
+                    visual.Fit(hullBounds, point.transform, shieldDef);
                     foreach (Collider2D shieldCollider in visual.GetComponentsInChildren<Collider2D>())
                         shieldCollider.enabled = false;
                     m_Visuals.Add(visual.transform);
@@ -237,6 +241,7 @@ namespace PewPewPew.Ships
             StepRotation(deltaTime);
             StepPower(deltaTime);
             StepShields(deltaTime);
+            PublishHeldShieldLevels();
             StepRepairs(deltaTime);
             StepSubSystems(deltaTime);
             StepWeapons(deltaTime);
@@ -280,6 +285,43 @@ namespace PewPewPew.Ships
             }
             for (int i = 0; i < m_Thrusters.Count; i++)
                 m_ThrusterEffects.SetThrottle(m_Thrusters[i].EffectGroup, VitalsMath.FromByte(m_Throttles[i]));
+        }
+
+        private void PublishHeldShieldLevels()
+        {
+            if (!m_Controls.HoldShields)
+            {
+                if (m_HeldShieldLevels != null) m_HeldShieldLevels = null;
+                return;
+            }
+            byte[] previous = m_HeldShieldLevels;
+            byte[] updated = previous == null || previous.Length != m_Shields.Count ? new byte[m_Shields.Count] : null;
+            for (int i = 0; i < m_Shields.Count; i++)
+            {
+                MountedShield shield = m_Shields[i];
+                byte level = shield.Generator.Health.IsDestroyed ? (byte)0 :
+                    (byte)(1 + Mathf.RoundToInt(Mathf.Clamp01(shield.Charge.Fraction) * 254f));
+                if (updated == null && level != previous[i]) updated = (byte[])previous.Clone();
+                if (updated != null) updated[i] = level;
+            }
+            if (updated != null) m_HeldShieldLevels = updated;
+        }
+
+        private void OnHeldShieldLevelsChanged(byte[] previous, byte[] current) => ApplyHeldShieldLevels(current);
+
+        private void ApplyHeldShieldLevels(byte[] levels)
+        {
+            if (!m_Applied) return;
+            if (levels != null && levels.Length != m_Shields.Count)
+            {
+                Debug.LogError("Shield visual state does not match the ship loadout.", this);
+                return;
+            }
+            for (int i = 0; i < m_Shields.Count; i++)
+            {
+                byte level = levels == null ? (byte)0 : levels[i];
+                m_Shields[i].Visual.SetHeld(level != 0, level == 0 ? 0f : (level - 1) / 254f);
+            }
         }
 
         private void PublishVitals()
@@ -435,6 +477,7 @@ namespace PewPewPew.Ships
             controls.ReverseThrust = Mathf.Clamp01(controls.ReverseThrust);
             controls.SideThrust = Mathf.Clamp(controls.SideThrust, -1f, 1f);
             m_Controls = controls;
+            PublishHeldShieldLevels();
         }
 
         [Command]
@@ -465,10 +508,12 @@ namespace PewPewPew.Ships
                 m_LastAttackTime = Time.time;
             }
             float remaining = amount;
+            Vector2 shieldOffset = point - (Vector2)transform.TransformPoint(m_ShieldCenter);
             for (int i = 0; i < m_Shields.Count && remaining > 0f; i++)
             {
                 MountedShield shield = m_Shields[i];
                 if (shield.Generator.Health.IsDestroyed || (!shield.Toggled && !m_Controls.HoldShields)) continue;
+                if (!DamageMath.ShieldCovers(shield.Generator.Points[0].up, shieldOffset, shield.Def.HalfAngle)) continue;
                 float after = DamageMath.AbsorbShield(remaining, shield.Charge, shield.Def.MaxSingleImpact);
                 if (after < remaining) RpcShieldHit(i, shield.Charge.Fraction);
                 remaining = after;

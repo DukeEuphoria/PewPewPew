@@ -1,5 +1,6 @@
 #if PEW_MOUNT_REMOTE_VALIDATION
 using System;
+using System.Collections;
 using System.Linq;
 using System.Reflection;
 using kcp2k;
@@ -20,6 +21,9 @@ namespace PewPewPew.Networking
         private float m_Deadline;
         private float m_ReadyAt;
         private ShipLoadout m_Fitted;
+        private bool m_RemoteHoldSeen;
+        private bool m_RemoteReleaseSeen;
+        private bool m_HostReleased;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void StartValidation()
@@ -61,7 +65,11 @@ namespace PewPewPew.Networking
 
         private void Update()
         {
-            if (Time.realtimeSinceStartup > m_Deadline) { Fail($"Timed out in phase {m_Phase}."); return; }
+            if (Time.realtimeSinceStartup > m_Deadline)
+            {
+                Fail($"Timed out in phase {m_Phase} (remote hold {m_RemoteHoldSeen}, release {m_RemoteReleaseSeen}, host release {m_HostReleased}).");
+                return;
+            }
             if (!NetworkClient.active || PlayerState.Local == null || MatchManager.Instance == null) return;
             if (m_Host) StepHost();
             else StepClient();
@@ -81,21 +89,47 @@ namespace PewPewPew.Networking
                 PlayerState remote = PlayerState.All.FirstOrDefault(player => player != PlayerState.Local);
                 if (remote == null || !remote.HasShip || remote.Ship == null) return;
                 if (remote.Ship.SubSystems.Count != 5) { Fail("Server did not construct all remote subsystems."); return; }
+                Ship localShip = PlayerState.Local.Ship;
+                if (localShip == null) return;
+                localShip.GetComponent<Collider2D>().enabled = false;
+                remote.Ship.GetComponent<Collider2D>().enabled = false;
+                remote.Ship.netIdentity.visibility = Visibility.ForceShown;
+                NetworkServer.RebuildObservers(remote.Ship.netIdentity, true);
+                localShip.GetComponent<ShipInput>().enabled = false;
+                localShip.netIdentity.visibility = Visibility.ForceHidden;
+                NetworkServer.RebuildObservers(localShip.netIdentity, false);
+                if (localShip.netIdentity.observers.ContainsKey(remote.connectionToClient.connectionId))
+                {
+                    Fail("Remote client remained an observer before the shield hold.");
+                    return;
+                }
+                localShip.CmdSetControls(new ShipControls { AimPoint = localShip.transform.position, HoldShields = true });
+                localShip.netIdentity.visibility = Visibility.ForceShown;
+                NetworkServer.RebuildObservers(localShip.netIdentity, true);
                 Debug.Log("MOUNT_REMOTE_HOST_PASSED");
                 m_Phase = 2;
                 m_Deadline = Time.realtimeSinceStartup + 25f;
             }
             else if (m_Phase == 2 && PlayerState.All.Count == 1)
             {
+                if (!m_RemoteHoldSeen || !m_RemoteReleaseSeen) { Fail("Host did not observe remote shield hold and release."); return; }
                 m_Manager.StopHost();
                 Application.Quit(0);
             }
             else if (m_Phase == 2)
             {
+                if (!m_HostReleased && m_RemoteReleaseSeen)
+                {
+                    Ship localShip = PlayerState.Local.Ship;
+                    localShip.CmdSetControls(new ShipControls { AimPoint = localShip.transform.position });
+                    m_HostReleased = true;
+                }
                 PlayerState remote = PlayerState.All.FirstOrDefault(player => player != PlayerState.Local);
                 if (remote != null && remote.Ship != null)
                 {
                     Ship ship = remote.Ship;
+                    if (HeldShieldCount(ship) > 0) m_RemoteHoldSeen = true;
+                    else if (m_RemoteHoldSeen) m_RemoteReleaseSeen = true;
                     var bank = (PowerBank)typeof(Ship).GetField("m_Power", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ship);
                     HullDef hull = ShipCatalog.Instance.Hulls[remote.Loadout.Hull];
                     SubSystem[] stores = ship.SubSystems.Where(system => system.Def.ExtraPowerStorage > 0f).ToArray();
@@ -135,8 +169,10 @@ namespace PewPewPew.Networking
                 {
                     AimPoint = (Vector2)ship.transform.position + Vector2.up * 100f,
                     Thrust = 1f,
-                    FireMain = true
+                    FireMain = true,
+                    HoldShields = true
                 });
+                m_ReadyAt = Time.realtimeSinceStartup + 1.4f;
                 m_Phase = 3;
             }
             else if (m_Phase == 3)
@@ -149,16 +185,49 @@ namespace PewPewPew.Networking
                 float hullPower = (float)typeof(Ship).GetField("m_HullPowerLevel", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ship);
                 var field = typeof(Ship).GetField("m_Throttles", BindingFlags.NonPublic | BindingFlags.Instance);
                 var throttles = (byte[])field.GetValue(ship);
-                if (vitals.ShieldStates == null || vitals.ShieldStates.Length != 2 || vitals.ShieldStates[0] != 0 ||
+                Ship other = FindObjectsByType<Ship>().FirstOrDefault(candidate => !candidate.isOwned);
+                if (Time.realtimeSinceStartup < m_ReadyAt || other == null || HeldShieldCount(other) == 0 ||
+                    HeldShieldCount(ship) != 2 ||
+                    vitals.ShieldStates == null || vitals.ShieldStates.Length != 2 || vitals.ShieldStates[0] != 2 ||
                     vitals.SubSystemLevels == null || vitals.SubSystemLevels.Length != 5 ||
                     vitals.HullPower != 255 || hullPower < 0.99f ||
                     stores[0].HudLevel < 0.48f || stores[0].HudLevel > 0.52f || stores[1].HudLevel < 0.99f ||
                     throttles == null || !throttles.Any(value => value > 0) ||
                     FindObjectsByType<Bullet>().Length == 0) return;
+                ship.CmdSetControls(new ShipControls
+                {
+                    AimPoint = (Vector2)ship.transform.position + Vector2.up * 100f,
+                    Thrust = 1f,
+                    FireMain = true
+                });
+                m_ReadyAt = Time.realtimeSinceStartup + 1.4f;
+                m_Phase = 4;
+            }
+            else if (m_Phase == 4)
+            {
+                Ship ship = FindObjectsByType<Ship>().FirstOrDefault(candidate => candidate.isOwned);
+                if (ship == null) { Fail("Owned ship disappeared."); return; }
+                Ship other = FindObjectsByType<Ship>().FirstOrDefault(candidate => !candidate.isOwned);
+                if (Time.realtimeSinceStartup < m_ReadyAt || HeldShieldCount(ship) != 0 ||
+                    VisibleShieldCount(ship) != 0 || other == null || HeldShieldCount(other) != 0 ||
+                    VisibleShieldCount(other) != 0 || ship.GetComponent<ShipHudSync>().Vitals.ShieldStates[0] != 0) return;
                 Debug.Log("MOUNT_REMOTE_CLIENT_PASSED");
                 m_Manager.StopClient();
                 Application.Quit(0);
             }
+        }
+
+        private static int HeldShieldCount(Ship ship) => ShieldVisuals(ship).Count(visual =>
+            (bool)typeof(ShieldVisual).GetField("m_Held", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(visual) &&
+            visual.GetComponent<Renderer>().enabled);
+
+        private static int VisibleShieldCount(Ship ship) => ShieldVisuals(ship).Count(visual => visual.GetComponent<Renderer>().enabled);
+
+        private static ShieldVisual[] ShieldVisuals(Ship ship)
+        {
+            var shields = (IList)typeof(Ship).GetField("m_Shields", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ship);
+            return shields.Cast<object>().Select(shield =>
+                (ShieldVisual)shield.GetType().GetField("Visual").GetValue(shield)).ToArray();
         }
 
         private static ShipLoadout MakeLoadout(ShipLoadout loadout)

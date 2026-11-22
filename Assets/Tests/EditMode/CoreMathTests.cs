@@ -435,8 +435,313 @@ namespace PewPewPew.Tests
         }
     }
 
+    public class ShieldVisualTests
+    {
+        [TestCase(0, 90f)]
+        [TestCase(1, 90f)]
+        [TestCase(0, 180f)]
+        [TestCase(1, 180f)]
+        public void LatitudeFade_RendersBandAndRespondsToInspectorChanges(int meshType, float halfAngle)
+        {
+            Type visualType = Type.GetType("PewPewPew.Ships.ShieldVisual, Assembly-CSharp");
+            Type definitionType = Type.GetType("PewPewPew.Ships.ShieldDef, Assembly-CSharp");
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/Shield Meshes/Basic Shield Visual.prefab");
+            var ship = new GameObject("Shield latitude test");
+            var mount = new GameObject("Mount");
+            var cameraObject = new GameObject("Shield latitude camera");
+            var definition = ScriptableObject.CreateInstance(definitionType);
+            var target = new RenderTexture(128, 128, 24);
+            var pixels = new Texture2D(128, 128, TextureFormat.RGBA32, false);
+            var material = new Material(UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Shield Hex.mat"));
+            try
+            {
+                mount.transform.SetParent(ship.transform, false);
+                GameObject visualObject = UnityEngine.Object.Instantiate(prefab, ship.transform);
+                visualObject.layer = 31;
+                Component visual = visualObject.GetComponent(visualType);
+                Renderer renderer = visualObject.GetComponent<Renderer>();
+                material.SetTexture("_BaseMap", Texture2D.whiteTexture);
+                material.SetColor("_BaseColor", Color.white);
+                renderer.sharedMaterial = material;
+                SetDefinition(definition, "m_HalfAngle", halfAngle);
+                SetDefinition(definition, "m_FadeStartAngle", halfAngle * 0.75f);
+                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), meshType));
+                SetDefinition(definition, "m_GeodesicResolution", 3);
+                FieldInfo latitude = visualType.GetField("m_LatitudeFadeAngle", BindingFlags.Instance | BindingFlags.NonPublic);
+                latitude.SetValue(visual, 30f);
+                visualType.GetMethod("Fit").Invoke(visual,
+                    new object[] { new Bounds(Vector3.zero, new Vector3(2f, 2f, 1f)), mount.transform, definition });
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.enabled = false;
+                camera.transform.position = new Vector3(0f, 0f, -5f);
+                camera.orthographic = true;
+                camera.orthographicSize = 1.5f;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = Color.black;
+                camera.cullingMask = 1 << 31;
+                camera.targetTexture = target;
+
+                RenderShield(camera, target, pixels);
+                Assert.Less(pixels.GetPixel(64, 64).r, 0.02f, "The pole is transparent");
+                Assert.Less(pixels.GetPixel(64, 100).r, 0.02f, "The interior beyond 30 degrees is transparent");
+                Assert.Less(pixels.GetPixel(64, 106).r, 0.02f, "The fade reaches zero just beyond the selected latitude");
+                Assert.Greater(pixels.GetPixel(64, 111).r, 0.03f, "The equatorial band remains visible");
+
+                latitude.SetValue(visual, 60f);
+                visualType.GetMethod("OnValidate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(visual, null);
+                visualType.GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(visual, null);
+                RenderShield(camera, target, pixels);
+                Assert.Greater(pixels.GetPixel(64, 100).r, 0.03f, "A larger latitude makes the band wider");
+                Assert.Less(pixels.GetPixel(64, 64).r, 0.02f, "The pole stays transparent");
+                camera.transform.position = new Vector3(0f, 0f, 5f);
+                camera.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+                RenderShield(camera, target, pixels);
+                Assert.Greater(pixels.GetPixel(64, 100).r, 0.03f, "The opposite hemisphere has the same band");
+                Assert.Less(pixels.GetPixel(64, 64).r, 0.02f, "The opposite pole is transparent");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(ship);
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(definition);
+                UnityEngine.Object.DestroyImmediate(material);
+                UnityEngine.Object.DestroyImmediate(target);
+                UnityEngine.Object.DestroyImmediate(pixels);
+            }
+        }
+
+        private static void RenderShield(Camera camera, RenderTexture target, Texture2D pixels)
+        {
+            camera.Render();
+            RenderTexture previous = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = target;
+                pixels.ReadPixels(new Rect(0, 0, target.width, target.height), 0, 0);
+                pixels.Apply();
+            }
+            finally { RenderTexture.active = previous; }
+        }
+
+        [TestCase(0, 90f, 0f)]
+        [TestCase(0, 45f, 53f)]
+        [TestCase(0, 22.5f, -72f)]
+        [TestCase(1, 90f, 0f)]
+        [TestCase(1, 45f, 53f)]
+        [TestCase(1, 22.5f, -72f)]
+        [TestCase(1, 135f, 29f)]
+        public void DirectionalMesh_MatchesCoverageAndAlphaOnAnEllipticalRotatedShip(int meshType, float halfAngle, float mountAngle)
+        {
+            Type visualType = Type.GetType("PewPewPew.Ships.ShieldVisual, Assembly-CSharp");
+            Type definitionType = Type.GetType("PewPewPew.Ships.ShieldDef, Assembly-CSharp");
+            Assert.IsNotNull(visualType);
+            Assert.IsNotNull(definitionType);
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/Shield Meshes/Basic Shield Visual.prefab");
+            Assert.IsNotNull(prefab);
+            var ship = new GameObject("Shield visual test");
+            var mount = new GameObject("Mount");
+            ScriptableObject definition = ScriptableObject.CreateInstance(definitionType);
+            try
+            {
+                SetDefinition(definition, "m_HalfAngle", halfAngle);
+                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), meshType));
+                SetDefinition(definition, "m_FadeStartAngle", halfAngle * 0.75f);
+                SetDefinition(definition, "m_MaxAlpha", 0.8f);
+                SetDefinition(definition, "m_EdgeAlpha", 0.2f);
+                ship.transform.rotation = Quaternion.Euler(0f, 0f, 37f);
+                mount.transform.SetParent(ship.transform, false);
+                mount.transform.localRotation = Quaternion.Euler(0f, 0f, mountAngle);
+                GameObject visualObject = UnityEngine.Object.Instantiate(prefab, ship.transform);
+                Component visual = visualObject.GetComponent(visualType);
+                MeshFilter filter = visualObject.GetComponent<MeshFilter>();
+                Mesh original = filter.sharedMesh;
+                MethodInfo fit = visualType.GetMethod("Fit");
+                var bounds = new Bounds(new Vector3(1f, -2f, 0f), new Vector3(12f, 4f, 1f));
+                fit.Invoke(visual, new object[] { bounds, mount.transform, definition });
+                Mesh mesh = filter.sharedMesh;
+                Assert.AreNotSame(original, mesh);
+                Vector2 centre = ship.transform.TransformPoint(bounds.center);
+                Vector2 forward = mount.transform.up;
+                float minimum = 180f;
+                float maximum = -180f;
+                Vector3[] vertices = mesh.vertices;
+                Color[] colors = mesh.colors;
+                Vector2[] uvs = mesh.uv;
+                Assert.AreEqual(vertices.Length, colors.Length);
+                Assert.AreEqual(vertices.Length, uvs.Length);
+                bool sawFadeStart = false;
+                for (int i = 0; i < vertices.Length; i++)
+                {
+                    Vector2 offset = (Vector2)visualObject.transform.TransformPoint(vertices[i]) - centre;
+                    if (offset.sqrMagnitude < 1e-8f) continue;
+                    float angle = Vector2.SignedAngle(forward, offset);
+                    minimum = Mathf.Min(minimum, angle);
+                    maximum = Mathf.Max(maximum, angle);
+                    Assert.LessOrEqual(Mathf.Abs(angle), halfAngle + 0.01f);
+                    float expectedAlpha = Mathf.Lerp(0.8f, 0.2f,
+                        Mathf.Clamp01((Mathf.Abs(angle) - halfAngle * 0.75f) / (halfAngle * 0.25f)));
+                    Assert.That(colors[i].a, Is.EqualTo(expectedAlpha).Within(0.002f));
+                    if (Mathf.Abs(Mathf.Abs(angle) - halfAngle * 0.75f) < 0.01f) sawFadeStart = true;
+                }
+                Assert.That(minimum, Is.EqualTo(-halfAngle).Within(0.01f));
+                Assert.That(maximum, Is.EqualTo(halfAngle).Within(0.01f));
+                Assert.IsTrue(sawFadeStart, "The mesh has vertices at the fade boundary");
+                int[] triangles = mesh.triangles;
+                int checkedTriangles = 0;
+                for (int i = 0; i < triangles.Length; i += 3)
+                {
+                    Vector3 a = vertices[triangles[i]];
+                    Vector3 b = vertices[triangles[i + 1]];
+                    Vector3 c = vertices[triangles[i + 2]];
+                    Vector3 normal = Vector3.Cross(b - a, c - a);
+                    if (normal.sqrMagnitude < 1e-12f) continue;
+                    Assert.Greater(Vector3.Dot(normal, a + b + c), 0f, "Faces must point outward");
+                    if (meshType == 1)
+                    {
+                        float u0 = uvs[triangles[i]].x, u1 = uvs[triangles[i + 1]].x, u2 = uvs[triangles[i + 2]].x;
+                        Assert.LessOrEqual(Mathf.Max(u0, u1, u2) - Mathf.Min(u0, u1, u2), 0.501f, "UV seam crosses a triangle");
+                    }
+                    checkedTriangles++;
+                }
+                Assert.Greater(checkedTriangles, 0);
+                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 0));
+                SetDefinition(definition, "m_HalfAngle", 180f);
+                fit.Invoke(visual, new object[] { bounds, mount.transform, definition });
+                Assert.AreSame(original, filter.sharedMesh);
+                Assert.IsTrue(mesh == null, "Replacing a generated mesh releases it");
+                var properties = new MaterialPropertyBlock();
+                visualObject.GetComponent<Renderer>().GetPropertyBlock(properties);
+                Assert.That(properties.GetFloat("_ShieldAlpha"), Is.EqualTo(0.8f).Within(1e-6f));
+                Assert.AreEqual(0f, properties.GetFloat("_UseVertexColors"));
+                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 1));
+                fit.Invoke(visual, new object[] { bounds, mount.transform, definition });
+                Mesh fullGeodesic = filter.sharedMesh;
+                Assert.AreNotSame(original, fullGeodesic);
+                Assert.IsTrue(fullGeodesic.colors.All(color => Mathf.Abs(color.a - 0.8f) < 1e-6f));
+                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 0));
+                fit.Invoke(visual, new object[] { bounds, mount.transform, definition });
+                Assert.IsTrue(fullGeodesic == null, "Replacing the full geodesic mesh releases it");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(ship);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [TestCase(0, 6, 24)]
+        [TestCase(1, 0, 2)]
+        public void Resolution_IncreasesMeshDetail(int meshType, int low, int high)
+        {
+            Type generator = Type.GetType("PewPewPew.Ships.ShieldMeshGenerator, Assembly-CSharp");
+            MethodInfo create = generator.GetMethod(meshType == 0 ? "CreateArcMesh" : "CreateGeodesicArcMesh");
+            Mesh coarse = (Mesh)create.Invoke(null, new object[] { Vector2.up, Vector3.one, 90f, low, 67.5f, 1f, 0f });
+            Mesh fine = (Mesh)create.Invoke(null, new object[] { Vector2.up, Vector3.one, 90f, high, 67.5f, 1f, 0f });
+            try { Assert.Greater(fine.triangles.Length, coarse.triangles.Length); }
+            finally { UnityEngine.Object.DestroyImmediate(coarse); UnityEngine.Object.DestroyImmediate(fine); }
+        }
+
+        [Test]
+        public void GeodesicFullSphere_HasUniformAlphaAndOutwardFaces()
+        {
+            Type generator = Type.GetType("PewPewPew.Ships.ShieldMeshGenerator, Assembly-CSharp");
+            Mesh mesh = (Mesh)generator.GetMethod("CreateGeodesicArcMesh").Invoke(null,
+                new object[] { Vector2.up, Vector3.one, 180f, 2, 135f, 0.65f, 0f });
+            try
+            {
+                Assert.AreEqual(20 * 16 * 3, mesh.triangles.Length);
+                Assert.IsTrue(mesh.colors.All(color => Mathf.Abs(color.a - 0.65f) < 1e-6f));
+                Assert.That(mesh.bounds.size.x, Is.EqualTo(1f).Within(0.02f));
+                Assert.That(mesh.bounds.size.y, Is.EqualTo(1f).Within(0.02f));
+                Assert.That(mesh.bounds.size.z, Is.EqualTo(1f).Within(0.02f));
+                Vector3[] vertices = mesh.vertices;
+                int[] triangles = mesh.triangles;
+                for (int i = 0; i < triangles.Length; i += 3)
+                {
+                    Vector3 a = vertices[triangles[i]], b = vertices[triangles[i + 1]], c = vertices[triangles[i + 2]];
+                    Assert.Greater(Vector3.Dot(Vector3.Cross(b - a, c - a), a + b + c), 0f);
+                }
+            }
+            finally { UnityEngine.Object.DestroyImmediate(mesh); }
+        }
+
+        [Test]
+        public void ShieldDefinition_ConstrainsFadeSettings()
+        {
+            Type type = Type.GetType("PewPewPew.Ships.ShieldDef, Assembly-CSharp");
+            ScriptableObject definition = ScriptableObject.CreateInstance(type);
+            try
+            {
+                SetDefinition(definition, "m_HalfAngle", 45f);
+                SetDefinition(definition, "m_FadeStartAngle", 45f);
+                SetDefinition(definition, "m_MaxAlpha", 0.3f);
+                SetDefinition(definition, "m_EdgeAlpha", 0.9f);
+                Assert.Less((float)type.GetProperty("FadeStartAngle").GetValue(definition), 45f);
+                Assert.That((float)type.GetProperty("EdgeAlpha").GetValue(definition), Is.EqualTo(0.3f).Within(1e-6f));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(definition); }
+        }
+
+        [Test]
+        public void GeodesicMaximumResolution_ProducesValidIndexedMesh()
+        {
+            Type generator = Type.GetType("PewPewPew.Ships.ShieldMeshGenerator, Assembly-CSharp");
+            Mesh mesh = (Mesh)generator.GetMethod("CreateGeodesicArcMesh").Invoke(null,
+                new object[] { Vector2.up, new Vector3(3f, 1f, 1f), 179f, 5, 134.25f, 1f, 0f });
+            try
+            {
+                Assert.Greater(mesh.vertexCount, 0);
+                Assert.IsTrue(mesh.triangles.All(index => index >= 0 && index < mesh.vertexCount));
+                if (mesh.vertexCount > ushort.MaxValue)
+                    Assert.AreEqual(UnityEngine.Rendering.IndexFormat.UInt32, mesh.indexFormat);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(mesh); }
+        }
+
+        [Test]
+        public void ShieldMaterial_HasDedicatedVertexColorShaderAndTexture()
+        {
+            Material material = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Shield Hex.mat");
+            Assert.IsNotNull(material);
+            Assert.AreEqual("PewPewPew/ShieldVertexTransparent", material.shader.name);
+            Assert.IsNotNull(material.GetTexture("_BaseMap"));
+            Assert.IsTrue(material.HasProperty("_BaseColor"));
+            Assert.IsTrue(material.HasProperty("_UseVertexColors"));
+            Assert.IsTrue(material.HasProperty("_ShieldAlpha"));
+        }
+
+        private static void SetDefinition(ScriptableObject definition, string field, object value) =>
+            definition.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(definition, value);
+    }
+
     public class DamageMathTests
     {
+        [TestCase(90f)]
+        [TestCase(45f)]
+        [TestCase(22.5f)]
+        public void ShieldCovers_BothEdgesAndRejectsOutside(float halfAngle)
+        {
+            Vector2 forward = Quaternion.Euler(0f, 0f, 37f) * Vector2.up;
+            Vector2 left = Quaternion.Euler(0f, 0f, halfAngle) * forward;
+            Vector2 right = Quaternion.Euler(0f, 0f, -halfAngle) * forward;
+            Vector2 outside = Quaternion.Euler(0f, 0f, halfAngle + 0.1f) * forward;
+            Assert.IsTrue(DamageMath.ShieldCovers(forward, forward, halfAngle));
+            Assert.IsTrue(DamageMath.ShieldCovers(forward, left, halfAngle));
+            Assert.IsTrue(DamageMath.ShieldCovers(forward, right, halfAngle));
+            Assert.IsFalse(DamageMath.ShieldCovers(forward, outside, halfAngle));
+            Assert.IsFalse(DamageMath.ShieldCovers(forward, -forward, halfAngle));
+        }
+
+        [Test]
+        public void ShieldCovers_FullShieldAndCentreImpact()
+        {
+            Assert.IsTrue(DamageMath.ShieldCovers(Vector2.up, Vector2.down, 180f));
+            Assert.IsTrue(DamageMath.ShieldCovers(Vector2.up, Vector2.zero, 22.5f));
+            Assert.IsFalse(DamageMath.ShieldCovers(Vector2.zero, Vector2.up, 22.5f));
+        }
+
         [Test]
         public void AbsorbArmour_BoostsBlockingAndKeepsWearInBaseUnits()
         {

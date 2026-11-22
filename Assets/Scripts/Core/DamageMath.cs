@@ -22,6 +22,14 @@ namespace PewPewPew.Core
             return damage - absorbed;
         }
 
+        /// Tests an impact direction relative to the shield centre against the mount's Up direction.
+        public static bool ShieldCovers(Vector2 forward, Vector2 impactOffset, float halfAngle)
+        {
+            if (halfAngle >= 180f || impactOffset.sqrMagnitude < 1e-10f) return true;
+            if (forward.sqrMagnitude < 1e-10f) return false;
+            return Vector2.Angle(forward, impactOffset) <= halfAngle + 0.0001f;
+        }
+
         /// Armour blocks up to its current value per impact and wears down by wearRatio of what it blocked.
         public static float AbsorbArmour(float damage, ComponentHealth armour, float wearRatio, float strengthMultiplier = 1f)
         {

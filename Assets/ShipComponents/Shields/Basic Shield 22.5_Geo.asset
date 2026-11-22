@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0674ad328d403241b7322bfd7f1adcd, type: 3}
+  m_Name: Basic Shield 22.5_Geo
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ShieldDef
+  m_DisplayName: Basic Shield 22.5
+  m_Description: Directional shield covering 22.5 degrees either side of the mount.
+  m_ButtonArtwork: {fileID: 0}
+  m_Price: 0
+  m_Size: 1
+  m_Mass: 1
+  m_PassivePowerDrain: 1
+  m_ActivePowerDrain: 3
+  m_MaxHealth: 100
+  m_AutoRepairRate: 0
+  m_Visual: {fileID: 1004, guid: 1ad6b51299434de088244bc7b6cfd8be, type: 3}
+  m_Bar: {fileID: 104, guid: e5a4b5c6d7e88f90c1b2c3d4e5f60718, type: 3}
+  m_ShieldCapacity: 100
+  m_MaxSingleImpact: 50
+  m_RechargeRate: 5
+  m_HalfAngle: 22.5
+  m_MeshType: 0
+  m_GridResolution: 24
+  m_GeodesicResolution: 1
+  m_MaxAlpha: 0.66
+  m_EdgeAlpha: 0
+  m_FadeStartAngle: 16

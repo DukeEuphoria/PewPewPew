@@ -35,6 +35,8 @@ namespace PewPewPew.Editor
         private static int s_ValidatedHulls;
         private static int s_ThrusterDirection;
         private static Ship s_TestShip;
+        private static Mesh s_TestShieldMesh;
+        private static bool s_TestingShieldHold;
         private static Rigidbody2D s_ForceBody;
         private static Vector2 s_ExhaustDirection;
 
@@ -191,11 +193,61 @@ namespace PewPewPew.Editor
                     ValidateMountedSystems(s_TestShip);
                     ValidatePowerStorageDisplay(s_TestShip);
                     s_TestShip.GetComponent<ShipInput>().enabled = false;
-                    SetThrusterControl(s_TestShip, 0);
-                    Next();
+                    s_TestShip.CmdToggleShield(0);
+                    s_TestShip.CmdSetControls(new ShipControls { AimPoint = s_TestShip.transform.position, HoldShields = true });
+                    IList mountedShields = Get<IList>(s_TestShip, "m_Shields");
+                    ShieldVisual heldVisual = GetPublic<ShieldVisual>(mountedShields[0], "Visual");
+                    ComponentHealth heldCharge = GetPublic<ComponentHealth>(mountedShields[0], "Charge");
+                    heldCharge.SetFraction(0f);
+                    typeof(Ship).GetMethod("PublishHeldShieldLevels", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(s_TestShip, null);
+                    Check(Get<bool>(heldVisual, "m_Held") &&
+                        heldVisual.GetComponent<Renderer>().material.color == Get<Color>(heldVisual, "m_EmptyColor"),
+                        "A fully depleted shield remains visible while held");
+                    heldVisual.Flash(0f);
+                    Check(Get<bool>(heldVisual, "m_Held"), "An impact flash does not cancel the held state");
+                    ShipSystem heldGenerator = GetPublic<ShipSystem>(mountedShields[0], "Generator");
+                    heldGenerator.Health.Damage(heldGenerator.Health.Current);
+                    typeof(Ship).GetMethod("PublishHeldShieldLevels", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(s_TestShip, null);
+                    Check(!Get<bool>(heldVisual, "m_Held") &&
+                        Get<bool>(GetPublic<ShieldVisual>(mountedShields[1], "Visual"), "m_Held"),
+                        "A shield destroyed during a hold stops being held visible");
+                    heldGenerator.Health.Repair(heldGenerator.Health.Max);
+                    heldCharge.SetFraction(0.5f);
+                    s_TestingShieldHold = true;
+                    Next(1.3);
                     break;
                 case 5:
+                    if (s_TestingShieldHold)
+                    {
+                        var heldShields = Get<IList>(s_TestShip, "m_Shields");
+                        foreach (object mounted in heldShields)
+                        {
+                            ShieldVisual visual = GetPublic<ShieldVisual>(mounted, "Visual");
+                            Check(Get<bool>(visual, "m_Held") && visual.GetComponent<Renderer>().enabled &&
+                                Mathf.Approximately(Get<float>(visual, "m_Alpha"), 1f),
+                                "Holding shields keeps each working shield visible beyond its flash duration");
+                        }
+                        ShieldVisual firstVisual = GetPublic<ShieldVisual>(heldShields[0], "Visual");
+                        byte firstLevel = Get<byte[]>(s_TestShip, "m_HeldShieldLevels")[0];
+                        Color expected = Color.Lerp(Get<Color>(firstVisual, "m_EmptyColor"),
+                            Get<Color>(firstVisual, "m_FullColor"), (firstLevel - 1) / 254f);
+                        Check(firstLevel > 1 && firstLevel < 255 &&
+                            firstVisual.GetComponent<Renderer>().material.color == expected,
+                            "Held shield colour tracks changing charge");
+                        Check(!GetPublic<bool>(heldShields[0], "Toggled"), "Holding shields leaves individual toggles unchanged");
+                        SetThrusterControl(s_TestShip, 0);
+                        s_TestingShieldHold = false;
+                        s_Next = EditorApplication.timeSinceStartup + 0.4;
+                        return;
+                    }
                     ValidateThrusterControl(s_TestShip, s_ThrusterDirection);
+                    if (s_ThrusterDirection == 3)
+                        foreach (object mounted in Get<IList>(s_TestShip, "m_Shields"))
+                        {
+                            ShieldVisual visual = GetPublic<ShieldVisual>(mounted, "Visual");
+                            Check(!Get<bool>(visual, "m_Held") && !visual.GetComponent<Renderer>().enabled,
+                                "Released shields fade out normally");
+                        }
                     s_ThrusterDirection++;
                     if (s_ThrusterDirection < 4)
                     {
@@ -205,6 +257,9 @@ namespace PewPewPew.Editor
                     }
                     Check(s_TestShip.SubSystems[4].Activation.IsActive, "Fifth subsystem HUD button activates the system");
                     Ship ship = local.Ship;
+                    object directionalShield = Get<IList>(ship, "m_Shields").Cast<object>()
+                        .First(shield => GetPublic<ShieldDef>(shield, "Def").HalfAngle < 180f);
+                    s_TestShieldMesh = GetPublic<ShieldVisual>(directionalShield, "Visual").GetComponent<MeshFilter>().sharedMesh;
                     Set(match, "m_RespawnDelay", 0.7f);
                     Call(match, "HandleShipDestroyed", ship);
                     NetworkServer.Destroy(ship.gameObject);
@@ -213,6 +268,7 @@ namespace PewPewPew.Editor
                     Next(0.25);
                     break;
                 case 6:
+                    Check(s_TestShieldMesh == null, "Destroying the ship releases its generated shield mesh");
                     Check(!local.HasShip, "Respawn delay blocks early deployment");
                     Next(0.8);
                     break;
@@ -289,12 +345,15 @@ namespace PewPewPew.Editor
                 ShipLoadout loadout = player.Loadout;
                 HullPoint[] points = catalog.Hulls[loadout.Hull].HullPoints.Points;
                 int shield = Array.FindIndex(components, component => component is ShieldDef);
+                int directionalShield = Array.FindIndex(components, component => component is ShieldDef def && def.HalfAngle == 45f);
                 int thruster = Array.FindIndex(components, component => component is ThrusterDef);
                 int subsystem = Array.FindIndex(components, component => component is SubSystemDef def && def.Mode == ActivationMode.Toggle);
                 int storage = Array.FindIndex(components, component => component is SubSystemDef def && def.ExtraPowerStorage > 0f);
-                Check(shield >= 0 && thruster >= 0 && subsystem >= 0 && storage >= 0, "Test components exist");
+                Check(shield >= 0 && directionalShield >= 0 && thruster >= 0 && subsystem >= 0 && storage >= 0, "Test components exist");
+                string[] directionPoints = { "ReverseThrusterPoint", "SideThrusterPositivePoint", "SideThrusterNegativePoint" };
                 int firstSubsystem = Array.FindIndex(points, point => point.AcceptsComponent(components[subsystem]) &&
                     (point.Accepts & AcceptedComponents.Shield) == 0 &&
+                    !directionPoints.Contains(point.name) &&
                     loadout.MountComponents[Array.IndexOf(points, point)] < 0);
                 Check(firstSubsystem >= 0, "An empty subsystem point is available");
                 var preview = Get<LoadoutShipPreview>(s_Menu, "m_Preview");
@@ -310,10 +369,16 @@ namespace PewPewPew.Editor
                 fitButton.onClick.Invoke();
                 Check(player.Loadout.MountComponents[firstSubsystem] == subsystem, "Point selection and component button fit the selected mount");
                 loadout = player.Loadout;
+                foreach (string name in directionPoints)
+                {
+                    int index = Array.FindIndex(points, point => point.name == name);
+                    Check(index >= 0 && points[index].AcceptsComponent(components[thruster]), name + " accepts a test thruster");
+                    if (loadout.MountComponents[index] < 0) loadout.SetMountComponent(index, thruster);
+                }
                 int extraShield = Array.FindIndex(points, point => point.AcceptsComponent(components[shield]) &&
                     loadout.MountComponents[Array.IndexOf(points, point)] < 0);
                 Check(extraShield >= 0, "An empty shield point is available");
-                loadout.SetMountComponent(extraShield, shield);
+                loadout.SetMountComponent(extraShield, directionalShield);
                 int extraThruster = Array.FindIndex(points, point =>
                     Vector3.Dot(point.transform.up, catalog.Hulls[loadout.Hull].HullPoints.transform.up) < -0.99f &&
                     point.AcceptsComponent(components[thruster]) && loadout.MountComponents[Array.IndexOf(points, point)] < 0);
@@ -383,22 +448,46 @@ namespace PewPewPew.Editor
                 ShipLoadout loadout = player.Loadout;
                 int point = Array.FindIndex(loadout.MountComponents,
                     index => index >= 0 && catalog.Components[index] is ShieldDef);
-                Check(point >= 0, "Hull has an initially fitted shield to test");
+                if (point < 0)
+                {
+                    ShieldDef shield = catalog.Components.OfType<ShieldDef>().First();
+                    HullPoint[] points = catalog.Hulls[loadout.Hull].HullPoints.Points;
+                    point = Array.FindIndex(points, candidate => candidate.AcceptsComponent(shield) &&
+                        loadout.MountComponents[Array.IndexOf(points, candidate)] < 0);
+                }
+                Check(point >= 0, "Hull has a shield-compatible point to test");
                 int component = loadout.MountComponents[point];
                 var preview = Get<LoadoutShipPreview>(menu, "m_Preview");
                 var markers = Get<List<LoadoutPreviewMarker>>(preview, "m_RuntimeMarkers");
                 Button marker = markers[point].GetComponent<Button>();
                 ExecuteEvents.Execute(marker.gameObject, CheckHudHitTarget(marker, "Hull point"), ExecuteEvents.pointerClickHandler);
-                Get<Button[]>(menu, "m_Slots")[0].onClick.Invoke();
-                Check(player.Loadout.MountComponents[point] == -1, "Hull " + loadout.Hull + " point can be cleared");
+                if (component >= 0)
+                {
+                    Get<Button[]>(menu, "m_Slots")[0].onClick.Invoke();
+                    Check(player.Loadout.MountComponents[point] == -1, "Hull " + loadout.Hull + " point can be cleared");
+                }
                 var categories = Get<LoadoutCategoryView[]>(menu, "m_Categories");
                 categories[0].Tab.onClick.Invoke();
                 var shields = catalog.Components.Where(item => item.Type == ComponentType.Shield).ToArray();
-                int indexInCategory = Array.IndexOf(shields, catalog.Components[component]);
-                Button fit = Get<Button>(categories[0].Buttons[indexInCategory], "m_Button");
-                Check(fit.interactable, "Original shield is compatible with its point");
-                fit.onClick.Invoke();
-                Check(player.Loadout.MountComponents[point] == component, "Hull " + loadout.Hull + " point can be fitted again");
+                foreach (float angle in new[] { 90f, 45f, 22.5f })
+                {
+                    int variantIndex = Array.FindIndex(shields, item => item is ShieldDef def && def.HalfAngle == angle);
+                    Check(variantIndex >= 0, "Directional shield " + angle + " exists in the catalog");
+                    Button variant = Get<Button>(categories[0].Buttons[variantIndex], "m_Button");
+                    Check(variant.interactable, "Directional shield " + angle + " is compatible with the selected point");
+                    variant.onClick.Invoke();
+                    Check(player.Loadout.MountComponents[point] == Array.IndexOf(catalog.Components, shields[variantIndex]),
+                        "Directional shield " + angle + " can be selected in the loadout");
+                }
+                if (component >= 0)
+                {
+                    int indexInCategory = Array.IndexOf(shields, catalog.Components[component]);
+                    Button fit = Get<Button>(categories[0].Buttons[indexInCategory], "m_Button");
+                    Check(fit.interactable, "Original shield is compatible with its point");
+                    fit.onClick.Invoke();
+                }
+                else Get<Button[]>(menu, "m_Slots")[0].onClick.Invoke();
+                Check(player.Loadout.MountComponents[point] == component, "Hull " + loadout.Hull + " point is restored");
             }
 
             private static void ValidatePreviewHitTargets(LoadoutMenuController menu, ShipLoadout loadout)
@@ -435,7 +524,9 @@ namespace PewPewPew.Editor
             {
                 var shields = Get<IList>(ship, "m_Shields");
                 var thrusters = Get<IList>(ship, "m_Thrusters");
-                Check(shields.Count == 2 && thrusters.Count >= 5 && ship.SubSystems.Count == 5, "Ship constructs every mounted system");
+                Check(shields.Count == 2 && thrusters.Count >= 5 && ship.SubSystems.Count == 5,
+                    "Ship constructs every mounted system (shields: " + shields.Count + ", thrusters: " + thrusters.Count +
+                    ", subsystems: " + ship.SubSystems.Count + ")");
                 Check(ship.SubSystems[4].Gauge != null, "Fifth subsystem has a HUD gauge");
                 Button subsystemButton = ship.SubSystems[4].Gauge.GetComponentInChildren<Button>();
                 Check(subsystemButton != null, "Fifth subsystem has a clickable HUD button");
@@ -443,17 +534,18 @@ namespace PewPewPew.Editor
                     ExecuteEvents.pointerClickHandler);
                 ComponentHealth first = GetPublic<ComponentHealth>(shields[0], "Charge");
                 ComponentHealth second = GetPublic<ComponentHealth>(shields[1], "Charge");
+                Vector2 centre = ship.transform.TransformPoint(Get<Vector2>(ship, "m_ShieldCenter"));
                 Check(first.Current == first.Max && second.Current == second.Max, "Shields start charged");
                 var shieldGauges = Get<List<HudGauge>>(ship, "m_ShieldGauges");
                 Button shieldButton = shieldGauges[0].GetComponentInChildren<Button>();
                 Check(shieldButton != null, "Shield has a clickable HUD button");
                 ExecuteEvents.Execute(shieldButton.gameObject, CheckHudHitTarget(shieldButton, "Shield"),
                     ExecuteEvents.pointerClickHandler);
-                ship.TakeDamage(25f, ship.transform.position, null);
+                ship.TakeDamage(25f, centre, null);
                 Check(Mathf.Approximately(first.Current, first.Max) && Mathf.Approximately(second.Current, second.Max - 25f),
                     "Inactive shield retains charge while active shield absorbs");
                 ship.CmdSetControls(new ShipControls { AimPoint = ship.transform.position, HoldShields = true });
-                ship.TakeDamage(25f, ship.transform.position, null);
+                ship.TakeDamage(25f, centre, null);
                 Check(Mathf.Approximately(first.Current, first.Max - 25f) && Mathf.Approximately(second.Current, second.Max - 25f),
                     "Held shield control temporarily activates the first shield");
                 ship.CmdSetControls(new ShipControls { AimPoint = ship.transform.position });
@@ -463,13 +555,78 @@ namespace PewPewPew.Editor
                 Check(GetPublic<bool>(shields[0], "Toggled") && GetPublic<bool>(shields[1], "Toggled"), "Mixed shields toggle all on");
                 float firstBefore = first.Current;
                 float secondBefore = second.Current;
-                ship.TakeDamage(70f, ship.transform.position, null);
+                ship.TakeDamage(70f, centre, null);
                 Check(Mathf.Approximately(first.Current, firstBefore - 50f) && Mathf.Approximately(second.Current, secondBefore - 20f),
                     "Active shields absorb in mount order subject to impact limits");
                 ship.CmdToggleShields();
                 Check(!GetPublic<bool>(shields[0], "Toggled") && !GetPublic<bool>(shields[1], "Toggled"), "All-on shields toggle off");
                 ship.CmdToggleShields();
                 Check(GetPublic<bool>(shields[0], "Toggled") && GetPublic<bool>(shields[1], "Toggled"), "All-off shields toggle on");
+                ValidateDirectionalShields(ship, shields, centre);
+            }
+
+            private static void ValidateDirectionalShields(Ship ship, IList shields, Vector2 centre)
+            {
+                var definitions = ShipCatalog.Instance.Components.OfType<ShieldDef>().ToArray();
+                ShieldDef originalFirst = GetPublic<ShieldDef>(shields[0], "Def");
+                ShieldDef originalSecond = GetPublic<ShieldDef>(shields[1], "Def");
+                ShipSystem firstGenerator = GetPublic<ShipSystem>(shields[0], "Generator");
+                ShipSystem secondGenerator = GetPublic<ShipSystem>(shields[1], "Generator");
+                Quaternion rotation = ship.transform.rotation;
+                Quaternion firstRotation = firstGenerator.Points[0].localRotation;
+                Quaternion secondRotation = secondGenerator.Points[0].localRotation;
+                ComponentHealth first = GetPublic<ComponentHealth>(shields[0], "Charge");
+                ComponentHealth second = GetPublic<ComponentHealth>(shields[1], "Charge");
+                try
+                {
+                    shields[0].GetType().GetField("Def").SetValue(shields[0], definitions.Single(def => def.HalfAngle == 90f));
+                    shields[1].GetType().GetField("Def").SetValue(shields[1], definitions.Single(def => def.HalfAngle == 45f));
+                    ship.transform.rotation = Quaternion.Euler(0f, 0f, 73f);
+                    firstGenerator.Points[0].rotation = ship.transform.rotation;
+                    secondGenerator.Points[0].rotation = ship.transform.rotation * Quaternion.Euler(0f, 0f, 180f);
+                    centre = ship.transform.TransformPoint(Get<Vector2>(ship, "m_ShieldCenter"));
+                    Vector2 forward = ship.transform.up;
+                    first.SetFraction(1f);
+                    second.SetFraction(1f);
+                    ship.TakeDamage(20f, centre + forward * 20f, null);
+                    Check(Mathf.Approximately(first.Current, first.Max - 20f) && Mathf.Approximately(second.Current, second.Max),
+                        "A forward hit uses only the forward-facing shield on a rotated ship");
+                    ship.TakeDamage(20f, centre - forward * 20f, null);
+                    Check(Mathf.Approximately(first.Current, first.Max - 20f) && Mathf.Approximately(second.Current, second.Max - 20f),
+                        "A rear hit uses only the rear-facing shield");
+                    Vector2 gap = Quaternion.Euler(0f, 0f, 100f) * forward;
+                    ComponentHealth armour = Get<ComponentHealth>(ship, "m_Armour");
+                    float armourBefore = armour.Current;
+                    ship.TakeDamage(10f, centre + gap * 20f, null);
+                    Check(Mathf.Approximately(first.Current, first.Max - 20f) && Mathf.Approximately(second.Current, second.Max - 20f) &&
+                        armour.Current < armourBefore, "An uncovered impact bypasses both shields and reaches armour");
+                    secondGenerator.Points[0].rotation = ship.transform.rotation;
+                    first.SetFraction(1f);
+                    second.SetFraction(1f);
+                    ship.TakeDamage(70f, centre + forward * 20f, null);
+                    Check(Mathf.Approximately(first.Current, first.Max - 50f) && Mathf.Approximately(second.Current, second.Max - 20f),
+                        "Overlapping directional shields absorb in mount order");
+                    firstGenerator.Health.Damage(firstGenerator.Health.Current);
+                    first.SetFraction(1f);
+                    second.SetFraction(1f);
+                    ship.CmdSetControls(new ShipControls { AimPoint = ship.transform.position, HoldShields = true });
+                    Check(!Get<bool>(GetPublic<ShieldVisual>(shields[0], "Visual"), "m_Held") &&
+                        Get<bool>(GetPublic<ShieldVisual>(shields[1], "Visual"), "m_Held"),
+                        "A destroyed generator does not show a held shield");
+                    ship.TakeDamage(20f, centre + forward * 20f, null);
+                    Check(Mathf.Approximately(first.Current, first.Max) && Mathf.Approximately(second.Current, second.Max - 20f),
+                        "A destroyed shield generator is skipped");
+                }
+                finally
+                {
+                    shields[0].GetType().GetField("Def").SetValue(shields[0], originalFirst);
+                    shields[1].GetType().GetField("Def").SetValue(shields[1], originalSecond);
+                    firstGenerator.Health.Repair(firstGenerator.Health.Max);
+                    ship.CmdSetControls(new ShipControls { AimPoint = ship.transform.position });
+                    ship.transform.rotation = rotation;
+                    firstGenerator.Points[0].localRotation = firstRotation;
+                    secondGenerator.Points[0].localRotation = secondRotation;
+                }
             }
 
             private static PointerEventData CheckHudHitTarget(Button button, string name)
