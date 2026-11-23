@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace PewPewPew.Ships
 {
-    /// Carries the server's armour, shield, power and sub system state to the owning player only, for their HUD.
+    /// Carries server-owned vitals and mounted component state to the owning player's HUD.
     [RequireComponent(typeof(Ship))]
     public class ShipHudSync : NetworkBehaviour
     {

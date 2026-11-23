@@ -44,8 +44,6 @@ Transform:
   - {fileID: 2031}
   - {fileID: 6001}
   - {fileID: 6011}
-  - {fileID: 6021}
-  - {fileID: 6031}
   - {fileID: 7320949467910113414}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -262,7 +260,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
   m_Description: Aft left hull point. Accepts thrusters.
   m_Accepts: 8
-  m_Size: 1
+  m_Size: 0
   m_GunRole: 0
   m_DefaultComponent: {fileID: 0}
 --- !u!1 &2030
@@ -311,7 +309,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
   m_Description: Aft right hull point. Accepts thrusters.
   m_Accepts: 8
-  m_Size: 1
+  m_Size: 0
   m_GunRole: 0
   m_DefaultComponent: {fileID: 0}
 --- !u!1 &2040
@@ -359,8 +357,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
   m_Description: Central right hull point. Accepts guns, thrusters.
-  m_Accepts: 12
-  m_Size: 2
+  m_Accepts: 28
+  m_Size: 0
   m_GunRole: 1
   m_DefaultComponent: {fileID: 11400000, guid: a99c3271ae21d66438bc92870c2b3d2f, type: 2}
 --- !u!1 &2050
@@ -408,10 +406,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
   m_Description: Central left hull point. Accepts guns, thrusters.
-  m_Accepts: 12
-  m_Size: 1
+  m_Accepts: 28
+  m_Size: 0
   m_GunRole: 1
-  m_DefaultComponent: {fileID: 0}
+  m_DefaultComponent: {fileID: 11400000, guid: a99c3271ae21d66438bc92870c2b3d2f, type: 2}
 --- !u!1 &6000
 GameObject:
   m_ObjectHideFlags: 0
@@ -438,7 +436,7 @@ Transform:
   m_GameObject: {fileID: 6000}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.4, z: 0}
+  m_LocalPosition: {x: 0, y: 0.024, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -458,9 +456,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
   m_Description: Forward centre hull point. Accepts shields, subsystems.
   m_Accepts: 18
-  m_Size: 2
+  m_Size: 1
   m_GunRole: 0
-  m_DefaultComponent: {fileID: 0}
+  m_DefaultComponent: {fileID: 11400000, guid: ade6892f6ec45fb4d95322c2977ac6fd, type: 2}
 --- !u!1 &6010
 GameObject:
   m_ObjectHideFlags: 0
@@ -487,7 +485,7 @@ Transform:
   m_GameObject: {fileID: 6010}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.1, z: 0}
+  m_LocalPosition: {x: 0, y: -0.555, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -506,104 +504,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
   m_Description: Forward centre hull point. Accepts shields, subsystems.
-  m_Accepts: 18
-  m_Size: 1
-  m_GunRole: 0
-  m_DefaultComponent: {fileID: 0}
---- !u!1 &6020
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 6021}
-  - component: {fileID: 4328061357037298301}
-  m_Layer: 0
-  m_Name: SubSystemPoint3
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &6021
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6020}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.1, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4328061357037298301
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6020}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
-  m_Description: Aft centre hull point. Accepts shields, subsystems.
-  m_Accepts: 18
-  m_Size: 1
-  m_GunRole: 0
-  m_DefaultComponent: {fileID: 0}
---- !u!1 &6030
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 6031}
-  - component: {fileID: 8294747647516893786}
-  m_Layer: 0
-  m_Name: SubSystemPoint4
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &6031
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6030}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 1, w: 0}
-  m_LocalPosition: {x: 0, y: -0.5, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 180}
---- !u!114 &8294747647516893786
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6030}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9aee3f34805864545a7e0703ebdebef2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullPoint
-  m_Description: Aft centre hull point. Accepts shields, subsystems.
   m_Accepts: 18
   m_Size: 1
   m_GunRole: 0

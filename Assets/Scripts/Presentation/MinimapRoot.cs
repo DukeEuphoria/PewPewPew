@@ -116,7 +116,7 @@ namespace PewPewPew.Presentation
             {
                 foreach (SubSystem system in m_Ship.SubSystems)
                 {
-                    if (system.IsRadarActive) AddEmitter(system, system.Def.Radar, system.System.Points[0], now);
+                    if (system.IsRadarActive) AddEmitter(system, system.Def.Radar, system.System.Point, now);
                 }
             }
             m_Emitters.RemoveAll(emitter => !emitter.Present);

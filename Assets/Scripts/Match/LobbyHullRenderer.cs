@@ -11,12 +11,15 @@ namespace PewPewPew.Match
         public const string PreviewLayer = "LobbyHullPreview";
         [SerializeField] private Camera m_Camera;
 
+        public void SetCamera(Camera camera) => m_Camera = camera;
+
         public RenderTexture Render(ShipLoadout loadout) => Render(loadout, 256, 256, out _);
 
         /// Frame is in hull-root local XY coordinates, shared by the rendered model and UI attachment overlays.
         public RenderTexture Render(ShipLoadout loadout, int width, int height, out Rect frame, bool includePoints = false)
         {
             if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(width), "Preview dimensions must be positive.");
+            if (m_Camera == null) throw new InvalidOperationException("The hull preview camera is missing.");
             ShipCatalog catalog = ShipCatalog.Instance;
             if (catalog == null || !LoadoutMath.InRange(loadout.Hull, catalog.Hulls.Length, false))
                 throw new InvalidOperationException("Cannot render a lobby hull outside the ship catalog.");
@@ -77,7 +80,7 @@ namespace PewPewPew.Match
                 {
                     name = "Lobby hull: " + hull.DisplayName
                 };
-                texture.Create();
+                if (!texture.Create()) throw new InvalidOperationException("Cannot create the hull preview texture.");
                 m_Camera.targetTexture = texture;
                 m_Camera.GetUniversalAdditionalCameraData().renderPostProcessing = false;
                 m_Camera.Render();

@@ -30,6 +30,16 @@ namespace PewPewPew.Match
             }
         }
 
+        public static float ComponentRotation(ShipComponentDef component, float hullPointAngle)
+        {
+            if (component.Type == ComponentType.Thruster) return hullPointAngle + 180f;
+            if (component.Type == ComponentType.Gun ||
+                component is ShieldDef shield && shield.HalfAngle < 180f ||
+                component is SubSystemDef subSystem && subSystem.Radar != null && subSystem.Radar.HalfAngle < 180f)
+                return hullPointAngle;
+            return 0f;
+        }
+
         public Sprite Sprite => LobbySymbolLibrary.Get(m_Kind);
         public override Texture mainTexture => Sprite != null ? Sprite.texture : s_WhiteTexture;
 

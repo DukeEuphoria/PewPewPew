@@ -17,7 +17,7 @@ MonoBehaviour:
   m_ButtonArtwork: {fileID: 21300000, guid: dc4b20cde4be4c78b30d8e045d66643e, type: 3}
   m_Tint: {r: 1, g: 0.25, b: 0.22, a: 1}
   m_Price: 0
-  m_Size: 1
+  m_Size: 2
   m_Mass: 1
   m_PassivePowerDrain: 0.1
   m_ActivePowerDrain: 5

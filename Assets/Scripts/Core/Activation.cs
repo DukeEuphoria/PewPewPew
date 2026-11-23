@@ -67,7 +67,7 @@ namespace PewPewPew.Core
         {
             if (m_Mode == ActivationMode.Passive) return;
 
-            if (m_CooldownLeft > 0f) m_CooldownLeft -= deltaTime;
+            AdvanceCooldown(deltaTime);
             if (!m_Wanted)
             {
                 Stop();
@@ -84,6 +84,11 @@ namespace PewPewPew.Core
             IsActive = true;
             m_Elapsed += deltaTime;
             if (m_Mode == ActivationMode.Triggered && m_Elapsed >= m_Duration) Stop();
+        }
+
+        public void AdvanceCooldown(float deltaTime)
+        {
+            if (m_CooldownLeft > 0f) m_CooldownLeft -= deltaTime;
         }
 
         /// Switches off immediately, e.g. when the system is destroyed. Triggered systems then start their cooldown.

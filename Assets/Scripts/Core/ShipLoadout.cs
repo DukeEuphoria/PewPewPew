@@ -29,6 +29,17 @@ namespace PewPewPew.Core
 
     public static class LoadoutMath
     {
+        public static int OccupiedMountAt(int[] components, int shortcut)
+        {
+            if (components == null || shortcut < 0) return -1;
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] < 0) continue;
+                if (shortcut-- == 0) return i;
+            }
+            return -1;
+        }
+
         public static bool InRange(int index, int count, bool allowNone)
         {
             return index < count && index >= (allowNone ? -1 : 0);

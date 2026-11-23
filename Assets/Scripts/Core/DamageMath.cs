@@ -39,15 +39,11 @@ namespace PewPewPew.Core
             return damage - blocked;
         }
 
-        /// 1 at an emission point, falling linearly to 0 at radius; 0 for systems without emission points.
-        public static float ProximityWeight(Vector2 hitPoint, Vector2[] emissionPoints, float radius)
+        /// 1 at the mount point, falling linearly to 0 at radius; 0 for systems without a point.
+        public static float ProximityWeight(Vector2 hitPoint, Vector2? point, float radius)
         {
-            float best = 0f;
-            foreach (Vector2 point in emissionPoints)
-            {
-                best = Mathf.Max(best, 1f - Vector2.Distance(hitPoint, point) / radius);
-            }
-            return best;
+            if (!point.HasValue) return 0f;
+            return Mathf.Max(0f, 1f - Vector2.Distance(hitPoint, point.Value) / radius);
         }
     }
 }

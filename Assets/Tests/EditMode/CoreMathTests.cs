@@ -10,6 +10,848 @@ using Random = System.Random;
 
 namespace PewPewPew.Tests
 {
+    public class MountedComponentControlTests
+    {
+        [Test]
+        public void ShipSystem_StoresSinglePointInShipSpaceOrNoPoint()
+        {
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/Weapons/Basic Gun Single.asset");
+            var ship = new GameObject("Ship space");
+            var mount = new GameObject("Mount");
+            try
+            {
+                ship.transform.SetPositionAndRotation(new Vector3(7f, -3f, 0f), Quaternion.Euler(0f, 0f, 45f));
+                mount.transform.SetParent(ship.transform, false);
+                mount.transform.localPosition = new Vector3(2f, 4f, 0f);
+                Type systemType = Type.GetType("PewPewPew.Ships.ShipSystem, Assembly-CSharp");
+                object system = Activator.CreateInstance(systemType, definition, mount.transform, ship.transform);
+                object hull = Activator.CreateInstance(systemType, definition, null, null);
+                var point = systemType.GetProperty("Point");
+                var position = systemType.GetProperty("PointPosition");
+
+                Assert.AreSame(mount.transform, point.GetValue(system));
+                Assert.Less(Vector2.Distance(new Vector2(2f, 4f), (Vector2)position.GetValue(system)), 0.0001f);
+                Assert.IsNull(point.GetValue(hull));
+                Assert.IsNull(position.GetValue(hull));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(ship);
+            }
+        }
+
+        [Test]
+        public void Shortcuts_SkipEmptyMountsAndStopAtEnd()
+        {
+            int[] mounts = { -1, 2, -1, 5, 3 };
+            Assert.AreEqual(1, LoadoutMath.OccupiedMountAt(mounts, 0));
+            Assert.AreEqual(3, LoadoutMath.OccupiedMountAt(mounts, 1));
+            Assert.AreEqual(4, LoadoutMath.OccupiedMountAt(mounts, 2));
+            Assert.AreEqual(-1, LoadoutMath.OccupiedMountAt(mounts, 3));
+            Assert.AreEqual(-1, LoadoutMath.OccupiedMountAt(mounts, -1));
+        }
+
+        [Test]
+        public void TriggeredComponent_TriggersOnceAndStaysEnabledThroughCooldown()
+        {
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset");
+            Type type = Type.GetType("PewPewPew.Ships.SubSystem, Assembly-CSharp");
+            object subsystem = Activator.CreateInstance(type, definition, null, null);
+            object system = type.GetProperty("System").GetValue(subsystem);
+            object activation = type.GetProperty("Activation").GetValue(subsystem);
+            var enabled = system.GetType().GetProperty("Enabled");
+            var active = activation.GetType().GetProperty("IsActive");
+            var toggle = type.GetMethod("TogglePower");
+            var step = type.GetMethod("Step");
+            var refresh = type.GetMethod("RefreshHud");
+            var state = type.GetProperty("HudState");
+            var power = new PowerBank(100f);
+
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            refresh.Invoke(subsystem, null);
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsFalse((bool)active.GetValue(activation));
+            Assert.AreEqual(100f, power.Stored);
+            Assert.AreEqual(HudState.Ready, state.GetValue(subsystem));
+            Assert.AreEqual(1f, (float)type.GetProperty("HudLevel").GetValue(subsystem));
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            refresh.Invoke(subsystem, null);
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsTrue((bool)active.GetValue(activation));
+            Assert.AreEqual(HudState.Active, state.GetValue(subsystem));
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsTrue((bool)active.GetValue(activation));
+            step.Invoke(subsystem, new object[] { 4.85f, power });
+            refresh.Invoke(subsystem, null);
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsFalse((bool)active.GetValue(activation));
+            Assert.AreEqual(HudState.Cooling, state.GetValue(subsystem));
+            Assert.AreEqual(0f, (float)type.GetProperty("HudLevel").GetValue(subsystem));
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 2f, power });
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsFalse((bool)active.GetValue(activation));
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 3.1f, power });
+            refresh.Invoke(subsystem, null);
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsFalse((bool)active.GetValue(activation));
+            Assert.AreEqual(HudState.Ready, state.GetValue(subsystem));
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsTrue((bool)active.GetValue(activation));
+            var health = (ComponentHealth)system.GetType().GetProperty("Health").GetValue(system);
+            health.Damage(health.Max);
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            refresh.Invoke(subsystem, null);
+            Assert.IsFalse((bool)active.GetValue(activation));
+            Assert.AreEqual(HudState.Destroyed, state.GetValue(subsystem));
+        }
+
+        [Test]
+        public void TriggeredComponent_PowerFailureDoesNotDisableIt()
+        {
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset");
+            Type type = Type.GetType("PewPewPew.Ships.SubSystem, Assembly-CSharp");
+            object subsystem = Activator.CreateInstance(type, definition, null, null);
+            object system = type.GetProperty("System").GetValue(subsystem);
+            object activation = type.GetProperty("Activation").GetValue(subsystem);
+            var enabled = system.GetType().GetProperty("Enabled");
+            var active = activation.GetType().GetProperty("IsActive");
+            var toggle = type.GetMethod("TogglePower");
+            var step = type.GetMethod("Step");
+            var refresh = type.GetMethod("RefreshHud");
+            var state = type.GetProperty("HudState");
+            var power = new PowerBank(100f);
+            power.SetFraction(0f);
+
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            refresh.Invoke(subsystem, null);
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsFalse((bool)active.GetValue(activation));
+            Assert.AreEqual(HudState.Ready, state.GetValue(subsystem));
+            power.Charge(10f);
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            Assert.IsTrue((bool)active.GetValue(activation));
+            power.SetFraction(0f);
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            refresh.Invoke(subsystem, null);
+            Assert.IsTrue((bool)enabled.GetValue(system));
+            Assert.IsFalse((bool)active.GetValue(activation));
+            Assert.AreEqual(HudState.Cooling, state.GetValue(subsystem));
+            power.Charge(10f);
+            step.Invoke(subsystem, new object[] { 5.1f, power });
+            toggle.Invoke(subsystem, null);
+            step.Invoke(subsystem, new object[] { 0.1f, power });
+            Assert.IsTrue((bool)active.GetValue(activation));
+        }
+
+        [Test]
+        public void PassiveBooster_StopsRunningWhileDisabled()
+        {
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/SubSystems/Basic SubSystem Armour Booster.asset");
+            Type type = Type.GetType("PewPewPew.Ships.SubSystem, Assembly-CSharp");
+            object subsystem = Activator.CreateInstance(type, definition, null, null);
+            var running = type.GetProperty("IsRunning");
+            var toggle = type.GetMethod("TogglePower");
+            Assert.IsTrue((bool)running.GetValue(subsystem));
+            toggle.Invoke(subsystem, null);
+            Assert.IsFalse((bool)running.GetValue(subsystem));
+            toggle.Invoke(subsystem, null);
+            Assert.IsTrue((bool)running.GetValue(subsystem));
+        }
+
+        [Test]
+        public void DisabledThruster_RampsDownWithoutDrawingPower()
+        {
+            var original = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/Thrusters/Basic Thruster.asset");
+            var definition = UnityEngine.Object.Instantiate(original);
+            var mount = new GameObject("Thruster mount");
+            try
+            {
+                definition.GetType().GetField("m_RampDownTime", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(definition, 1f);
+                Type systemType = Type.GetType("PewPewPew.Ships.ShipSystem, Assembly-CSharp");
+                object system = Activator.CreateInstance(systemType, definition, mount.transform, mount.transform);
+                Type thrusterType = Type.GetType("PewPewPew.Ships.Thruster, Assembly-CSharp");
+                object thruster = Activator.CreateInstance(thrusterType, definition, system);
+                var step = thrusterType.GetMethod("Step");
+                var throttle = thrusterType.GetProperty("Throttle");
+                var power = new PowerBank(100f);
+
+                step.Invoke(thruster, new object[] { 0.1f, 1f, power });
+                Assert.AreEqual(1f, (float)throttle.GetValue(thruster), 0.001f);
+                float remaining = power.Stored;
+                systemType.GetProperty("Enabled").SetValue(system, false);
+                step.Invoke(thruster, new object[] { 0.1f, 1f, power });
+                Assert.AreEqual(0.9f, (float)throttle.GetValue(thruster), 0.001f);
+                Assert.AreEqual(remaining, power.Stored);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(mount);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [Test]
+        public void DisabledGun_DoesNotFireOrDrawPower()
+        {
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/Weapons/Basic Gun Single.asset");
+            var mount = new GameObject("Gun mount");
+            var shooterObject = new GameObject("Shooter");
+            try
+            {
+                shooterObject.AddComponent(Type.GetType("Mirror.NetworkIdentity, Mirror"));
+                Component shooter = shooterObject.AddComponent(Type.GetType("PewPewPew.Ships.Ship, Assembly-CSharp"));
+                Type systemType = Type.GetType("PewPewPew.Ships.ShipSystem, Assembly-CSharp");
+                object system = Activator.CreateInstance(systemType, definition, mount.transform, mount.transform);
+                Type gunType = Type.GetType("PewPewPew.Weapons.Gun, Assembly-CSharp");
+                object gun = Activator.CreateInstance(gunType, definition, system, shooter);
+                var power = new PowerBank(100f);
+                systemType.GetProperty("Enabled").SetValue(system, false);
+                var fire = gunType.GetMethod("TryFire", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.IsNull(fire.Invoke(gun, new object[] { 1f, power, new Random(1) }));
+                Assert.AreEqual(100f, power.Stored);
+                systemType.GetProperty("Enabled").SetValue(system, true);
+                Assert.IsNotNull(fire.Invoke(gun, new object[] { 1f, power, new Random(1) }));
+                Assert.Less(power.Stored, 100f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(mount);
+                UnityEngine.Object.DestroyImmediate(shooterObject);
+            }
+        }
+
+        [Test]
+        public void Gun_FiresBurstAnglesAndPreservesPowerAndCooldownRules()
+        {
+            var original = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/Weapons/Basic Gun Single.asset");
+            var definition = UnityEngine.Object.Instantiate(original);
+            var mount = new GameObject("Gun mount");
+            var shooterObject = new GameObject("Shooter");
+            try
+            {
+                shooterObject.AddComponent(Type.GetType("Mirror.NetworkIdentity, Mirror"));
+                Component shooter = shooterObject.AddComponent(Type.GetType("PewPewPew.Ships.Ship, Assembly-CSharp"));
+                Type definitionType = definition.GetType();
+                const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+                definitionType.GetField("m_BulletsPerBurst", fields).SetValue(definition, 4);
+                definitionType.GetField("m_MinLaunchAngle", fields).SetValue(definition, -30f);
+                definitionType.GetField("m_MaxLaunchAngle", fields).SetValue(definition, 30f);
+                definitionType.GetField("m_Pattern", fields).SetValue(definition, FirePattern.Spread);
+                definitionType.GetField("m_FireRate", fields).SetValue(definition, 2f);
+                definitionType.BaseType.GetField("m_ActivePowerDrain", fields).SetValue(definition, 7f);
+                Type systemType = Type.GetType("PewPewPew.Ships.ShipSystem, Assembly-CSharp");
+                object system = Activator.CreateInstance(systemType, definition, mount.transform, mount.transform);
+                Type gunType = Type.GetType("PewPewPew.Weapons.Gun, Assembly-CSharp");
+                object gun = Activator.CreateInstance(gunType, definition, system, shooter);
+                var fire = gunType.GetMethod("TryFire", BindingFlags.Instance | BindingFlags.NonPublic);
+                var power = new PowerBank(20f);
+                var random = new Random(1);
+
+                var angles = (float[])fire.Invoke(gun, new object[] { 0f, power, random });
+                CollectionAssert.AreEqual(new[] { -30f, -10f, 10f, 30f }, angles);
+                Assert.AreEqual(13f, power.Stored);
+                Assert.IsNull(fire.Invoke(gun, new object[] { 0.49f, power, random }));
+                Assert.AreEqual(13f, power.Stored);
+                Assert.IsNotNull(fire.Invoke(gun, new object[] { 0.5f, power, random }));
+                Assert.AreEqual(6f, power.Stored);
+                Assert.IsNull(fire.Invoke(gun, new object[] { 1f, power, random }));
+                Assert.AreEqual(6f, power.Stored);
+                power.Charge(7f);
+                Assert.IsNotNull(fire.Invoke(gun, new object[] { 1f, power, random }));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(mount);
+                UnityEngine.Object.DestroyImmediate(shooterObject);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [Test]
+        public void Gun_AdvancesSweepWithoutFiring()
+        {
+            var original = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/Weapons/Basic Gun Single.asset");
+            var definition = UnityEngine.Object.Instantiate(original);
+            var mount = new GameObject("Gun mount");
+            var shooterObject = new GameObject("Shooter");
+            try
+            {
+                shooterObject.AddComponent(Type.GetType("Mirror.NetworkIdentity, Mirror"));
+                Component shooter = shooterObject.AddComponent(Type.GetType("PewPewPew.Ships.Ship, Assembly-CSharp"));
+                Type definitionType = definition.GetType();
+                const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+                definitionType.GetField("m_Pattern", fields).SetValue(definition, FirePattern.Sinewave);
+                definitionType.GetField("m_MinLaunchAngle", fields).SetValue(definition, -20f);
+                definitionType.GetField("m_MaxLaunchAngle", fields).SetValue(definition, 20f);
+                definitionType.GetField("m_SweepSpeed", fields).SetValue(definition, 2f);
+                Type systemType = Type.GetType("PewPewPew.Ships.ShipSystem, Assembly-CSharp");
+                object system = Activator.CreateInstance(systemType, definition, mount.transform, mount.transform);
+                Type gunType = Type.GetType("PewPewPew.Weapons.Gun, Assembly-CSharp");
+                object gun = Activator.CreateInstance(gunType, definition, system, shooter);
+                var power = new PowerBank(100f);
+                var random = new Random(1);
+
+                Assert.IsFalse((bool)gunType.GetMethod("Step").Invoke(gun,
+                    new object[] { 0.25f, mount.transform, Vector2.zero, power, false, random }));
+                Assert.AreEqual(100f, power.Stored);
+                var angles = (float[])gunType.GetMethod("TryFire", fields)
+                    .Invoke(gun, new object[] { 0f, power, random });
+                Assert.AreEqual(20f * Mathf.Sin(0.5f), angles[0], 0.001f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(mount);
+                UnityEngine.Object.DestroyImmediate(shooterObject);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [Test]
+        public void DisabledComponents_NeitherGenerateNorConsumePassivePower()
+        {
+            var generator = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/SubSystems/Basic SubSystem Power Generator.asset");
+            var consumer = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/Thrusters/Basic Thruster.asset");
+            var shipObject = new GameObject("Power test ship");
+            try
+            {
+                shipObject.AddComponent(Type.GetType("Mirror.NetworkIdentity, Mirror"));
+                Type shipType = Type.GetType("PewPewPew.Ships.Ship, Assembly-CSharp");
+                Component ship = shipObject.AddComponent(shipType);
+                Type systemType = Type.GetType("PewPewPew.Ships.ShipSystem, Assembly-CSharp");
+                object generatorSystem = Activator.CreateInstance(systemType, generator, null, null);
+                object consumerSystem = Activator.CreateInstance(systemType, consumer, null, null);
+                var enabled = systemType.GetProperty("Enabled");
+                enabled.SetValue(generatorSystem, false);
+                enabled.SetValue(consumerSystem, false);
+                var systems = (IList)shipType.GetField("m_Systems", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ship);
+                systems.Add(generatorSystem);
+                systems.Add(consumerSystem);
+                var power = new PowerBank(10f);
+                power.SetFraction(0.5f);
+                shipType.GetField("m_Power", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(ship, power);
+                var step = shipType.GetMethod("StepPower", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                step.Invoke(ship, new object[] { 1f });
+                Assert.AreEqual(5f, power.Stored);
+                enabled.SetValue(generatorSystem, true);
+                step.Invoke(ship, new object[] { 1f });
+                Assert.Greater(power.Stored, 5f);
+                float generated = power.Stored;
+                enabled.SetValue(generatorSystem, false);
+                enabled.SetValue(consumerSystem, true);
+                step.Invoke(ship, new object[] { 1f });
+                Assert.Less(power.Stored, generated);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(shipObject);
+            }
+        }
+    }
+
+    public class ShipHudRootTests
+    {
+        [Test]
+        public void PaperdollSize_SetsPanelSizeAndMovesBarsToItsRight()
+        {
+            var rootObject = new GameObject("HUD root", typeof(RectTransform));
+            var paperdollObject = new GameObject("Paperdoll", typeof(RectTransform));
+            var barObject = new GameObject("Bar", typeof(RectTransform));
+            try
+            {
+                var root = rootObject.AddComponent(Type.GetType("PewPewPew.Ships.ShipHudRoot, Assembly-CSharp"));
+                root.GetType().GetField("m_PaperdollSize", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(root, 180f);
+                var paperdoll = (RectTransform)paperdollObject.transform;
+                var bar = (RectTransform)barObject.transform;
+                root.GetType().GetMethod("PlacePaperdoll").Invoke(root, new object[] { paperdoll });
+                root.GetType().GetMethod("PlaceBar").Invoke(root, new object[] { bar, 0, 2 });
+                Assert.AreEqual(new Vector2(180f, 180f), paperdoll.sizeDelta);
+                Assert.AreEqual(new Vector2(90f, 90f), paperdoll.anchoredPosition);
+                Assert.AreEqual(new Vector2(304f, 28f), bar.anchoredPosition);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(paperdollObject);
+                UnityEngine.Object.DestroyImmediate(barObject);
+                UnityEngine.Object.DestroyImmediate(rootObject);
+            }
+        }
+
+        [TestCase(10f, 10f)]
+        [TestCase(20f, 10f)]
+        public void PlaceSubSystem_ScalesWholePrefabWithoutChangingItsLayout(float width, float height)
+        {
+            var rootObject = new GameObject("HUD root", typeof(RectTransform));
+            var elementObject = new GameObject("Subsystem", typeof(RectTransform));
+            try
+            {
+                var root = rootObject.AddComponent(Type.GetType("PewPewPew.Ships.ShipHudRoot, Assembly-CSharp"));
+                var element = (RectTransform)elementObject.transform;
+                element.sizeDelta = new Vector2(width, height);
+                var child = new GameObject("Child", typeof(RectTransform)).GetComponent<RectTransform>();
+                child.SetParent(element, false);
+                child.sizeDelta = new Vector2(3f, 4f);
+
+                var place = root.GetType().GetMethod("PlaceSubSystem");
+                place.Invoke(root, new object[] { element, 0 });
+                Assert.AreEqual(new Vector2(width, height), element.sizeDelta);
+                Assert.AreEqual(new Vector3(57f / width, 57f / height, 1f), element.localScale);
+                Assert.AreEqual(new Vector2(28.5f, 28.5f), element.anchoredPosition);
+                Assert.AreEqual(new Vector2(3f, 4f), child.sizeDelta);
+
+                place.Invoke(root, new object[] { element, 5 });
+                Assert.AreEqual(new Vector3(57f / width, 57f / height, 1f), element.localScale);
+                Assert.AreEqual(new Vector2(89.5f, 89.5f), element.anchoredPosition);
+                Assert.AreEqual(new Vector2(width, height), element.sizeDelta);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(elementObject);
+                UnityEngine.Object.DestroyImmediate(rootObject);
+            }
+        }
+
+        [Test]
+        public void PlaceSubSystem_RejectsZeroSizedElement()
+        {
+            var rootObject = new GameObject("HUD root", typeof(RectTransform));
+            var elementObject = new GameObject("Subsystem", typeof(RectTransform));
+            try
+            {
+                var root = rootObject.AddComponent(Type.GetType("PewPewPew.Ships.ShipHudRoot, Assembly-CSharp"));
+                var element = (RectTransform)elementObject.transform;
+                element.sizeDelta = new Vector2(0f, 10f);
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Error,
+                    "HUD subsystem must have a positive width and height.");
+                root.GetType().GetMethod("PlaceSubSystem").Invoke(root, new object[] { element, 0 });
+                Assert.AreEqual(Vector3.one, element.localScale);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(elementObject);
+                UnityEngine.Object.DestroyImmediate(rootObject);
+            }
+        }
+    }
+
+    public class ComponentIconRotationTests
+    {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DirectionalCoverage_RotatesOnlyBelow180Degrees(bool radar)
+        {
+            string path = radar
+                ? "Assets/ShipComponents/SubSystems/Basic SubSystem Radar Cone.asset"
+                : "Assets/ShipComponents/Shields/Basic Shield 90.asset";
+            var original = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+            var definition = UnityEngine.Object.Instantiate(original);
+            ScriptableObject emitter = null;
+            try
+            {
+                ScriptableObject coverage = definition;
+                if (radar)
+                {
+                    emitter = UnityEngine.Object.Instantiate(
+                        (ScriptableObject)definition.GetType().GetProperty("Radar").GetValue(definition));
+                    definition.GetType().GetField("m_Radar", BindingFlags.Instance | BindingFlags.NonPublic)
+                        .SetValue(definition, emitter);
+                    coverage = emitter;
+                }
+                FieldInfo halfAngle = coverage.GetType().GetField("m_HalfAngle", BindingFlags.Instance | BindingFlags.NonPublic);
+                Type symbolType = Type.GetType("PewPewPew.Match.LobbySymbol, Assembly-CSharp");
+                MethodInfo rotation = symbolType.GetMethod("ComponentRotation");
+                halfAngle.SetValue(coverage, 179.999f);
+                Assert.AreEqual(37f, (float)rotation.Invoke(null, new object[] { definition, 37f }));
+                halfAngle.SetValue(coverage, 180f);
+                Assert.AreEqual(0f, (float)rotation.Invoke(null, new object[] { definition, 37f }));
+            }
+            finally
+            {
+                if (emitter != null) UnityEngine.Object.DestroyImmediate(emitter);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [TestCase("Assets/ShipComponents/Weapons/Basic Gun Single.asset", 37f)]
+        [TestCase("Assets/ShipComponents/Thrusters/Basic Thruster.asset", 217f)]
+        [TestCase("Assets/ShipComponents/Shields/Basic Shield 90.asset", 37f)]
+        [TestCase("Assets/ShipComponents/Shields/Basic Shield.asset", 0f)]
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Radar Cone.asset", 37f)]
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Radar Circle.asset", 0f)]
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset", 0f)]
+        public void LoadoutMarker_OrientsFittedArtworkWithoutRotatingTheBox(string assetPath, float expectedAngle)
+        {
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            Assert.IsNotNull(definition);
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/HUD/LoadoutSlotMarker.prefab");
+            GameObject markerObject = UnityEngine.Object.Instantiate(prefab);
+            try
+            {
+                Type catalogType = Type.GetType("PewPewPew.Ships.ShipCatalog, Assembly-CSharp");
+                object catalog = catalogType.GetProperty("Instance").GetValue(null);
+                object hull = ((Array)catalogType.GetProperty("Hulls").GetValue(catalog)).GetValue(0);
+                object hullPoints = hull.GetType().GetProperty("HullPoints").GetValue(hull);
+                object point = ((Array)hullPoints.GetType().GetProperty("Points").GetValue(hullPoints)).GetValue(0);
+                Type markerType = Type.GetType("PewPewPew.Match.LoadoutPreviewMarker, Assembly-CSharp");
+                Component marker = markerObject.GetComponent(markerType);
+                markerType.GetMethod("Bind").Invoke(marker, new object[]
+                {
+                    point, definition, Vector2.one * 0.5f, 37f, new Vector3(30f, 42f, 56f),
+                    3f, false, false, null, null
+                });
+                Assert.AreEqual(0f, Mathf.DeltaAngle(37f, marker.transform.eulerAngles.z), 0.001f);
+                var artwork = (Component)markerType.GetProperty("Artwork").GetValue(marker);
+                Assert.AreEqual(0f, Mathf.DeltaAngle(expectedAngle, artwork.transform.eulerAngles.z), 0.001f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(markerObject);
+            }
+        }
+
+        [Test]
+        public void LoadoutMarker_OrientsFallbackAndResetsEmptySlotSymbols()
+        {
+            var original = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                "Assets/ShipComponents/Thrusters/Basic Thruster.asset");
+            var definition = UnityEngine.Object.Instantiate(original);
+            definition.GetType().BaseType.GetField("m_ButtonArtwork", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(definition, null);
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/HUD/LoadoutSlotMarker.prefab");
+            GameObject markerObject = UnityEngine.Object.Instantiate(prefab);
+            try
+            {
+                Type catalogType = Type.GetType("PewPewPew.Ships.ShipCatalog, Assembly-CSharp");
+                object catalog = catalogType.GetProperty("Instance").GetValue(null);
+                object hull = ((Array)catalogType.GetProperty("Hulls").GetValue(catalog)).GetValue(0);
+                object hullPoints = hull.GetType().GetProperty("HullPoints").GetValue(hull);
+                object point = ((Array)hullPoints.GetType().GetProperty("Points").GetValue(hullPoints)).GetValue(0);
+                Type markerType = Type.GetType("PewPewPew.Match.LoadoutPreviewMarker, Assembly-CSharp");
+                Component marker = markerObject.GetComponent(markerType);
+                MethodInfo bind = markerType.GetMethod("Bind");
+                object[] args = { point, definition, Vector2.one * 0.5f, 37f, new Vector3(30f, 42f, 56f),
+                    3f, false, false, null, null };
+                bind.Invoke(marker, args);
+                object componentType = definition.GetType().GetProperty("Type").GetValue(definition);
+                var symbol = (Component)markerType.GetMethod("TypeIcon").Invoke(marker, new[] { componentType });
+                Assert.IsTrue(symbol.gameObject.activeSelf);
+                Assert.AreEqual(0f, Mathf.DeltaAngle(217f, symbol.transform.eulerAngles.z), 0.001f);
+                args[1] = null;
+                bind.Invoke(marker, args);
+                Assert.AreEqual(0f, Mathf.DeltaAngle(0f, symbol.transform.localEulerAngles.z), 0.001f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(markerObject);
+                UnityEngine.Object.DestroyImmediate(definition);
+            }
+        }
+
+        [TestCase("Assets/ShipComponents/Weapons/Basic Gun Single.asset", 0)]
+        [TestCase("Assets/ShipComponents/Thrusters/Basic Thruster.asset", 1)]
+        [TestCase("Assets/ShipComponents/Shields/Basic Shield 90.asset", 0)]
+        [TestCase("Assets/ShipComponents/Shields/Basic Shield.asset", 2)]
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Radar Cone.asset", 0)]
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Radar Circle.asset", 2)]
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset", 2)]
+        public void Paperdoll_OrientsInstalledComponents(string assetPath, int orientation)
+        {
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            Assert.IsNotNull(definition);
+            Type catalogType = Type.GetType("PewPewPew.Ships.ShipCatalog, Assembly-CSharp");
+            object catalog = catalogType.GetProperty("Instance").GetValue(null);
+            var components = (Array)catalogType.GetProperty("Components").GetValue(catalog);
+            int componentIndex = Enumerable.Range(0, components.Length).First(i => ReferenceEquals(components.GetValue(i), definition));
+            var hulls = (Array)catalogType.GetProperty("Hulls").GetValue(catalog);
+            int hullIndex = -1;
+            int mount = -1;
+            float angle = 0f;
+            for (int h = 0; h < hulls.Length && mount < 0; h++)
+            {
+                object hull = hulls.GetValue(h);
+                var hullPoints = (Component)hull.GetType().GetProperty("HullPoints").GetValue(hull);
+                var points = (Array)hullPoints.GetType().GetProperty("Points").GetValue(hullPoints);
+                for (int i = 0; i < points.Length; i++)
+                {
+                    var point = (Component)points.GetValue(i);
+                    Vector2 up = hullPoints.transform.InverseTransformDirection(point.transform.up);
+                    float candidate = Vector2.SignedAngle(Vector2.up, up);
+                    if (Mathf.Abs(candidate) < 0.01f ||
+                        !(bool)point.GetType().GetMethod("AcceptsComponent").Invoke(point, new object[] { definition })) continue;
+                    hullIndex = h;
+                    mount = i;
+                    angle = candidate;
+                    break;
+                }
+            }
+            Assert.GreaterOrEqual(mount, 0, "A rotated compatible hull point is required.");
+            var loadout = (ShipLoadout)catalogType.GetMethod("DefaultLoadout").Invoke(catalog, new object[] { hullIndex });
+            loadout.MountComponents[mount] = componentIndex;
+            var canvas = new GameObject("HUD canvas", typeof(RectTransform), typeof(Canvas));
+            var owner = new GameObject("Paperdoll", typeof(RectTransform));
+            try
+            {
+                owner.transform.SetParent(canvas.transform, false);
+                Type type = Type.GetType("PewPewPew.Ships.ShipHudPaperdoll, Assembly-CSharp");
+                Component paperdoll = owner.AddComponent(type);
+                type.GetMethod("Initialize").Invoke(paperdoll, new object[] { loadout, null, 240f, 0.65f, 1f });
+                var buttons = (Array)type.GetField("m_Buttons", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                var button = (Component)buttons.GetValue(mount);
+                float expected = orientation == 0 ? angle : orientation == 1 ? angle + 180f : 0f;
+                Assert.AreEqual(0f, Mathf.DeltaAngle(expected, button.transform.localEulerAngles.z), 0.001f);
+                var gauge = (Component)type.GetMethod("GetMountGauge").Invoke(paperdoll, new object[] { mount });
+                if (gauge != null)
+                    Assert.AreEqual(0f, Mathf.DeltaAngle(expected, gauge.transform.eulerAngles.z), 0.001f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(owner);
+                UnityEngine.Object.DestroyImmediate(canvas);
+            }
+        }
+    }
+
+    public class ShipHudPaperdollTests
+    {
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset", false)]
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Power Storage.asset", false)]
+        [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset", true)]
+        public void Paperdoll_ReusesSubsystemGaugeAndKeepsMountClickable(string assetPath, bool missingGauge)
+        {
+            Type catalogType = Type.GetType("PewPewPew.Ships.ShipCatalog, Assembly-CSharp");
+            object catalog = catalogType.GetProperty("Instance").GetValue(null);
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            Assert.IsNotNull(definition);
+            var components = (Array)catalogType.GetProperty("Components").GetValue(catalog);
+            int componentIndex = Enumerable.Range(0, components.Length).First(i => ReferenceEquals(components.GetValue(i), definition));
+            var hulls = (Array)catalogType.GetProperty("Hulls").GetValue(catalog);
+            object hull = hulls.GetValue(0);
+            object hullPoints = hull.GetType().GetProperty("HullPoints").GetValue(hull);
+            var points = (Array)hullPoints.GetType().GetProperty("Points").GetValue(hullPoints);
+            int mount = Enumerable.Range(0, points.Length).First(i =>
+                (bool)points.GetValue(i).GetType().GetMethod("AcceptsComponent").Invoke(points.GetValue(i), new object[] { definition }));
+            var loadout = (ShipLoadout)catalogType.GetMethod("DefaultLoadout").Invoke(catalog, new object[] { 0 });
+            loadout.MountComponents[mount] = componentIndex;
+            var canvas = new GameObject("HUD canvas", typeof(RectTransform), typeof(Canvas));
+            var owner = new GameObject("Paperdoll", typeof(RectTransform));
+            ScriptableObject clone = null;
+            try
+            {
+                if (missingGauge)
+                {
+                    clone = UnityEngine.Object.Instantiate(definition);
+                    clone.GetType().GetField("m_Gauge", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(clone, null);
+                    components.SetValue(clone, componentIndex);
+                    UnityEngine.TestTools.LogAssert.Expect(LogType.Warning, $"{clone.name} has no HUD gauge; using its component artwork.");
+                }
+
+                owner.transform.SetParent(canvas.transform, false);
+                Type type = Type.GetType("PewPewPew.Ships.ShipHudPaperdoll, Assembly-CSharp");
+                Component paperdoll = owner.AddComponent(type);
+                int clicked = -1;
+                type.GetMethod("Initialize").Invoke(paperdoll,
+                    new object[] { loadout, new Action<int>(index => clicked = index), 240f, 0.65f, 1f });
+                var buttons = (Array)type.GetField("m_Buttons", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                var button = (Component)buttons.GetValue(mount);
+                Type graphicType = button.GetType().Assembly.GetType("UnityEngine.UI.Graphic");
+                foreach (Component graphic in button.GetComponentsInChildren<Component>(true).Where(graphicType.IsInstanceOfType))
+                    Assert.AreEqual(graphic.gameObject == button.gameObject,
+                        (bool)graphicType.GetProperty("raycastTarget").GetValue(graphic));
+                var onClick = (UnityEvent)button.GetType().GetProperty("onClick").GetValue(button);
+                onClick.Invoke();
+                Assert.AreEqual(mount, clicked);
+
+                var gauge = (Component)type.GetMethod("GetMountGauge").Invoke(paperdoll, new object[] { mount });
+                if (missingGauge)
+                {
+                    Assert.IsNull(gauge);
+                    var icon = (Component)((Array)type.GetField("m_Icons", BindingFlags.Instance | BindingFlags.NonPublic)
+                        .GetValue(paperdoll)).GetValue(mount);
+                    Assert.AreNotEqual(Color.clear, (Color)icon.GetType().GetProperty("color").GetValue(icon));
+                    return;
+                }
+
+                Assert.IsNotNull(gauge);
+                var prefab = (Component)definition.GetType().GetProperty("Gauge").GetValue(definition);
+                var gaugeRect = (RectTransform)gauge.transform;
+                Assert.AreEqual(((RectTransform)prefab.transform).sizeDelta, gaugeRect.sizeDelta);
+                Assert.AreEqual(((RectTransform)button.transform).rect.size.x,
+                    gaugeRect.rect.width * gaugeRect.localScale.x, 0.001f);
+                Assert.IsFalse(owner.GetComponentsInChildren<Transform>(true).Any(child => child.name == "Progress track"));
+
+                var rootGraphic = gauge.GetComponent("Image") ?? gauge.GetComponent("RawImage");
+                Assert.IsNotNull(rootGraphic);
+                var colorProperty = rootGraphic.GetType().GetProperty("color");
+                Color original = (Color)colorProperty.GetValue(rootGraphic);
+                Type subsystemType = Type.GetType("PewPewPew.Ships.SubSystem, Assembly-CSharp");
+                object subsystem = Activator.CreateInstance(subsystemType, definition, null, null);
+                subsystemType.GetProperty("Gauge").SetValue(subsystem, gauge);
+                MethodInfo setHud = subsystemType.GetMethod("SetHud");
+                Type stateType = setHud.GetParameters()[1].ParameterType;
+                setHud.Invoke(subsystem, new[] { (object)0.5f, Enum.Parse(stateType, "Active") });
+                subsystemType.GetMethod("Render").Invoke(subsystem, null);
+                var fill = (Component)gauge.GetType().GetField("m_Fill", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(gauge);
+                Assert.IsNotNull(fill);
+                Assert.AreEqual(0.5f, (float)fill.GetType().GetProperty("fillAmount").GetValue(fill), 0.001f);
+
+                setHud.Invoke(subsystem, new[] { (object)0f, Enum.Parse(stateType, "Off") });
+                subsystemType.GetMethod("Render").Invoke(subsystem, null);
+                type.GetMethod("SetMountState").Invoke(paperdoll, new object[] { mount, false, false });
+                Color dimmed = (Color)colorProperty.GetValue(rootGraphic);
+                Assert.AreEqual(new Color(0.4f, 0.4f, 0.4f, original.a), dimmed);
+                Assert.IsTrue((bool)button.GetType().GetProperty("interactable").GetValue(button));
+                type.GetMethod("SetMountState").Invoke(paperdoll, new object[] { mount, false, true });
+                Assert.IsFalse((bool)button.GetType().GetProperty("interactable").GetValue(button));
+                type.GetMethod("SetMountState").Invoke(paperdoll, new object[] { mount, true, false });
+                Assert.AreEqual(original, (Color)colorProperty.GetValue(rootGraphic));
+            }
+            finally
+            {
+                components.SetValue(definition, componentIndex);
+                if (clone != null) UnityEngine.Object.DestroyImmediate(clone);
+                UnityEngine.Object.DestroyImmediate(owner);
+                UnityEngine.Object.DestroyImmediate(canvas);
+            }
+        }
+
+        [Test]
+        public void Paperdoll_RendersHullAndBindsInstalledMounts()
+        {
+            Type catalogType = Type.GetType("PewPewPew.Ships.ShipCatalog, Assembly-CSharp");
+            object catalog = catalogType.GetProperty("Instance").GetValue(null);
+            var loadout = (ShipLoadout)catalogType.GetMethod("DefaultLoadout").Invoke(catalog, new object[] { 0 });
+            var canvas = new GameObject("HUD canvas", typeof(RectTransform), typeof(Canvas));
+            var owner = new GameObject("Paperdoll", typeof(RectTransform));
+            Texture2D pixels = null;
+            RenderTexture previous = RenderTexture.active;
+            try
+            {
+                owner.transform.SetParent(canvas.transform, false);
+                Type type = Type.GetType("PewPewPew.Ships.ShipHudPaperdoll, Assembly-CSharp");
+                Component paperdoll = owner.AddComponent(type);
+                int clicked = -1;
+                type.GetMethod("Initialize").Invoke(paperdoll,
+                    new object[] { loadout, new Action<int>(mount => clicked = mount), 240f, 0.65f, 1f });
+                object hullImage = type.GetField("m_HullImage", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                Color hullTint = (Color)hullImage.GetType().GetProperty("color").GetValue(hullImage);
+                Assert.AreEqual(0.35f, hullTint.r, 0.001f);
+                Assert.IsFalse((bool)hullImage.GetType().GetProperty("raycastTarget").GetValue(hullImage));
+                var buttons = (Array)type.GetField("m_Buttons", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                var icons = (Array)type.GetField("m_Icons", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                for (int i = 0; i < loadout.MountComponents.Length; i++)
+                    Assert.AreEqual(loadout.MountComponents[i] >= 0, buttons.GetValue(i) != null);
+
+                int first = Array.FindIndex(loadout.MountComponents, index => index >= 0);
+                Assert.GreaterOrEqual(first, 0);
+                object button = buttons.GetValue(first);
+                var onClick = (UnityEvent)button.GetType().GetProperty("onClick").GetValue(button);
+                onClick.Invoke();
+                Assert.AreEqual(first, clicked);
+                type.GetMethod("SetMountState").Invoke(paperdoll, new object[] { first, false, false });
+                object icon = icons.GetValue(first);
+                Color colour = (Color)icon.GetType().GetProperty("color").GetValue(icon);
+                Assert.AreEqual(0.4f, colour.r, 0.001f);
+                Assert.AreEqual(0.4f, colour.g, 0.001f);
+                Assert.AreEqual(0.4f, colour.b, 0.001f);
+
+                var texture = (RenderTexture)type.GetField("m_Texture", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                Assert.IsTrue(texture.IsCreated());
+                RenderTexture.active = texture;
+                pixels = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
+                pixels.ReadPixels(new Rect(0f, 0f, texture.width, texture.height), 0, 0);
+                pixels.Apply();
+                Assert.IsTrue(pixels.GetPixels32().Any(pixel => pixel.a > 0), "The hull render must not be blank.");
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                if (pixels != null) UnityEngine.Object.DestroyImmediate(pixels);
+                UnityEngine.Object.DestroyImmediate(owner);
+                UnityEngine.Object.DestroyImmediate(canvas);
+            }
+        }
+    }
+
+    public class HudGaugeTests
+    {
+        [TestCase(1f, 1f)]
+        [TestCase(8f, 4f)]
+        public void PlaceIcon_ScalesToBarHeightWithoutChangingSize(float width, float height)
+        {
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/HUD/HudArmourBar.prefab");
+            GameObject instance = UnityEngine.Object.Instantiate(prefab);
+            try
+            {
+                var gauge = instance.GetComponent(Type.GetType("PewPewPew.Ships.HudGauge, Assembly-CSharp"));
+                var bar = (RectTransform)instance.transform;
+                var icon = (RectTransform)instance.transform.Find("Icon");
+                icon.sizeDelta = new Vector2(width, height);
+                bar.sizeDelta = new Vector2(240f, 16f);
+
+                Assert.IsTrue((bool)gauge.GetType().GetMethod("PlaceIcon").Invoke(gauge, new object[] { 4f }));
+                Assert.AreEqual(new Vector2(width, height), icon.sizeDelta);
+                Assert.AreEqual(new Vector3(16f / width, 16f / height, 1f), icon.localScale);
+                Assert.AreEqual(new Vector2(-4f, 0f), icon.anchoredPosition);
+
+                bar.sizeDelta = new Vector2(240f, 24f);
+                Assert.IsTrue((bool)gauge.GetType().GetMethod("PlaceIcon").Invoke(gauge, new object[] { 4f }));
+                Assert.AreEqual(new Vector3(24f / width, 24f / height, 1f), icon.localScale);
+                Assert.AreEqual(new Vector2(width, height), icon.sizeDelta);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(instance);
+            }
+        }
+
+        [Test]
+        public void PlaceIcon_RejectsZeroSizedIcon()
+        {
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/HUD/HudArmourBar.prefab");
+            GameObject instance = UnityEngine.Object.Instantiate(prefab);
+            try
+            {
+                var gauge = instance.GetComponent(Type.GetType("PewPewPew.Ships.HudGauge, Assembly-CSharp"));
+                var icon = (RectTransform)instance.transform.Find("Icon");
+                icon.sizeDelta = new Vector2(0f, 1f);
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Error,
+                    "HUD gauge icon must have a positive width and height.");
+                Assert.IsFalse((bool)gauge.GetType().GetMethod("PlaceIcon").Invoke(gauge, new object[] { 4f }));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(instance);
+            }
+        }
+    }
+
     public class RadarMathTests
     {
         [Test]
@@ -121,12 +963,16 @@ namespace PewPewPew.Tests
                 Type systemType = GameType("PewPewPew.Ships.SubSystem");
                 object systemA = Activator.CreateInstance(systemType, defA, m_MountA.transform, shipObject.transform);
                 object systemB = Activator.CreateInstance(systemType, defB, m_MountB.transform, shipObject.transform);
+                object unmounted = Activator.CreateInstance(systemType, defB, null, null);
                 MethodInfo setHud = systemType.GetMethod("SetHud");
                 setHud.Invoke(systemA, new object[] { 1f, HudState.Active });
                 setHud.Invoke(systemB, new object[] { 1f, HudState.Active });
+                setHud.Invoke(unmounted, new object[] { 1f, HudState.Active });
+                Assert.IsFalse((bool)systemType.GetProperty("IsRadarActive").GetValue(unmounted));
                 var systems = (IList)Get(ship, "m_SubSystems");
                 systems.Add(systemA);
                 systems.Add(systemB);
+                systems.Add(unmounted);
                 if (Get(m_Root, "m_Display") == null) Call(m_Root, "Awake");
                 Set(m_Root, "m_Activation", Enum.ToObject(GameType("PewPewPew.Presentation.MinimapActivation"), 1));
                 Call(m_Root, "LateUpdate");
@@ -813,18 +1659,18 @@ namespace PewPewPew.Tests
         }
 
         [Test]
-        public void ProximityWeight_FallsOffWithDistanceToNearestPoint()
+        public void ProximityWeight_FallsOffWithDistanceToPoint()
         {
-            var points = new[] { new Vector2(0, 0), new Vector2(10, 0) };
-            Assert.AreEqual(1f, DamageMath.ProximityWeight(new Vector2(10, 0), points, 5), 1e-5f);
-            Assert.AreEqual(0.5f, DamageMath.ProximityWeight(new Vector2(12.5f, 0), points, 5), 1e-5f);
-            Assert.AreEqual(0f, DamageMath.ProximityWeight(new Vector2(5, 20), points, 5));
+            var point = new Vector2(10, 0);
+            Assert.AreEqual(1f, DamageMath.ProximityWeight(new Vector2(10, 0), point, 5), 1e-5f);
+            Assert.AreEqual(0.5f, DamageMath.ProximityWeight(new Vector2(12.5f, 0), point, 5), 1e-5f);
+            Assert.AreEqual(0f, DamageMath.ProximityWeight(new Vector2(5, 20), point, 5));
         }
 
         [Test]
-        public void ProximityWeight_ZeroWithoutEmissionPoints()
+        public void ProximityWeight_ZeroWithoutPoint()
         {
-            Assert.AreEqual(0f, DamageMath.ProximityWeight(Vector2.zero, new Vector2[0], 5));
+            Assert.AreEqual(0f, DamageMath.ProximityWeight(Vector2.zero, null, 5));
         }
     }
 
@@ -1047,45 +1893,6 @@ namespace PewPewPew.Tests
             Assert.AreEqual(20f, FireMath.Angles(FirePattern.Sinewave, 1, -20, 20, Mathf.PI / 2, new Random(1))[0], 1e-4f);
             Assert.AreEqual(-20f, FireMath.Angles(FirePattern.Sinewave, 1, -20, 20, -Mathf.PI / 2, new Random(1))[0], 1e-4f);
             Assert.AreEqual(0f, FireMath.Angles(FirePattern.Sinewave, 1, -20, 20, 0, new Random(1))[0], 1e-4f);
-        }
-
-        [Test]
-        public void EmissionPoints_RotateSequentiallyOneAtATime()
-        {
-            var sequence = Enumerable.Range(0, 6).Select(b => FireMath.EmissionPoints(b, 1, 4)[0]);
-            CollectionAssert.AreEqual(new[] { 0, 1, 2, 3, 0, 1 }, sequence);
-        }
-
-        [Test]
-        public void EmissionPoints_UsesGroupsWhenFiringFromSeveral()
-        {
-            CollectionAssert.AreEqual(new[] { 0, 1 }, FireMath.EmissionPoints(0, 2, 4));
-            CollectionAssert.AreEqual(new[] { 2, 3 }, FireMath.EmissionPoints(1, 2, 4));
-            CollectionAssert.AreEqual(new[] { 0, 1 }, FireMath.EmissionPoints(2, 2, 4));
-        }
-
-        [Test]
-        public void BulletsAtPoint_DividesEvenlyWithRemainderFirst()
-        {
-            int[] counts = Enumerable.Range(0, 3).Select(p => FireMath.BulletsAtPoint(7, 3, p)).ToArray();
-            CollectionAssert.AreEqual(new[] { 3, 2, 2 }, counts);
-        }
-
-        [Test]
-        public void Burst_SequentialSinglePointRotatesThroughConsideredPoints()
-        {
-            var random = new Random(1);
-            var points = Enumerable.Range(0, 5)
-                .Select(burst => FireMath.Burst(FirePattern.Spread, 1, 0, 0, 0, burst, 1, 4, random)[0].PointIndex);
-            CollectionAssert.AreEqual(new[] { 0, 1, 2, 3, 0 }, points);
-        }
-
-        [Test]
-        public void Burst_SplitsBulletsEvenlyAcrossPointsAndUsesEachAngleOnce()
-        {
-            Shot[] shots = FireMath.Burst(FirePattern.Spread, 4, -30, 30, 0, 0, 2, 4, new Random(1));
-            CollectionAssert.AreEqual(new[] { 0, 0, 1, 1 }, shots.Select(s => s.PointIndex));
-            CollectionAssert.AreEqual(new[] { -30f, -10f, 10f, 30f }, shots.Select(s => s.Angle));
         }
     }
 

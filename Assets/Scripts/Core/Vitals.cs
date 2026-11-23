@@ -14,6 +14,7 @@ namespace PewPewPew.Core
         public byte[] ShieldStates;
         public byte[] SubSystemLevels;
         public byte[] SubSystemStates;
+        public byte[] ComponentStates;
     }
 
     public static class VitalsMath

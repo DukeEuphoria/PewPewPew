@@ -306,7 +306,8 @@ namespace PewPewPew.Editor
                         s_Next = EditorApplication.timeSinceStartup + 0.4;
                         return;
                     }
-                    Check(s_TestShip.SubSystems[4].Activation.IsActive, "Fifth subsystem HUD button activates the system");
+                    Check(!s_TestShip.SubSystems[4].System.Enabled && !s_TestShip.SubSystems[4].Activation.IsActive,
+                        "Fifth subsystem paperdoll button disables the system");
                     Ship ship = local.Ship;
                     object directionalShield = Get<IList>(ship, "m_Shields").Cast<object>()
                         .First(shield => GetPublic<ShieldDef>(shield, "Def").HalfAngle < 180f);
@@ -356,7 +357,7 @@ namespace PewPewPew.Editor
             point.SetParent(root.transform, false);
             point.localRotation = Quaternion.Euler(0f, 0f, 37f);
             s_ExhaustDirection = point.up;
-            var thruster = new Thruster(def, new ShipSystem(def, new[] { point }, root.transform));
+            var thruster = new Thruster(def, new ShipSystem(def, point, root.transform));
             thruster.Step(1f, 1f, new PowerBank(100000f));
             thruster.Apply(s_ForceBody);
         }
@@ -464,10 +465,15 @@ namespace PewPewPew.Editor
             private static void ValidatePowerStorageDisplay(Ship ship)
             {
                 var stores = ship.SubSystems.Where(system => system.Def.ExtraPowerStorage > 0f).ToArray();
-                Check(stores.Length == 2 && stores.All(system => system.Gauge != null), "Two power storage gauges exist");
+                Check(stores.Length == 2, "Two power storage subsystems exist");
                 PowerBank bank = Get<PowerBank>(ship, "m_Power");
                 HullDef hull = Get<HullDef>(ship, "m_HullDef");
                 var elements = Get<List<IHudElement>>(ship, "m_HudElements");
+                ShipSystem[] mounts = Get<ShipSystem[]>(ship, "m_MountSystems");
+                int firstMount = Array.IndexOf(mounts, stores[0].System);
+                int secondMount = Array.IndexOf(mounts, stores[1].System);
+                Check(firstMount >= 0 && secondMount >= 0 && stores[0].Gauge != null && stores[1].Gauge != null,
+                    "Storage subsystems have paperdoll gauges");
                 HudGauge hullGauge = Get<HudGauge>(elements[ship.GetComponent<ShipHudSync>().Vitals.Shields.Length + 1], "m_Gauge");
                 float firstCapacity = stores[0].Def.ExtraPowerStorage;
                 float secondCapacity = stores[1].Def.ExtraPowerStorage;
@@ -483,6 +489,7 @@ namespace PewPewPew.Editor
                     bank.SetFraction(example.Item1 / bank.Max);
                     Call(ship, "PublishVitals");
                     foreach (IHudElement element in elements) element.Render();
+                    Call(ship, "RenderPaperdoll");
                     ShipVitals vitals = ship.GetComponent<ShipHudSync>().Vitals;
                     Check(Mathf.Abs(Get<Image>(hullGauge, "m_Fill").fillAmount - example.Item2) < 0.001f &&
                         Mathf.Abs(Get<Image>(stores[0].Gauge, "m_Fill").fillAmount - example.Item3) < 0.001f &&
@@ -495,6 +502,19 @@ namespace PewPewPew.Editor
                         vitals.SubSystemLevels[secondIndex] == VitalsMath.ToByte(example.Item4),
                         "Ordered power gauge levels are published to the owner");
                 }
+                bank.SetFraction((hull.MaxPowerStorage + secondCapacity + firstCapacity * 0.5f) / bank.Max);
+                var segments = Get<Dictionary<ShipSystem, int>>(ship, "m_StorageSegments");
+                int firstSegment = segments[stores[0].System];
+                float frozen = bank.GetSegmentStored(firstSegment);
+                ship.CmdToggleComponent(firstMount);
+                Check(!bank.IsSegmentEnabled(firstSegment) && Mathf.Approximately(bank.UsableMax, bank.Max - firstCapacity),
+                    "Disabled storage capacity is unavailable");
+                bank.Draw(5f);
+                bank.Charge(5f);
+                Check(Mathf.Approximately(bank.GetSegmentStored(firstSegment), frozen), "Disabled storage keeps its charge");
+                ship.CmdToggleComponent(firstMount);
+                Check(bank.IsSegmentEnabled(firstSegment) && Mathf.Approximately(bank.GetSegmentStored(firstSegment), frozen),
+                    "Re-enabled storage restores its charge");
                 bank.SetFraction(1f);
                 Call(ship, "PublishVitals");
             }
@@ -721,11 +741,28 @@ namespace PewPewPew.Editor
                 Check(shields.Count == 2 && thrusters.Count >= 5 && ship.SubSystems.Count == 5,
                     "Ship constructs every mounted system (shields: " + shields.Count + ", thrusters: " + thrusters.Count +
                     ", subsystems: " + ship.SubSystems.Count + ")");
-                Check(ship.SubSystems[4].Gauge != null, "Fifth subsystem has a HUD gauge");
-                Button subsystemButton = ship.SubSystems[4].Gauge.GetComponentInChildren<Button>();
-                Check(subsystemButton != null, "Fifth subsystem has a clickable HUD button");
-                ExecuteEvents.Execute(subsystemButton.gameObject, CheckHudHitTarget(subsystemButton, "Fifth subsystem"),
-                    ExecuteEvents.pointerClickHandler);
+                ShipHudPaperdoll paperdoll = Get<ShipHudPaperdoll>(ship, "m_Paperdoll");
+                ShipSystem[] mounts = Get<ShipSystem[]>(ship, "m_MountSystems");
+                int subSystemMount = Array.IndexOf(mounts, ship.SubSystems[4].System);
+                Button subsystemButton = Get<Button[]>(paperdoll, "m_Buttons")[subSystemMount];
+                Check(subsystemButton != null, "Fifth subsystem has a paperdoll button");
+                Canvas.ForceUpdateCanvases();
+                var subsystemPointer = new PointerEventData(EventSystem.current)
+                {
+                    position = RectTransformUtility.WorldToScreenPoint(null, subsystemButton.transform.position)
+                };
+                var subsystemHits = new List<RaycastResult>();
+                EventSystem.current.RaycastAll(subsystemPointer, subsystemHits);
+                Check(subsystemHits.Any(hit => hit.gameObject == subsystemButton.gameObject),
+                    "Subsystem button is reachable by UI raycast");
+                subsystemButton.onClick.Invoke();
+                Check(!ship.SubSystems[4].System.Enabled, "Paperdoll button toggles its mounted subsystem");
+                Call(ship, "PublishVitals");
+                Call(ship, "RenderPaperdoll");
+                Graphic subsystemIcon = ship.SubSystems[4].Gauge.GetComponent<Graphic>();
+                Check(Mathf.Approximately(subsystemIcon.color.r, 0.4f) &&
+                    Mathf.Approximately(subsystemIcon.color.g, 0.4f) &&
+                    Mathf.Approximately(subsystemIcon.color.b, 0.4f), "Disabled component icon is grey");
                 ComponentHealth first = GetPublic<ComponentHealth>(shields[0], "Charge");
                 ComponentHealth second = GetPublic<ComponentHealth>(shields[1], "Charge");
                 Vector2 centre = ship.transform.TransformPoint(Get<Vector2>(ship, "m_ShieldCenter"));
@@ -735,6 +772,10 @@ namespace PewPewPew.Editor
                 Check(shieldButton != null, "Shield has a clickable HUD button");
                 ExecuteEvents.Execute(shieldButton.gameObject, CheckHudHitTarget(shieldButton, "Shield"),
                     ExecuteEvents.pointerClickHandler);
+                first.Damage(10f);
+                Call(ship, "StepShields", 1f);
+                Check(Mathf.Approximately(first.Current, first.Max - 10f), "Inactive shield does not recharge");
+                first.Repair(10f);
                 ship.TakeDamage(25f, centre, null);
                 Check(Mathf.Approximately(first.Current, first.Max) && Mathf.Approximately(second.Current, second.Max - 25f),
                     "Inactive shield retains charge while active shield absorbs");
@@ -767,8 +808,8 @@ namespace PewPewPew.Editor
                 ShipSystem firstGenerator = GetPublic<ShipSystem>(shields[0], "Generator");
                 ShipSystem secondGenerator = GetPublic<ShipSystem>(shields[1], "Generator");
                 Quaternion rotation = ship.transform.rotation;
-                Quaternion firstRotation = firstGenerator.Points[0].localRotation;
-                Quaternion secondRotation = secondGenerator.Points[0].localRotation;
+                Quaternion firstRotation = firstGenerator.Point.localRotation;
+                Quaternion secondRotation = secondGenerator.Point.localRotation;
                 ComponentHealth first = GetPublic<ComponentHealth>(shields[0], "Charge");
                 ComponentHealth second = GetPublic<ComponentHealth>(shields[1], "Charge");
                 try
@@ -776,8 +817,8 @@ namespace PewPewPew.Editor
                     shields[0].GetType().GetField("Def").SetValue(shields[0], definitions.Single(def => def.HalfAngle == 90f));
                     shields[1].GetType().GetField("Def").SetValue(shields[1], definitions.Single(def => def.HalfAngle == 45f));
                     ship.transform.rotation = Quaternion.Euler(0f, 0f, 73f);
-                    firstGenerator.Points[0].rotation = ship.transform.rotation;
-                    secondGenerator.Points[0].rotation = ship.transform.rotation * Quaternion.Euler(0f, 0f, 180f);
+                    firstGenerator.Point.rotation = ship.transform.rotation;
+                    secondGenerator.Point.rotation = ship.transform.rotation * Quaternion.Euler(0f, 0f, 180f);
                     centre = ship.transform.TransformPoint(Get<Vector2>(ship, "m_ShieldCenter"));
                     Vector2 forward = ship.transform.up;
                     first.SetFraction(1f);
@@ -794,7 +835,7 @@ namespace PewPewPew.Editor
                     ship.TakeDamage(10f, centre + gap * 20f, null);
                     Check(Mathf.Approximately(first.Current, first.Max - 20f) && Mathf.Approximately(second.Current, second.Max - 20f) &&
                         armour.Current < armourBefore, "An uncovered impact bypasses both shields and reaches armour");
-                    secondGenerator.Points[0].rotation = ship.transform.rotation;
+                    secondGenerator.Point.rotation = ship.transform.rotation;
                     first.SetFraction(1f);
                     second.SetFraction(1f);
                     ship.TakeDamage(70f, centre + forward * 20f, null);
@@ -818,8 +859,8 @@ namespace PewPewPew.Editor
                     firstGenerator.Health.Repair(firstGenerator.Health.Max);
                     ship.CmdSetControls(new ShipControls { AimPoint = ship.transform.position });
                     ship.transform.rotation = rotation;
-                    firstGenerator.Points[0].localRotation = firstRotation;
-                    secondGenerator.Points[0].localRotation = secondRotation;
+                    firstGenerator.Point.localRotation = firstRotation;
+                    secondGenerator.Point.localRotation = secondRotation;
                 }
             }
 

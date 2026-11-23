@@ -43,14 +43,28 @@ namespace PewPewPew.Ships
             Vector3 position = transform.position;
             Vector3 up = transform.up;
             Vector3 tip = position + up * 0.8f;
-            Gizmos.color = new Color(colour.r, colour.g, colour.b, 0.5f);
+            Gizmos.color = new Color(colour.r, colour.g, colour.b, 0.8f);
+            Vector3 drawSize = Vector3.one * 0.4f;
+            switch(m_Size)
+            {
+                case ComponentSize.Small:
+                    drawSize = Vector3.one * 0.1f;
+                    break;
+                case ComponentSize.Medium:
+                    drawSize = Vector3.one * 0.3f;
+                    break;
+                case ComponentSize.Large:
+                    drawSize = Vector3.one * 0.5f;
+                    break;
+            }
+
             if ((m_Accepts & AcceptedComponents.SubSystem) != 0)
             {
                 Gizmos.matrix = Matrix4x4.TRS(position, transform.rotation, Vector3.one);
-                Gizmos.DrawCube(Vector3.zero, Vector3.one * 0.4f);
+                Gizmos.DrawCube(Vector3.zero, drawSize);
                 Gizmos.matrix = Matrix4x4.identity;
             }
-            else Gizmos.DrawSphere(position, 0.2f);
+            else Gizmos.DrawSphere(position, drawSize.x / 2f);
 
             if ((m_Accepts & AcceptedComponents.Gun) != 0)
             {

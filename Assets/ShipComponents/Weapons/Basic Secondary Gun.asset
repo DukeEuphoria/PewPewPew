@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83df16d1b165b714eb77c76937203041, type: 3}
   m_Name: Basic Secondary Gun
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Weapons.GunDef
-  m_DisplayName:
+  m_DisplayName: 
   m_Description: Medium gun firing 1 projectile(s) per burst in a Spread pattern.
   m_ButtonArtwork: {fileID: 21300000, guid: dc4b20cde4be4c78b30d8e045d66643e, type: 3}
   m_Tint: {r: 1, g: 0.25, b: 0.22, a: 1}
   m_Price: 0
-  m_Size: 1
+  m_Size: 0
   m_Mass: 1
   m_PassivePowerDrain: 0.1
   m_ActivePowerDrain: 2

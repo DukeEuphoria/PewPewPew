@@ -23,7 +23,7 @@ namespace PewPewPew.Ships
 
         public void Step(float deltaTime, float demand, PowerBank power)
         {
-            bool canFire = !System.Health.IsDestroyed && demand > 0f && power.TryDraw(Def.ActivePowerDrain * deltaTime);
+            bool canFire = System.Enabled && !System.Health.IsDestroyed && demand > 0f && power.TryDraw(Def.ActivePowerDrain * deltaTime);
             float target = canFire ? demand : 0f;
             m_Throttle = ThrusterMath.Ramp(m_Throttle, target, Def.RampUpTime, Def.RampDownTime, deltaTime);
         }
@@ -31,7 +31,7 @@ namespace PewPewPew.Ships
         public void Apply(Rigidbody2D body)
         {
             if (m_Throttle <= 0f) return;
-            Transform point = System.Points[0];
+            Transform point = System.Point;
             body.AddForceAtPosition(-(Vector2)point.up * (Def.Force * ForceMultiplier * m_Throttle), point.position);
         }
     }

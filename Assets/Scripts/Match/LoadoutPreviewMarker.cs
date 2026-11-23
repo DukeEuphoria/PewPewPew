@@ -63,10 +63,14 @@ namespace PewPewPew.Match
             float fill = Mathf.Max(0, slot - 2 * padding);
             // Fitted components are drawn at their own size class, so a small component stays small in a large slot.
             float fittedSize = fitted ? Mathf.Max(0, Size(definition.Size, sizes) - 2 * padding) : 0;
+            Quaternion iconRotation = fitted
+                ? Quaternion.Euler(0f, 0f, LobbySymbol.ComponentRotation(definition, angle) - angle)
+                : Quaternion.identity;
             m_Artwork.sprite = fitted ? definition.ButtonArtwork : null;
             m_Artwork.enabled = m_Artwork.sprite != null;
             m_Artwork.color = fitted ? definition.Tint : Color.white;
             Place(m_Artwork.rectTransform, Vector2.zero, fittedSize);
+            m_Artwork.rectTransform.localRotation = iconRotation;
 
             for (int i = 0; i < m_SizeGuides.Length; i++)
             {
@@ -86,6 +90,7 @@ namespace PewPewPew.Match
                 symbol.gameObject.SetActive(fitted
                     ? definition.ButtonArtwork == null && definition.Type == SlotTypes[i]
                     : Accepts(point, SlotTypes[i]));
+                symbol.rectTransform.localRotation = iconRotation;
                 if (fitted) Place(symbol.rectTransform, Vector2.zero, fittedSize);
                 else if (acceptedTypes == 1) Place(symbol.rectTransform, Vector2.zero, fill);
                 else Place(symbol.rectTransform, new Vector2(i % 2 == 0 ? -offset : offset, i < 2 ? offset : -offset), quadrant);

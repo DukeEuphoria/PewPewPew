@@ -116,9 +116,12 @@ The preview's **Marker Sizes** sets the small, medium and large square sizes;
 **Slot Icon Padding** sets the pixels between the slot edge and its icons, and
 between quadrant icons.
 Markers are projected directly from the authored hull points and rotated so each
-box's up matches its hull point's up vector as drawn in the render; the icons
-and size outlines inside rotate with it. They can overlap,
-and all points are shown regardless of the number of saved marker templates.
+box's up matches its hull point's up vector as drawn in the render. Size guides
+and empty-slot symbols rotate with the box. Fitted gun icons and directional
+radar and shield icons follow the point; thruster icons face opposite the point.
+Other fitted icons stay upright. The paperdoll uses the same icon orientations.
+Markers can overlap, and all points are shown regardless of the number of saved
+marker templates.
 
 The hull, marker and catalog hover targets temporarily override the selected
 item's details. The hull details include fitted mass, power and storage totals;
@@ -179,9 +182,10 @@ Missing or duplicate catalog entries are reported as errors. Restore removed
 definitions rather than silently shifting indices.
 Radar definitions used by subsystems are not a separate fitting category.
 
-Guns fire and thruster effects emit along a point's
-local Up direction; thruster force acts in the opposite direction. A point can
-accept both guns and thrusters. The closest force direction among forward,
+Each gun fires all bullets in a burst from its own hull point. Gun angles and
+thruster effects use their point's local Up direction; thruster force acts in
+the opposite direction. A point can accept both guns and thrusters. The closest
+force direction among forward,
 reverse, left and right selects W, S, A or D; exact diagonal ties favour
 forward/reverse. A point pointing perpendicular to the movement plane is invalid.
 Thruster effect prefabs should emit along their local +Y axis.
@@ -272,6 +276,30 @@ The saved planet and moon have hints alongside their gravity sources: minimum
 sizes `20` and `5`, with radii `12.5` and `4.75`. These requested absolute
 minimums do not add zoom while the ship camera's own minimum remains `20`;
 raise them in the Inspector to produce additional large-object zoom.
+
+## In-game ship HUD
+
+The bottom-left paperdoll shows the fitted hull and installed components at
+their loadout mount positions. Click a component, or press 1–0 and then
+Shift+1–0, to toggle it or trigger a timed subsystem. Shortcuts follow occupied
+mount order; components after the first 20 are mouse-only. Overlapping markers
+retain their authored positions. Disabled or destroyed components are grey.
+Subsystem mounts use their authored HUD gauges for activation and cooldown
+feedback; a missing gauge falls back to the component artwork.
+
+Disabled components draw no power and provide no effects. Thrusters ramp down
+when disabled. Shield icons and bars toggle their shields; holding Space can
+temporarily raise a disabled shield. A disabled power store keeps its charge,
+but that charge and capacity are unavailable until it is enabled again.
+Triggered subsystems remain enabled and start idle. Click or press their
+shortcut to trigger them; further presses during their effect or cooldown have
+no effect. Once the cooldown ends, they are ready to trigger again. Their
+passive power draw still applies while they are enabled.
+
+On the `ShipHudRoot` component in GameScene, **Paperdoll Size** changes the
+square panel and shifts the bars alongside it. **Paperdoll Brightness** dims
+the hull without dimming the icons, and **Paperdoll Marker Scale** adjusts
+their size.
 
 ## Maintenance and validation
 

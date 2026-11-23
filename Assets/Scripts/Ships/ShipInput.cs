@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 namespace PewPewPew.Ships
 {
     /// Reads the local player's input and sends it to the server: W/S thrust, A/D strafe, mouse aim,
-    /// left button main gun, right button secondary gun, Space shields, 1-0 sub systems.
+    /// left button main gun, right button secondary gun, Space shields, 1-0 and Shift+1-0 components.
     [RequireComponent(typeof(Ship))]
     public class ShipInput : NetworkBehaviour
     {
@@ -60,12 +60,12 @@ namespace PewPewPew.Ships
             SendControls(controls);
             if (blocked) return;
 
-            var subSystemKeys = new[] { Keyboard.current.digit1Key, Keyboard.current.digit2Key, Keyboard.current.digit3Key,
+            var componentKeys = new[] { Keyboard.current.digit1Key, Keyboard.current.digit2Key, Keyboard.current.digit3Key,
                 Keyboard.current.digit4Key, Keyboard.current.digit5Key, Keyboard.current.digit6Key, Keyboard.current.digit7Key,
                 Keyboard.current.digit8Key, Keyboard.current.digit9Key, Keyboard.current.digit0Key };
-            for (int i = 0; i < subSystemKeys.Length; i++)
+            for (int i = 0; i < componentKeys.Length; i++)
             {
-                if (subSystemKeys[i].wasPressedThisFrame) m_Ship.CmdPressSubSystem(i + (shift ? 10 : 0));
+                if (componentKeys[i].wasPressedThisFrame) m_Ship.PressComponentShortcut(i + (shift ? 10 : 0));
             }
         }
 

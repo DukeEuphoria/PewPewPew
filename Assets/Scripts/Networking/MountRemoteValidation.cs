@@ -24,6 +24,8 @@ namespace PewPewPew.Networking
         private bool m_RemoteHoldSeen;
         private bool m_RemoteReleaseSeen;
         private bool m_HostReleased;
+        private bool m_RemoteDisableSeen;
+        private int m_DisabledThrusterMount = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void StartValidation()
@@ -112,7 +114,11 @@ namespace PewPewPew.Networking
             }
             else if (m_Phase == 2 && PlayerState.All.Count == 1)
             {
-                if (!m_RemoteHoldSeen || !m_RemoteReleaseSeen) { Fail("Host did not observe remote shield hold and release."); return; }
+                if (!m_RemoteHoldSeen || !m_RemoteReleaseSeen || !m_RemoteDisableSeen)
+                {
+                    Fail("Host did not observe remote shield hold, release, and component disable.");
+                    return;
+                }
                 m_Manager.StopHost();
                 Application.Quit(0);
             }
@@ -128,6 +134,10 @@ namespace PewPewPew.Networking
                 if (remote != null && remote.Ship != null)
                 {
                     Ship ship = remote.Ship;
+                    ShipSystem[] mounts = (ShipSystem[])typeof(Ship).GetField("m_MountSystems",
+                        BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ship);
+                    int disabledMount = FindThrusterMount(remote.Loadout);
+                    if (disabledMount >= 0 && !mounts[disabledMount].Enabled) m_RemoteDisableSeen = true;
                     if (HeldShieldCount(ship) > 0) m_RemoteHoldSeen = true;
                     else if (m_RemoteHoldSeen) m_RemoteReleaseSeen = true;
                     var bank = (PowerBank)typeof(Ship).GetField("m_Power", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ship);
@@ -164,6 +174,9 @@ namespace PewPewPew.Networking
                 if (ship == null || ship.SubSystems.Count != 5 || MatchManager.Instance.State != MatchState.Running) return;
                 ShipInput input = ship.GetComponent<ShipInput>();
                 if (input != null) input.enabled = false;
+                m_DisabledThrusterMount = FindThrusterMount(m_Fitted);
+                if (m_DisabledThrusterMount < 0) { Fail("Fitted loadout has no thruster."); return; }
+                ship.CmdToggleComponent(m_DisabledThrusterMount);
                 ship.CmdToggleShield(0);
                 ship.CmdSetControls(new ShipControls
                 {
@@ -189,6 +202,8 @@ namespace PewPewPew.Networking
                 if (Time.realtimeSinceStartup < m_ReadyAt || other == null || HeldShieldCount(other) == 0 ||
                     HeldShieldCount(ship) != 2 ||
                     vitals.ShieldStates == null || vitals.ShieldStates.Length != 2 || vitals.ShieldStates[0] != 2 ||
+                    vitals.ComponentStates == null || vitals.ComponentStates.Length <= m_DisabledThrusterMount ||
+                    (vitals.ComponentStates[m_DisabledThrusterMount] & 1) != 0 ||
                     vitals.SubSystemLevels == null || vitals.SubSystemLevels.Length != 5 ||
                     vitals.HullPower != 255 || hullPower < 0.99f ||
                     stores[0].HudLevel < 0.48f || stores[0].HudLevel > 0.52f || stores[1].HudLevel < 0.99f ||
@@ -215,6 +230,13 @@ namespace PewPewPew.Networking
                 m_Manager.StopClient();
                 Application.Quit(0);
             }
+        }
+
+        private static int FindThrusterMount(ShipLoadout loadout)
+        {
+            ShipComponentDef[] components = ShipCatalog.Instance.Components;
+            return Array.FindIndex(loadout.MountComponents,
+                index => index >= 0 && components[index] is ThrusterDef);
         }
 
         private static int HeldShieldCount(Ship ship) => ShieldVisuals(ship).Count(visual =>
