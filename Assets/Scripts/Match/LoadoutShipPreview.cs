@@ -14,6 +14,11 @@ namespace PewPewPew.Match
         [SerializeField] private CanvasGroup m_Description;
         [SerializeField] private LoadoutPreviewMarker[] m_Markers;
         [SerializeField] private Vector3 m_MarkerSizes = new Vector3(30, 42, 56);
+        [SerializeField, Tooltip("Pixels between a slot's edge and its icons, and between quadrant icons.")]
+        private float m_SlotIconPadding = 3;
+
+        /// Small, medium and large slot sizes; the catalog scales its icons by the same ratios.
+        public Vector3 MarkerSizes => m_MarkerSizes;
 
         private readonly List<LoadoutPreviewMarker> m_RuntimeMarkers = new List<LoadoutPreviewMarker>();
         private RenderTexture m_Texture;
@@ -63,10 +68,13 @@ namespace PewPewPew.Match
                 HullPoint point = points[i];
                 Vector3 local = hull.transform.InverseTransformPoint(point.transform.position);
                 Vector2 position = Rect.PointToNormalized(m_Frame, local);
+                // The preview camera looks along hull-local Z, so the point's local XY up is its on-screen up.
+                Vector2 up = hull.transform.InverseTransformDirection(point.transform.up);
+                float angle = up == Vector2.zero ? 0 : Vector2.SignedAngle(Vector2.up, up);
                 int captured = i;
                 int component = loadout.MountComponents[captured];
-                m_RuntimeMarkers[i].Bind(point, component < 0 ? null : components[component], position, m_MarkerSizes,
-                    captured == selected, selectedComponent != null && !selectedComponent.IsLocked &&
+                m_RuntimeMarkers[i].Bind(point, component < 0 ? null : components[component], position, angle, m_MarkerSizes,
+                    m_SlotIconPadding, captured == selected, selectedComponent != null && !selectedComponent.IsLocked &&
                     point.AcceptsComponent(selectedComponent), () => select?.Invoke(captured),
                     inside => hover?.Invoke(captured, inside));
             }

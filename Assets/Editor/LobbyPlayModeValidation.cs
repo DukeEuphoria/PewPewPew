@@ -146,6 +146,11 @@ namespace PewPewPew.Editor
                         Mathf.Approximately(left.rect.height, right.rect.height), "Loadout panels have equal dimensions");
                     Check(left.TransformPoint(left.rect.xMax, 0, 0).x < right.TransformPoint(right.rect.xMin, 0, 0).x,
                         "A gap separates the loadout panels");
+                    var shipImage = Get<RawImage>(preview, "m_Image").rectTransform;
+                    float imageCentre = shipImage.TransformPoint(shipImage.rect.center).x;
+                    float paneCentre = right.TransformPoint(right.rect.center).x;
+                    Check(Mathf.Abs(imageCentre - paneCentre) < 0.5f,
+                        $"Ship render is horizontally centred in its panel ({imageCentre} vs {paneCentre})");
                     s_ColourStore.Load(out Color32 primary, out Color32 secondary);
                     Check(s_ColourStore.SaveCount > 0 && primary.Equals(PlayerPalette.DefaultPrimary) &&
                         secondary.Equals(PlayerPalette.DefaultSecondary), "Locked and invalid saved colours migrate to free defaults");

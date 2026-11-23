@@ -24,7 +24,7 @@ namespace PewPewPew.Ships
         [Header("Loadout menu")]
         [SerializeField] private string m_DisplayName;
         [SerializeField, TextArea(3, 8)] private string m_Description;
-        [SerializeField, Tooltip("Square PNG texture imported as a Sprite; drawn at the component's own size.")]
+        [SerializeField, Tooltip("Square PNG texture imported as a Sprite; drawn centred at the size of the component's size class.")]
         private Sprite m_ButtonArtwork;
         [SerializeField, Tooltip("Multiplied with the button artwork wherever this component is shown.")]
         private Color m_Tint = Color.white;

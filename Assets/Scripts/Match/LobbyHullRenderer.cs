@@ -53,11 +53,16 @@ namespace PewPewPew.Match
                 foreach (Renderer renderer in renderers) bounds.Encapsulate(renderer.bounds);
                 if (includePoints)
                 {
+                    float hullCentre = bounds.center.x;
                     foreach (HullPoint point in hull.HullPoints.Points)
                     {
                         Vector3 local = hull.HullPoints.transform.InverseTransformPoint(point.transform.position);
                         bounds.Encapsulate(root.transform.TransformPoint(local));
                     }
+                    // Keep the hull mesh horizontally centred even when points extend further on one side.
+                    float halfWidth = Mathf.Max(bounds.max.x - hullCentre, hullCentre - bounds.min.x);
+                    bounds.center = new Vector3(hullCentre, bounds.center.y, bounds.center.z);
+                    bounds.extents = new Vector3(halfWidth, bounds.extents.y, bounds.extents.z);
                 }
                 m_Camera.transform.position = bounds.center + Vector3.back * (bounds.extents.z + 10);
                 m_Camera.transform.rotation = Quaternion.identity;

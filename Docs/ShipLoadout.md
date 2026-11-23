@@ -10,11 +10,18 @@ The canvas owns the loadout panes at the top and the lobby strip at the bottom.
 
 - The equally sized panels show a scrollable, price-sorted component catalog
   and the ship preview. Page Up and Page Down move between categories. The
-  controller's **Component Hover Delay** sets the hover timing. Its **Catalog
+  details text follows the catalog item under the cursor (component or colour)
+  only once the cursor has rested for the controller's **Component Hover Delay**
+  (0.25s by default); resting over no item restores the usual fallback details.
+  Sweeping across icons never flashes the hull text in between. The controller's **Catalog
   layout** settings set **Component Columns** and **Colour Columns** per row; each
   icon's width is the panel width, less **Category Padding** on both sides and the
   **Icon Gap** between icons, divided by the column count. **Category Gap** and
   **Category Title Height** set the spacing between categories and their title bars.
+  Each component's icon is centred in its button and scaled by its size class,
+  using the same small:medium:large ratios as the preview's **Marker Sizes**.
+  **Icon Inset** sets the space between the button edge and a large component's
+  icon; medium and small icons scale down from that size.
 - Select a component, then click a highlighted compatible point to fit it.
   Hold Shift to retain the component selection; right-click clears it. Or select
   a point first, then choose a compatible component from the filtered catalog.
@@ -85,12 +92,32 @@ It renders again only when hull or colours change; changing components updates
 the UI markers instead of allocating more render textures.
 The texture is released when replaced or when the preview is destroyed.
 
-Every point has a clickable square marker, including empty points. Empty markers
-show accepted component types in four fixed quadrants. Fitted markers use the
-definition's tinted **Button Artwork**, or the matching component-type symbol.
+The image is centred horizontally in the ship panel, and the render frame is
+centred horizontally on the hull mesh even when points extend further to one side.
+
+Every point has a clickable square marker, including empty points. An empty
+marker that accepts one component type shows that type's symbol centred and
+sized to the slot. One that accepts several types divides into four fixed
+quadrants: shield top-left, gun top-right, thruster bottom-left and subsystem
+bottom-right. Fitted markers show the definition's tinted **Button Artwork**, or
+the matching component-type symbol, centred at its own size class: a large
+component fills a large slot, while a medium or small component is drawn
+smaller inside it. Large and medium slots faintly outline the smaller slot
+sizes inside them using the replaceable `SlotGuide` texture (9-sliced, so the
+line stays thin).
+
+Each marker is an instance of `Assets/Prefabs/HUD/LoadoutSlotMarker.prefab`.
+Edit that prefab to change the slot background, outline width and idle,
+selected and compatible outline colours, the size-guide colour, and the type
+symbols. At runtime the marker only positions, sizes, shows and tints these
+authored parts; it creates nothing. The **PewPewPew > Loadout > Use slot marker
+prefab** menu replaces any older non-prefab markers in GameScene.
 The preview's **Marker Sizes** sets the small, medium and large square sizes;
-the fitted icon uses its component's size rather than the point's size.
-Markers are projected directly from the authored hull points. They can overlap,
+**Slot Icon Padding** sets the pixels between the slot edge and its icons, and
+between quadrant icons.
+Markers are projected directly from the authored hull points and rotated so each
+box's up matches its hull point's up vector as drawn in the render; the icons
+and size outlines inside rotate with it. They can overlap,
 and all points are shown regardless of the number of saved marker templates.
 
 The hull, marker and catalog hover targets temporarily override the selected
@@ -106,8 +133,9 @@ assets, not on the visual prefabs:
 - **Display Name**: optional; an empty value uses the asset's name.
 - **Description**: text for the hull or component description window.
 - **Button Artwork**: square PNG texture from `Assets/Art/Loadout Icons/Components`,
-  imported as a single Sprite. It is drawn at the component's own size, never
-  stretched to the slot. An unset value falls back to the type symbol.
+  imported as a single Sprite. Its aspect is preserved and it is drawn centred at
+  its size class, in both the catalog and on fitted slots. An unset value falls
+  back to the type symbol.
 - **Tint**: multiplied with the artwork in the catalog and on fitted slots. Guns
   use red, shields purple, armour grey and energy components (thrusters, power,
   storage, radar and energy boosters) cyan. Locked catalog icons are greyed.

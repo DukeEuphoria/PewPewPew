@@ -4,7 +4,7 @@ using PewPewPew.Ships;
 
 namespace PewPewPew.Match
 {
-    public enum LobbySymbolKind { Play, Stop, Skull, Crosshair, Gun, Shield, Thruster, SubSystem, Lock, Delete }
+    public enum LobbySymbolKind { Play, Stop, Skull, Crosshair, Gun, Shield, Thruster, SubSystem, Lock, Delete, SlotGuide }
 
     /// Lobby and loadout pictograms drawn from replaceable textures in LobbySymbolLibrary.
     [RequireComponent(typeof(CanvasRenderer))]

@@ -6,57 +6,40 @@ using PewPewPew.Ships;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace PewPewPew.Match
 {
+    /// Reports pointer enter/exit immediately; LoadoutCatalogPanel decides when the details text follows.
     public class LoadoutCatalogItem : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         private Action m_Click;
         private Action<bool> m_Hover;
-        private float m_Delay;
-        private float m_EnteredAt;
         private bool m_Inside;
-        private bool m_Shown;
 
-        public void Initialize(Action click, Action<bool> hover, float delay)
+        public void Initialize(Action click, Action<bool> hover)
         {
             m_Click = click;
             m_Hover = hover;
-            m_Delay = delay;
             GetComponent<Button>().onClick.AddListener(() => m_Click?.Invoke());
         }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
             m_Inside = true;
-            m_Shown = false;
-            m_EnteredAt = Time.unscaledTime;
-            if (m_Delay <= 0f) ShowHover();
+            m_Hover?.Invoke(true);
         }
 
         public void OnPointerExit(PointerEventData eventData) => ClearHover();
         private void OnDisable() => ClearHover();
 
-        private void Update()
-        {
-            if (m_Inside && !m_Shown && Time.unscaledTime - m_EnteredAt >= m_Delay) ShowHover();
-        }
-
-        private void ShowHover()
-        {
-            m_Shown = true;
-            m_Hover?.Invoke(true);
-        }
-
         private void ClearHover()
         {
-            if (m_Shown) m_Hover?.Invoke(false);
+            if (m_Inside) m_Hover?.Invoke(false);
             m_Inside = false;
-            m_Shown = false;
         }
     }
-
     /// Catalog grid settings, authored on LoadoutMenuController. Icon width is derived from the panel width.
     [Serializable]
     public struct LoadoutCatalogLayout
@@ -64,9 +47,13 @@ namespace PewPewPew.Match
         public int ComponentColumns;
         public int ColourColumns;
         public float IconGap;
+        [Tooltip("Space between a catalog cell's edge and a large component's icon.")]
+        public float IconInset;
         public float CategoryPadding;
         public float CategoryGap;
         public float TitleHeight;
+        /// Component icon scale for small, medium and large components, relative to a large component's icon.
+        public Vector3 SizeScales;
     }
 
     public class LoadoutCatalogPanel : MonoBehaviour
@@ -74,6 +61,7 @@ namespace PewPewPew.Match
         private sealed class Entry
         {
             public RectTransform Rect;
+            public RectTransform Icon;
             public Outline Outline;
             public ShipComponentDef Component;
             public int Colour = -1;
@@ -100,6 +88,12 @@ namespace PewPewPew.Match
         private LoadoutCatalogLayout m_Layout;
         private float m_Width;
         private float m_Height;
+        private Action<string> m_Hover;
+        private float m_HoverDelay;
+        private string m_HoverTarget;
+        private string m_HoverShown;
+        private float m_HoverChangedAt;
+        private Vector2 m_PointerPosition;
 
         public void Initialize(ShipCatalog catalog, TMP_FontAsset font, LoadoutCatalogLayout layout, float hoverDelay,
             Action<ShipComponentDef> selectComponent, Action<int, bool> selectColour, Action<string> hover)
@@ -107,6 +101,8 @@ namespace PewPewPew.Match
             layout.ComponentColumns = Mathf.Max(1, layout.ComponentColumns);
             layout.ColourColumns = Mathf.Max(1, layout.ColourColumns);
             m_Layout = layout;
+            m_Hover = hover;
+            m_HoverDelay = hoverDelay;
             RectTransform root = (RectTransform)transform;
             m_Viewport = Rect("Viewport", root);
             Stretch(m_Viewport, new Vector2(8, 8), new Vector2(-30, -8));
@@ -156,7 +152,7 @@ namespace PewPewPew.Match
                     entry.Component = definition;
                     entry.Rect.gameObject.GetComponent<LoadoutCatalogItem>().Initialize(
                         () => selectComponent(captured),
-                        inside => hover(inside ? LoadoutDetails.Component(captured) : null), hoverDelay);
+                        inside => SetHover(LoadoutDetails.Component(captured), inside));
                 }
             }
             foreach (bool secondary in new[] { false, true })
@@ -172,7 +168,7 @@ namespace PewPewPew.Match
                     entry.Secondary = secondary;
                     entry.Rect.gameObject.GetComponent<LoadoutCatalogItem>().Initialize(
                         () => selectColour(index, capturedChannel),
-                        inside => hover(inside ? $"{PlayerPalette.Description(index)}\nPrice: {PlayerPalette.Price(index)}" : null), 0);
+                        inside => SetHover($"{PlayerPalette.Description(index)}\nPrice: {PlayerPalette.Price(index)}", inside));
                 }
             }
         }
@@ -202,6 +198,36 @@ namespace PewPewPew.Match
         {
             if (Mathf.Abs(m_Width - m_Viewport.rect.width) > 0.5f || Mathf.Abs(m_Height - m_Viewport.rect.height) > 0.5f)
                 Layout();
+            Pointer pointer = Pointer.current;
+            if (pointer != null)
+            {
+                Vector2 position = pointer.position.ReadValue();
+                if (position != m_PointerPosition) m_HoverChangedAt = Time.unscaledTime;
+                m_PointerPosition = position;
+            }
+            if (m_HoverTarget != m_HoverShown && Time.unscaledTime - m_HoverChangedAt >= m_HoverDelay) ShowHover();
+        }
+
+        private void OnDisable()
+        {
+            m_HoverTarget = null;
+            if (m_HoverShown != null) ShowHover();
+        }
+
+        /// The details text follows catalog hover only once the pointer has rested for the hover delay,
+        /// so sweeping across icons or gaps never flashes the fallback text in between.
+        private void SetHover(string details, bool inside)
+        {
+            if (inside) m_HoverTarget = details;
+            else if (m_HoverTarget == details) m_HoverTarget = null;
+            m_HoverChangedAt = Time.unscaledTime;
+            if (m_HoverDelay <= 0) ShowHover();
+        }
+
+        private void ShowHover()
+        {
+            m_HoverShown = m_HoverTarget;
+            m_Hover?.Invoke(m_HoverShown);
         }
 
         private void Layout()
@@ -236,8 +262,13 @@ namespace PewPewPew.Match
                 section.Top = top;
                 Place(section.Rect, 0, top, width, height);
                 for (int i = 0; i < shown.Count; i++)
+                {
                     Place(shown[i].Rect, padding + (i % columns) * (cell + gap),
                         title + padding + (i / columns) * (cell + gap), cell, cell);
+                    if (shown[i].Icon != null && shown[i].Component != null)
+                        shown[i].Icon.sizeDelta = Vector2.one * Mathf.Max(0, cell - 2 * m_Layout.IconInset) *
+                            SizeScale(shown[i].Component.Size);
+                }
                 top += height + m_Layout.CategoryGap;
             }
             m_Content.sizeDelta = new Vector2(0, top);
@@ -285,12 +316,15 @@ namespace PewPewPew.Match
             Outline outline = rect.gameObject.AddComponent<Outline>();
             outline.effectDistance = Vector2.one;
             rect.gameObject.AddComponent<LoadoutCatalogItem>();
+            RectTransform icon = null;
             if (!swatch.HasValue)
             {
                 Color iconColour = locked ? Color.white * (0.35f + tint.grayscale * 0.25f) : tint;
                 iconColour.a = 1;
-                RectTransform icon = Rect("Icon", rect);
-                Stretch(icon, new Vector2(5, 5), new Vector2(-5, -5));
+                icon = Rect("Icon", rect);
+                // Centred; Layout() sizes it from the cell and the component's size class.
+                icon.anchorMin = icon.anchorMax = icon.pivot = new Vector2(0.5f, 0.5f);
+                icon.anchoredPosition = Vector2.zero;
                 if (artwork != null)
                 {
                     Image image = icon.gameObject.AddComponent<Image>();
@@ -323,7 +357,7 @@ namespace PewPewPew.Match
                 symbol.color = Color.white;
                 symbol.raycastTarget = false;
             }
-            var entry = new Entry { Rect = rect, Outline = outline };
+            var entry = new Entry { Rect = rect, Icon = icon, Outline = outline };
             section.Entries.Add(entry);
             return entry;
         }
@@ -349,6 +383,17 @@ namespace PewPewPew.Match
             rect.pivot = new Vector2(0, 1);
             rect.anchoredPosition = new Vector2(x, -y);
             rect.sizeDelta = new Vector2(width, height);
+        }
+
+        private float SizeScale(ComponentSize size)
+        {
+            switch (size)
+            {
+                case ComponentSize.Small: return m_Layout.SizeScales.x;
+                case ComponentSize.Medium: return m_Layout.SizeScales.y;
+                case ComponentSize.Large: return m_Layout.SizeScales.z;
+                default: throw new ArgumentOutOfRangeException(nameof(size));
+            }
         }
     }
 }

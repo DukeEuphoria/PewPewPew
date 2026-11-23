@@ -18,6 +18,7 @@ namespace PewPewPew.Editor
     public static class LoadoutSceneBuilder
     {
         private const string ScenePath = "Assets/Scenes/GameScene.unity";
+        private const string SlotMarkerPrefabPath = "Assets/Prefabs/HUD/LoadoutSlotMarker.prefab";
         private static readonly Color PanelColour = new Color(0.035f, 0.065f, 0.10f, 0.97f);
         private static readonly Color ButtonColour = new Color(0.10f, 0.18f, 0.25f, 1f);
         private static readonly Color Accent = new Color(0.25f, 0.85f, 0.95f, 1f);
@@ -54,6 +55,113 @@ namespace PewPewPew.Editor
             preview.transform.Find("NextHull").SetAsLastSibling();
         }
 
+        [MenuItem("PewPewPew/Loadout/Use slot marker prefab")]
+        public static void UseSlotMarkerPrefab()
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            LoadoutShipPreview preview = All(scene).Select(go => go.GetComponent<LoadoutShipPreview>()).Single(item => item != null);
+            LoadoutPreviewMarker prefab = SlotMarkerPrefab();
+            var fields = new SerializedObject(preview);
+            SerializedProperty property = fields.FindProperty("m_Markers");
+            var markers = new LoadoutPreviewMarker[property.arraySize];
+            for (int i = 0; i < markers.Length; i++)
+            {
+                var old = (LoadoutPreviewMarker)property.GetArrayElementAtIndex(i).objectReferenceValue;
+                if (PrefabUtility.GetCorrespondingObjectFromSource(old) == prefab)
+                {
+                    markers[i] = old;
+                    continue;
+                }
+                markers[i] = InstantiateMarker(prefab, old.transform.parent, old.name);
+                markers[i].transform.SetSiblingIndex(old.transform.GetSiblingIndex());
+                markers[i].gameObject.SetActive(old.gameObject.activeSelf);
+                Object.DestroyImmediate(old.gameObject);
+            }
+            SetArray(property, markers);
+            fields.ApplyModifiedPropertiesWithoutUndo();
+            if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Unable to save slot marker prefab instances.");
+            Debug.Log($"Replaced {markers.Length} loadout slot markers with {SlotMarkerPrefabPath} instances.");
+        }
+
+        private static LoadoutPreviewMarker InstantiateMarker(LoadoutPreviewMarker prefab, Transform parent, string name)
+        {
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab.gameObject, parent);
+            instance.name = name;
+            return instance.GetComponent<LoadoutPreviewMarker>();
+        }
+
+        /// Loads the hand-editable slot marker prefab, creating it with default visuals only if it is missing.
+        private static LoadoutPreviewMarker SlotMarkerPrefab()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<LoadoutPreviewMarker>(SlotMarkerPrefabPath);
+            if (existing != null) return existing;
+            var root = new GameObject("LoadoutSlotMarker", typeof(RectTransform));
+            try
+            {
+                root.layer = LayerMask.NameToLayer("UI");
+                CentreRect((RectTransform)root.transform, 42);
+                var background = root.AddComponent<Image>();
+                background.color = new Color(0.025f, 0.07f, 0.1f, 0.85f);
+                var outline = root.AddComponent<Outline>();
+                outline.effectDistance = Vector2.one * 2;
+                var button = root.AddComponent<Button>();
+                button.targetGraphic = background;
+
+                var guides = new Image[2];
+                foreach (ComponentSize size in new[] { ComponentSize.Small, ComponentSize.Medium })
+                {
+                    Image guide = Rect(size + " Size Guide", root.transform, 0, 0, 0, 0).gameObject.AddComponent<Image>();
+                    CentreRect(guide.rectTransform, size == ComponentSize.Small ? 30 : 42);
+                    guide.sprite = LobbySymbolLibrary.Get(LobbySymbolKind.SlotGuide);
+                    guide.type = Image.Type.Sliced;
+                    guide.fillCenter = false;
+                    guide.color = new Color(1, 1, 1, 0.2f);
+                    guide.raycastTarget = false;
+                    guides[(int)size] = guide;
+                }
+
+                Image artwork = Rect("Artwork", root.transform, 0, 0, 0, 0).gameObject.AddComponent<Image>();
+                CentreRect(artwork.rectTransform, 36);
+                artwork.preserveAspect = true;
+                artwork.raycastTarget = false;
+
+                var icons = new LobbySymbol[LoadoutPreviewMarker.SlotTypes.Length];
+                for (int i = 0; i < icons.Length; i++)
+                {
+                    ComponentType type = LoadoutPreviewMarker.SlotTypes[i];
+                    icons[i] = Rect(type + " Icon", root.transform, 0, 0, 0, 0).gameObject.AddComponent<LobbySymbol>();
+                    CentreRect(icons[i].rectTransform, 18);
+                    icons[i].Kind = LobbySymbol.ForComponent(type);
+                    icons[i].color = Color.white;
+                    icons[i].raycastTarget = false;
+                }
+
+                var marker = root.AddComponent<LoadoutPreviewMarker>();
+                var fields = new SerializedObject(marker);
+                Set(fields, "m_Outline", outline);
+                Set(fields, "m_Button", button);
+                Set(fields, "m_Artwork", artwork);
+                SetArray(fields.FindProperty("m_TypeIcons"), icons);
+                SetArray(fields.FindProperty("m_SizeGuides"), guides);
+                fields.ApplyModifiedPropertiesWithoutUndo();
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, SlotMarkerPrefabPath, out bool success);
+                if (!success) throw new IOException("Unable to save " + SlotMarkerPrefabPath);
+                return saved.GetComponent<LoadoutPreviewMarker>();
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void CentreRect(RectTransform rect, float size)
+        {
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = Vector2.one * size;
+        }
+
         [MenuItem("PewPewPew/Loadout/Upgrade rendered ship pane")]
         public static void UpgradeShipPane()
         {
@@ -74,27 +182,11 @@ namespace PewPewPew.Editor
             Stretch(markersRoot, Vector2.zero, Vector2.one);
             markersRoot.gameObject.AddComponent<RectMask2D>();
             var markers = new LoadoutPreviewMarker[17];
+            LoadoutPreviewMarker markerPrefab = SlotMarkerPrefab();
             for (int i = 0; i < markers.Length; i++)
             {
-                RectTransform marker = Surface("ComponentMarker" + i.ToString("00"), markersRoot, 0, 0, 68, 34);
-                marker.pivot = new Vector2(0.5f, 0.5f);
-                marker.GetComponent<Image>().raycastTarget = false;
-                marker.GetComponent<Image>().color = new Color(0.025f, 0.07f, 0.1f, 0.78f);
-                var art = Rect("Artwork", marker, 0, 0, 68, 34).gameObject.AddComponent<Image>();
-                Stretch(art.rectTransform, Vector2.zero, Vector2.one);
-                art.preserveAspect = true;
-                art.raycastTarget = false;
-                TMP_Text label = Label("NameFallback", marker, "", 3, 2, 62, 30, 11, Accent);
-                label.alignment = TextAlignmentOptions.Center;
-                label.enableAutoSizing = true;
-                label.fontSizeMin = 8;
-                label.fontSizeMax = 11;
-                markers[i] = marker.gameObject.AddComponent<LoadoutPreviewMarker>();
-                var markerFields = new SerializedObject(markers[i]);
-                Set(markerFields, "m_Artwork", art);
-                Set(markerFields, "m_Label", label);
-                markerFields.ApplyModifiedPropertiesWithoutUndo();
-                marker.gameObject.SetActive(false);
+                markers[i] = InstantiateMarker(markerPrefab, markersRoot, "ComponentMarker" + i.ToString("00"));
+                markers[i].gameObject.SetActive(false);
             }
             TMP_Text hullName = right.Find("HullName").GetComponent<TMP_Text>();
             Place(hullName.rectTransform, image, 12, 8, 210, 48);

@@ -29,6 +29,8 @@ namespace PewPewPew.Match
         private int m_ColourColumns = 16;
         [SerializeField, Min(0), Tooltip("Gap between neighbouring icons and between icon rows.")]
         private float m_IconGap = 4;
+        [SerializeField, Min(0), Tooltip("Space between an icon cell's edge and a large component's icon; smaller components scale down within it.")]
+        private float m_IconInset = 5;
         [SerializeField, Min(0), Tooltip("Space between a category's border and its icons.")]
         private float m_CategoryPadding = 8;
         [SerializeField, Min(0), Tooltip("Vertical space between categories.")]
@@ -36,7 +38,8 @@ namespace PewPewPew.Match
         [SerializeField, Min(0), Tooltip("Height of each category's title bar.")]
         private float m_CategoryTitleHeight = 30;
         [Space]
-        [SerializeField, Min(0)] private float m_ComponentHoverDelay = 0.4f;
+        [SerializeField, Min(0), Tooltip("Seconds the cursor must rest before the details text follows the catalog item under it, or falls back when over none.")]
+        private float m_ComponentHoverDelay = 0.25f;
         [SerializeField] private GameObject m_Panel;
         [SerializeField] private CanvasGroup m_EditingGroup;
         [SerializeField] private LoadoutCategoryView[] m_Categories;
@@ -305,14 +308,18 @@ namespace PewPewPew.Match
             catalogRect.offsetMax = new Vector2(-8, -8);
             catalogRoot.GetComponent<Image>().color = new Color(0.035f, 0.065f, 0.1f, 1);
             m_CatalogPanel = catalogRoot.AddComponent<LoadoutCatalogPanel>();
+            Vector3 markerSizes = m_Preview.MarkerSizes;
             var layout = new LoadoutCatalogLayout
             {
                 ComponentColumns = m_ComponentColumns,
                 ColourColumns = m_ColourColumns,
                 IconGap = m_IconGap,
+                IconInset = m_IconInset,
                 CategoryPadding = m_CategoryPadding,
                 CategoryGap = m_CategoryGap,
-                TitleHeight = m_CategoryTitleHeight
+                TitleHeight = m_CategoryTitleHeight,
+                // Catalog icons shrink by the same ratios as the slot boxes on the ship preview.
+                SizeScales = markerSizes / Mathf.Max(markerSizes.z, 0.0001f)
             };
             m_CatalogPanel.Initialize(m_Catalog, m_HullName.font, layout, m_ComponentHoverDelay,
                 SelectComponent, SelectColour, details => { m_HoverDetails = details; ShowDetails(); });
@@ -354,6 +361,7 @@ namespace PewPewPew.Match
             Anchor((RectTransform)area.transform, new Vector2(0.025f, 0.34f), new Vector2(0.975f, 0.9f));
             RectTransform image = (RectTransform)m_Preview.transform;
             image.SetParent(area.transform, false);
+            image.pivot = new Vector2(0.5f, 0.5f);
             Anchor(image, Vector2.zero, Vector2.one);
             var aspect = image.gameObject.GetComponent<AspectRatioFitter>() ?? image.gameObject.AddComponent<AspectRatioFitter>();
             aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;

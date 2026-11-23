@@ -183,6 +183,8 @@ namespace PewPewPew.Editor
             Vector3 sizes = (Vector3)typeof(LoadoutShipPreview)
                 .GetField("m_MarkerSizes", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(preview);
             Check(sizes.x > 0 && sizes.y > sizes.x && sizes.z > sizes.y, "Marker sizes are positive and ordered");
+            Func<ComponentSize, float> componentSize = size =>
+                size == ComponentSize.Small ? sizes.x : size == ComponentSize.Medium ? sizes.y : sizes.z;
             Color32[] pixels = (Color32[])typeof(LoadoutShipPreview)
                 .GetField("m_HullPixels", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(preview);
             int solid = Array.FindIndex(pixels, pixel => pixel.a > 0);
@@ -205,29 +207,90 @@ namespace PewPewPew.Editor
                     points[i].Size == ComponentSize.Medium ? sizes.y : sizes.z;
                 var rect = (RectTransform)markers[i].transform;
                 Check(rect.sizeDelta == Vector2.one * pointSize, "Point marker is a size-specific square");
-                if (loadout.MountComponents[i] < 0)
+                Check(rect.childCount == 2 + 1 + LoadoutPreviewMarker.SlotTypes.Length,
+                    "Point marker uses only its authored prefab children");
+                foreach (ComponentSize guideSize in new[] { ComponentSize.Small, ComponentSize.Medium })
                 {
-                    ComponentType[] types = { ComponentType.Shield, ComponentType.Gun, ComponentType.Thruster, ComponentType.SubSystem };
-                    for (int quadrant = 0; quadrant < types.Length; quadrant++)
-                    {
-                        bool accepts = (points[i].Accepts & (AcceptedComponents)(1 << (int)types[quadrant])) != 0;
-                        Check(rect.Find("TypeIcon" + quadrant).gameObject.activeSelf == accepts,
-                            "Empty point displays exactly its accepted type icons");
-                    }
-                }
-                else
-                {
-                    ShipComponentDef fitted = catalog.Components[loadout.MountComponents[i]];
-                    float componentSize = fitted.Size == ComponentSize.Small ? sizes.x :
-                        fitted.Size == ComponentSize.Medium ? sizes.y : sizes.z;
-                    RectTransform icon = fitted.ButtonArtwork != null
-                        ? (RectTransform)rect.Find("Artwork")
-                        : (RectTransform)rect.Find("TypeIcon" + ((int)fitted.Type - 1));
-                    Check(icon.sizeDelta == Vector2.one * componentSize * 0.8f,
-                        "Fitted icon uses component size rather than slot size");
-                    Check(icon.GetComponent<Graphic>().color == fitted.Tint, "Fitted icon uses the component tint");
+                    Image guide = markers[i].SizeGuide(guideSize);
+                    bool expected = guideSize < points[i].Size;
+                    Check(guide.gameObject.activeSelf == expected, "Only smaller slot sizes are outlined inside a slot");
+                    if (!expected) continue;
+                    Check(guide.rectTransform.anchoredPosition == Vector2.zero &&
+                        guide.rectTransform.sizeDelta == Vector2.one * componentSize(guideSize) &&
+                        guide.sprite == LobbySymbolLibrary.Get(LobbySymbolKind.SlotGuide) && guide.type == Image.Type.Sliced &&
+                        !guide.raycastTarget && guide.transform.GetSiblingIndex() < markers[i].Artwork.transform.GetSiblingIndex() &&
+                        guide.color.a < 0.5f, "Size guide is a faint centred outline behind the icons");
                 }
             }
+            float padding = (float)typeof(LoadoutShipPreview)
+                .GetField("m_SlotIconPadding", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(preview);
+            Check(padding >= 0, "Slot icon padding is not negative");
+            ShipLoadout empty = loadout;
+            for (int i = 0; i < points.Length; i++) empty.SetMountComponent(i, -1);
+            preview.Show(empty, -1, null);
+            bool sawSingle = false, sawMultiple = false;
+            for (int i = 0; i < points.Length; i++)
+            {
+                var rect = (RectTransform)markers[i].transform;
+                float slot = rect.sizeDelta.x;
+                ComponentType[] types = LoadoutPreviewMarker.SlotTypes;
+                int accepted = types.Count(type => (points[i].Accepts & (AcceptedComponents)(1 << (int)type)) != 0);
+                sawSingle |= accepted == 1;
+                sawMultiple |= accepted > 1;
+                Check(!markers[i].Artwork.enabled, "Empty point shows no component artwork");
+                for (int quadrant = 0; quadrant < types.Length; quadrant++)
+                {
+                    bool accepts = (points[i].Accepts & (AcceptedComponents)(1 << (int)types[quadrant])) != 0;
+                    RectTransform icon = markers[i].TypeIcon(types[quadrant]).rectTransform;
+                    Check(icon.gameObject.activeSelf == accepts, "Empty point displays exactly its accepted type icons");
+                    if (!accepts) continue;
+                    if (accepted == 1)
+                        Check(icon.anchoredPosition == Vector2.zero && Mathf.Approximately(icon.sizeDelta.x, slot - 2 * padding),
+                            "A single accepted type is centred and sized to the slot");
+                    else
+                    {
+                        float size = (slot - 3 * padding) / 2;
+                        Vector2 expected = new Vector2(quadrant % 2 == 0 ? -1 : 1, quadrant < 2 ? 1 : -1) * (size + padding) / 2;
+                        Check(Vector2.Distance(icon.anchoredPosition, expected) < 0.001f &&
+                            Mathf.Approximately(icon.sizeDelta.x, size) &&
+                            Mathf.Abs(Mathf.Abs(icon.anchoredPosition.x) + size / 2 + padding - slot / 2) < 0.001f,
+                            "Multiple accepted types fill their own quadrant");
+                    }
+                }
+            }
+            Check(sawSingle && sawMultiple, "Validation covers single- and multi-type points");
+            preview.Show(loadout, 0, null);
+            for (int i = 0; i < points.Length; i++)
+            {
+                if (loadout.MountComponents[i] < 0) continue;
+                var rect = (RectTransform)markers[i].transform;
+                ShipComponentDef fitted = catalog.Components[loadout.MountComponents[i]];
+                RectTransform icon = fitted.ButtonArtwork != null
+                    ? markers[i].Artwork.rectTransform
+                    : markers[i].TypeIcon(fitted.Type).rectTransform;
+                Check(icon.anchoredPosition == Vector2.zero && icon.sizeDelta == Vector2.one * (componentSize(fitted.Size) - 2 * padding),
+                    "Fitted icon is centred and sized for its component's size class");
+                Check(icon.GetComponent<Graphic>().color == fitted.Tint, "Fitted icon uses the component tint");
+                Check(LoadoutPreviewMarker.SlotTypes.Select(type => markers[i].TypeIcon(type))
+                    .Count(child => child.gameObject.activeSelf) == (fitted.ButtonArtwork != null ? 0 : 1),
+                    "Fitted point hides empty-slot type icons");
+            }
+            for (int hull = 0; hull < catalog.Hulls.Length; hull++)
+            {
+                preview.Show(catalog.DefaultLoadout(hull), -1, null);
+                Color32[] hullPixels = (Color32[])typeof(LoadoutShipPreview)
+                    .GetField("m_HullPixels", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(preview);
+                int width = raw.texture.width, minX = width, maxX = -1;
+                for (int p = 0; p < hullPixels.Length; p++)
+                {
+                    if (hullPixels[p].a == 0) continue;
+                    minX = Mathf.Min(minX, p % width);
+                    maxX = Mathf.Max(maxX, p % width);
+                }
+                Check(maxX >= 0 && Mathf.Abs((minX + maxX + 1) / 2f - width / 2f) <= 2,
+                    $"{catalog.Hulls[hull].name} render is horizontally centred ({minX}..{maxX} of {width})");
+            }
+            preview.Show(loadout, 0, null);
             ShipComponentDef chosen = catalog.Components.First(item => !item.IsLocked);
             preview.Show(loadout, -1, chosen, null, null);
             for (int i = 0; i < points.Length; i++)
@@ -263,7 +326,8 @@ namespace PewPewPew.Editor
                 var title = (TMPro.TMP_Text)controllerFields.FindProperty("m_HullName").objectReferenceValue;
                 var layout = new LoadoutCatalogLayout
                 {
-                    ComponentColumns = 3, ColourColumns = 16, IconGap = 4, CategoryPadding = 8, CategoryGap = 12, TitleHeight = 30
+                    ComponentColumns = 3, ColourColumns = 16, IconGap = 4, IconInset = 6, CategoryPadding = 8, CategoryGap = 12, TitleHeight = 30,
+                    SizeScales = new Vector3(0.5f, 0.75f, 1f)
                 };
                 panel.Initialize(copy, title.font, layout, 0, item => selected = item,
                     (colour, secondary) => { selectedColour = colour; selectedSecondary = secondary; }, text => hover = text);
@@ -295,6 +359,14 @@ namespace PewPewPew.Editor
                             Image icon = rect.Find("Icon").GetComponent<Image>();
                             Check(icon != null && icon.sprite == definition.ButtonArtwork && icon.color == definition.Tint,
                                 "Catalog icon shows the component texture and tint");
+                            float scale = definition.Size == ComponentSize.Small ? layout.SizeScales.x :
+                                definition.Size == ComponentSize.Medium ? layout.SizeScales.y : layout.SizeScales.z;
+                            float expectedIcon = (rect.sizeDelta.x - 2 * layout.IconInset) * scale;
+                            Check(icon.rectTransform.anchoredPosition == Vector2.zero &&
+                                icon.rectTransform.anchorMin == Vector2.one * 0.5f &&
+                                Mathf.Abs(icon.rectTransform.sizeDelta.x - expectedIcon) < 0.01f &&
+                                Mathf.Approximately(icon.rectTransform.sizeDelta.x, icon.rectTransform.sizeDelta.y),
+                                $"{definition.name} catalog icon is centred and sized for a {definition.Size} component");
                         }
                         if (definition == locked)
                         {
@@ -303,17 +375,33 @@ namespace PewPewPew.Editor
                             Check(selected == locked, "Locked component can be selected for inspection");
                             selected = null;
                             var item = rect.GetComponent<LoadoutCatalogItem>();
-                            typeof(LoadoutCatalogItem).GetField("m_Delay", BindingFlags.Instance | BindingFlags.NonPublic)
-                                .SetValue(item, 0.4f);
+                            var hoverFlags = BindingFlags.Instance | BindingFlags.NonPublic;
+                            FieldInfo hoverDelay = typeof(LoadoutCatalogPanel).GetField("m_HoverDelay", hoverFlags);
+                            FieldInfo hoverChangedAt = typeof(LoadoutCatalogPanel).GetField("m_HoverChangedAt", hoverFlags);
+                            FieldInfo pointerPosition = typeof(LoadoutCatalogPanel).GetField("m_PointerPosition", hoverFlags);
+                            MethodInfo panelUpdate = typeof(LoadoutCatalogPanel).GetMethod("Update", hoverFlags);
+                            Action rest = () =>
+                            {
+                                if (UnityEngine.InputSystem.Pointer.current != null)
+                                    pointerPosition.SetValue(panel, UnityEngine.InputSystem.Pointer.current.position.ReadValue());
+                                hoverChangedAt.SetValue(panel, Time.unscaledTime - 1f);
+                                panelUpdate.Invoke(panel, null);
+                            };
+                            hoverDelay.SetValue(panel, 0.4f);
                             item.OnPointerEnter(null);
                             Check(hover == null && selected == null, "Hover does not immediately show or select a component");
-                            typeof(LoadoutCatalogItem).GetField("m_EnteredAt", BindingFlags.Instance | BindingFlags.NonPublic)
-                                .SetValue(item, Time.unscaledTime - 1f);
-                            typeof(LoadoutCatalogItem).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic)
-                                .Invoke(item, null);
+                            panelUpdate.Invoke(panel, null);
+                            Check(hover == null, "Hover waits for the pointer to rest");
+                            rest();
                             Check(hover != null && hover.Contains("Locked"), "Locked component hover explains its price");
                             Check(selected == null, "Delayed hover does not select a component");
+                            string shown = hover;
                             item.OnPointerExit(null);
+                            panelUpdate.Invoke(panel, null);
+                            Check(hover == shown, "Leaving a component does not immediately revert the details");
+                            rest();
+                            Check(hover == null, "Resting away from components restores the fallback details");
+                            hoverDelay.SetValue(panel, 0f);
                         }
                         var positions = entries.Cast<object>().Select(entry =>
                             (RectTransform)entry.GetType().GetField("Rect").GetValue(entry));
@@ -472,6 +560,7 @@ namespace PewPewPew.Editor
                 {
                     var point = new GameObject("Extra preview point");
                     point.transform.SetParent(points.transform, false);
+                    point.transform.localRotation = Quaternion.Euler(0, 0, i * 37);
                     point.AddComponent<HullPoint>();
                 }
                 catalog.Hulls[0] = hull;
@@ -483,6 +572,8 @@ namespace PewPewPew.Editor
                     typeof(LoadoutShipPreview).GetField("m_RuntimeMarkers", flags).GetValue(preview);
                 Rect frame = (Rect)typeof(LoadoutShipPreview).GetField("m_Frame", flags).GetValue(preview);
                 Check(markers.Count >= 45, "All 45 points have markers");
+                var renderer = (LobbyHullRenderer)typeof(LoadoutShipPreview).GetField("m_Renderer", flags).GetValue(preview);
+                var camera = (Camera)typeof(LobbyHullRenderer).GetField("m_Camera", flags).GetValue(renderer);
                 for (int i = 0; i < loadout.MountComponents.Length; i++)
                 {
                     Vector3 local = points.transform.InverseTransformPoint(points.Points[i].transform.position);
@@ -490,7 +581,18 @@ namespace PewPewPew.Editor
                     RectTransform marker = (RectTransform)markers[i].transform;
                     Check(markers[i].gameObject.activeSelf && Vector2.Distance(marker.anchorMin, expected) < 0.0001f,
                         "Marker is projected onto its authored point");
+                    Vector2 viewport = camera.WorldToViewportPoint(renderer.transform.TransformPoint(local));
+                    Check(Vector2.Distance(marker.anchorMin, viewport) < 0.001f,
+                        $"Marker {i} sits where the render camera drew its point ({marker.anchorMin} vs {viewport})");
+                    Vector3 localUp = points.transform.InverseTransformDirection(points.Points[i].transform.up);
+                    Vector2 tip = camera.WorldToViewportPoint(renderer.transform.TransformPoint(local + localUp));
+                    Vector2 drawnUp = Vector2.Scale(tip - viewport, new Vector2(camera.aspect, 1));
+                    if (drawnUp.sqrMagnitude > 0.000001f)
+                        Check(Vector2.Angle(drawnUp, marker.localRotation * Vector3.up) < 0.1f,
+                            $"Marker {i} up points along its hull point's rendered up vector");
                 }
+                Check(Mathf.Abs(Mathf.DeltaAngle(markers[44].transform.localEulerAngles.z, (44 - (45 - extraPoints)) * 37f)) < 0.01f,
+                    "A rotated hull point rotates its marker by the same angle");
                 markers[44].GetComponent<Button>().onClick.Invoke();
                 Check(clicked == 44, "Last marker selects its actual hull point");
             }
