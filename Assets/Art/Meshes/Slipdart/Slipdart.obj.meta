@@ -1,0 +1,40 @@
+fileFormatVersion: 2
+guid: 50ffe77ec27c5a7cac31a974e184ffb1
+ModelImporter:
+  serializedVersion: 24501
+  internalIDToNameTable: []
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Slipdart
+    second: {fileID: 2100000, guid: 7efc7f10142a5fad80ab9b7876631936, type: 2}
+  materials:
+    materialImportMode: 2
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 1
+    searchTexturesGlobally: 0
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleCurves: 1
+    optimizeGameObjects: 0
+    animationCompression: 1
+  meshes:
+    globalScale: 1
+    meshCompression: 0
+    addColliders: 0
+    isReadable: 0
+    importUVs: -1
+    useFileScale: 1
+    fileIdsGeneration: 2
+  tangentSpace:
+    normalSmoothingSource: 0
+    tangentImportMode: 3
+    normalImportMode: 0
+    normalCalculationMode: 4
+  importAnimation: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

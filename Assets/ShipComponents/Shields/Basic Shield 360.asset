@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b0674ad328d403241b7322bfd7f1adcd, type: 3}
-  m_Name: Basic Shield
+  m_Name: Basic Shield 360
   m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.ShieldDef
-  m_DisplayName:
+  m_DisplayName: 
   m_Description: Medium shield generator covering 180 degrees on either side of its
     mount.
   m_ButtonArtwork: {fileID: 21300000, guid: 6a19ef6b7f164bbbba317a9a0f19abff, type: 3}
@@ -30,9 +30,3 @@ MonoBehaviour:
   m_MaxSingleImpact: 50
   m_RechargeRate: 5
   m_HalfAngle: 180
-  m_MeshType: 0
-  m_GridResolution: 24
-  m_GeodesicResolution: 2
-  m_MaxAlpha: 1
-  m_EdgeAlpha: 0
-  m_FadeStartAngle: 135

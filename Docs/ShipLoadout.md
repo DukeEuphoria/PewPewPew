@@ -42,7 +42,9 @@ The canvas owns the loadout panes at the top and the lobby strip at the bottom.
   The bottom lobby cards retain their own smaller hull thumbnails.
 - Ship colours retain the two saved 64-colour palettes. The eight bright hues
   and eight greys are free; the remaining colours cost 100 and cannot be used
-  until purchasing is implemented. Primary and secondary swatches appear in
+  until purchasing is implemented. The palette contains neither exact green
+  (`#00FF00`) nor exact magenta (`#FF00FF`), which are hull shader keys.
+  Primary and secondary swatches appear in
   separate catalog sections when no point is selected; clicking a free swatch
   applies it immediately. Saved locked or invalid colours are replaced
   with the free red primary or white secondary default. The server also rejects
@@ -94,6 +96,13 @@ The texture is released when replaced or when the preview is destroyed.
 
 The image is centred horizontally in the ship panel, and the render frame is
 centred horizontally on the hull mesh even when points extend further to one side.
+Scroll over the ship image or a slot to zoom about the centre of the view; hold
+the right mouse button and drag to pan. Zooming out stops at the full-ship
+frame, including its border, and panning cannot leave that frame. Changing hulls
+restores the full view. The preview's **Max Zoom** and **Zoom Sensitivity**
+fields control magnification and wheel response. Slot boxes remain the same
+screen size while their positions follow the image. Right-clicking also clears
+the selected catalog component as usual.
 
 Every point has a clickable square marker, including empty points. An empty
 marker that accepts one component type shows that type's symbol centred and
@@ -216,16 +225,17 @@ of the hull bounds to the impact point. Only shields covering that direction
 absorb the hit, in hull-point order; uncovered damage reaches armour. Their
 flashes show the same coverage on the shield ellipse.
 
-Each shield definition selects either the original **Grid** mesh or a
+Each shield visual prefab selects either the original **Grid** mesh or a
 **Geodesic** mesh. Grid resolution is the number of latitude segments (3–64);
 longitude density scales with it. Geodesic resolution is the number of
 icosahedron subdivision steps (0–5). Full grid shields keep the prefab's sphere;
 full geodesic shields use a complete geodesic sphere.
 
 **Max Alpha** controls opacity before the edge fade, **Edge Alpha** controls
-opacity at the arc boundary, and **Fade Start Angle** is measured from the
-point's Up direction. The fade is linear, with its start strictly inside the
-half-angle and edge alpha no greater than maximum alpha. A 180-degree shield
+opacity at the arc boundary, and **Fade Start Proportion** sets the fade start
+as a fraction of the definition's half-angle, measured from the point's Up
+direction. These settings belong to the visual prefab. The fade is linear, with
+its start strictly inside the half-angle and edge alpha no greater than maximum alpha. A 180-degree shield
 uses maximum alpha uniformly around its circumference. On the ShieldVisual
 prefab, **Latitude Fade Angle** sets the latitude above and below the ship's
 equator where the shield becomes transparent (0.1–90 degrees, default 45).

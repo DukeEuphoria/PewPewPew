@@ -110,6 +110,12 @@ MonoBehaviour:
   m_FadeTime: 1
   m_ShieldBloat: 1.6
   m_LatitudeFadeAngle: 45
+  m_MeshType: 0
+  m_GridResolution: 24
+  m_GeodesicResolution: 2
+  m_MaxAlpha: 1
+  m_EdgeAlpha: 0
+  m_FadeStartProportion: 0.75
 --- !u!58 &1005
 CircleCollider2D:
   m_ObjectHideFlags: 0

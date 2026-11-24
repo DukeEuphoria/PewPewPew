@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53804a4127cf1d34996726807830c5aa, type: 3}
+  m_Name: Bulwark
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.Ships.HullDef
+  m_DisplayName: Bulwark
+  m_Description: A slab-sided assault hull wrapped in layered armor. It is slow to turn, but carries ten gun stations, a deep armour reserve and multiple engine mounts.
+  m_ButtonArtwork: {fileID: 0}
+  m_Tint: {r: 1, g: 1, b: 1, a: 1}
+  m_Price: 0
+  m_Size: 0
+  m_Mass: 80
+  m_PassivePowerDrain: -16
+  m_ActivePowerDrain: 0
+  m_MaxHealth: 240
+  m_AutoRepairRate: 0.1
+  m_HullPoints: {fileID: 1006, guid: 7f81fb68df045347a1e16b35464c20cb, type: 3}
+  m_Armour: 200
+  m_ArmourBar: {fileID: 104, guid: d4f3a4b5c6d77e8fb0a1b2c3d4e5f607, type: 3}
+  m_PowerBar: {fileID: 104, guid: f6b5c6d7e8f990a1d2c3d4e5f6071829, type: 3}
+  m_ArmourRepairRate: 0.2
+  m_ArmourWearRatio: 0.08
+  m_MaxPowerStorage: 220
+  m_Friction: 0.12
+  m_AngularAcceleration: 240
+  m_AngularDamping: 1.5

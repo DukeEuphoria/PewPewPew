@@ -158,7 +158,7 @@ namespace PewPewPew.Match
             foreach (bool secondary in new[] { false, true })
             {
                 bool capturedChannel = secondary;
-                Section section = NewSection(secondary ? "Secondary colours" : "Primary colours", font);
+                Section section = NewSection(secondary ? "Accent colours" : "Main colours", font);
                 section.Colours = true;
                 for (int i = 0; i < PlayerPalette.Count; i++)
                 {

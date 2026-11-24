@@ -173,6 +173,7 @@ namespace PewPewPew.Editor
                         ValidatePreviewHitTargets(s_Menu, local.Loadout);
                         if (!s_ValidatedCatalogInteractions)
                         {
+                            ValidatePreviewNavigation(s_Menu);
                             ValidateCatalogInteractions(s_Menu, local);
                             s_ValidatedCatalogInteractions = true;
                         }
@@ -596,6 +597,38 @@ namespace PewPewPew.Editor
                         ", parent contains: " + RectTransformUtility.RectangleContainsScreenPoint((RectTransform)target.transform.parent, pointer.position) +
                         ", bounds: " + ((RectTransform)target.transform).rect + ", parent: " + target.transform.parent.name + ")");
                 }
+            }
+
+            private static void ValidatePreviewNavigation(LoadoutMenuController menu)
+            {
+                var preview = Get<LoadoutShipPreview>(menu, "m_Preview");
+                var image = Get<RawImage>(preview, "m_Image");
+                var markers = Get<List<LoadoutPreviewMarker>>(preview, "m_RuntimeMarkers");
+                var marker = markers.First(item => item.gameObject.activeSelf);
+                var rect = (RectTransform)marker.transform;
+                Vector2 size = rect.sizeDelta;
+                var pointer = new PointerEventData(EventSystem.current) { scrollDelta = Vector2.up * 6 };
+                ExecuteEvents.ExecuteHierarchy(marker.gameObject, pointer, ExecuteEvents.scrollHandler);
+                Check(image.uvRect.width < 1 && rect.sizeDelta == size, "Slot wheel zooms without resizing its button");
+                Canvas.ForceUpdateCanvases();
+                pointer.position = RectTransformUtility.WorldToScreenPoint(null, rect.position);
+                var hits = new List<RaycastResult>();
+                EventSystem.current.RaycastAll(pointer, hits);
+                Check(hits.Count > 0 && hits[0].gameObject.GetComponentInParent<LoadoutPreviewMarker>() != null,
+                    "Zoomed slot remains reachable by UI raycasts");
+                RectTransform imageRect = image.rectTransform;
+                pointer.button = PointerEventData.InputButton.Right;
+                pointer.pressPosition = RectTransformUtility.WorldToScreenPoint(null, imageRect.TransformPoint(imageRect.rect.center));
+                pointer.position = RectTransformUtility.WorldToScreenPoint(null,
+                    imageRect.TransformPoint(imageRect.rect.center + imageRect.rect.size * 0.1f));
+                Rect before = image.uvRect;
+                ExecuteEvents.ExecuteHierarchy(marker.gameObject, pointer, ExecuteEvents.beginDragHandler);
+                ExecuteEvents.ExecuteHierarchy(marker.gameObject, pointer, ExecuteEvents.endDragHandler);
+                Check(image.uvRect.center.x < before.center.x && image.uvRect.center.y < before.center.y &&
+                    rect.sizeDelta == size, "Right dragging a slot pans the hull without resizing its button");
+                pointer.scrollDelta = Vector2.down * 1000;
+                ExecuteEvents.ExecuteHierarchy(marker.gameObject, pointer, ExecuteEvents.scrollHandler);
+                Check(image.uvRect == new Rect(0, 0, 1, 1), "Zooming out restores the full view in play mode");
             }
 
             private static Button FindCatalogButton(LoadoutMenuController menu, ShipComponentDef definition)

@@ -1310,10 +1310,10 @@ namespace PewPewPew.Tests
                 material.SetTexture("_BaseMap", Texture2D.whiteTexture);
                 material.SetColor("_BaseColor", Color.white);
                 renderer.sharedMaterial = material;
-                SetDefinition(definition, "m_HalfAngle", halfAngle);
-                SetDefinition(definition, "m_FadeStartAngle", halfAngle * 0.75f);
-                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), meshType));
-                SetDefinition(definition, "m_GeodesicResolution", 3);
+                SetField(definition, "m_HalfAngle", halfAngle);
+                SetField(visual, "m_FadeStartProportion", 0.75f);
+                SetField(visual, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), meshType));
+                SetField(visual, "m_GeodesicResolution", 3);
                 FieldInfo latitude = visualType.GetField("m_LatitudeFadeAngle", BindingFlags.Instance | BindingFlags.NonPublic);
                 latitude.SetValue(visual, 30f);
                 visualType.GetMethod("Fit").Invoke(visual,
@@ -1391,16 +1391,16 @@ namespace PewPewPew.Tests
             ScriptableObject definition = ScriptableObject.CreateInstance(definitionType);
             try
             {
-                SetDefinition(definition, "m_HalfAngle", halfAngle);
-                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), meshType));
-                SetDefinition(definition, "m_FadeStartAngle", halfAngle * 0.75f);
-                SetDefinition(definition, "m_MaxAlpha", 0.8f);
-                SetDefinition(definition, "m_EdgeAlpha", 0.2f);
+                SetField(definition, "m_HalfAngle", halfAngle);
                 ship.transform.rotation = Quaternion.Euler(0f, 0f, 37f);
                 mount.transform.SetParent(ship.transform, false);
                 mount.transform.localRotation = Quaternion.Euler(0f, 0f, mountAngle);
                 GameObject visualObject = UnityEngine.Object.Instantiate(prefab, ship.transform);
                 Component visual = visualObject.GetComponent(visualType);
+                SetField(visual, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), meshType));
+                SetField(visual, "m_FadeStartProportion", 0.5f);
+                SetField(visual, "m_MaxAlpha", 0.8f);
+                SetField(visual, "m_EdgeAlpha", 0.2f);
                 MeshFilter filter = visualObject.GetComponent<MeshFilter>();
                 Mesh original = filter.sharedMesh;
                 MethodInfo fit = visualType.GetMethod("Fit");
@@ -1427,9 +1427,9 @@ namespace PewPewPew.Tests
                     maximum = Mathf.Max(maximum, angle);
                     Assert.LessOrEqual(Mathf.Abs(angle), halfAngle + 0.01f);
                     float expectedAlpha = Mathf.Lerp(0.8f, 0.2f,
-                        Mathf.Clamp01((Mathf.Abs(angle) - halfAngle * 0.75f) / (halfAngle * 0.25f)));
+                        Mathf.Clamp01((Mathf.Abs(angle) - halfAngle * 0.5f) / (halfAngle * 0.5f)));
                     Assert.That(colors[i].a, Is.EqualTo(expectedAlpha).Within(0.002f));
-                    if (Mathf.Abs(Mathf.Abs(angle) - halfAngle * 0.75f) < 0.01f) sawFadeStart = true;
+                    if (Mathf.Abs(Mathf.Abs(angle) - halfAngle * 0.5f) < 0.01f) sawFadeStart = true;
                 }
                 Assert.That(minimum, Is.EqualTo(-halfAngle).Within(0.01f));
                 Assert.That(maximum, Is.EqualTo(halfAngle).Within(0.01f));
@@ -1452,8 +1452,8 @@ namespace PewPewPew.Tests
                     checkedTriangles++;
                 }
                 Assert.Greater(checkedTriangles, 0);
-                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 0));
-                SetDefinition(definition, "m_HalfAngle", 180f);
+                SetField(visual, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 0));
+                SetField(definition, "m_HalfAngle", 180f);
                 fit.Invoke(visual, new object[] { bounds, mount.transform, definition });
                 Assert.AreSame(original, filter.sharedMesh);
                 Assert.IsTrue(mesh == null, "Replacing a generated mesh releases it");
@@ -1461,12 +1461,12 @@ namespace PewPewPew.Tests
                 visualObject.GetComponent<Renderer>().GetPropertyBlock(properties);
                 Assert.That(properties.GetFloat("_ShieldAlpha"), Is.EqualTo(0.8f).Within(1e-6f));
                 Assert.AreEqual(0f, properties.GetFloat("_UseVertexColors"));
-                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 1));
+                SetField(visual, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 1));
                 fit.Invoke(visual, new object[] { bounds, mount.transform, definition });
                 Mesh fullGeodesic = filter.sharedMesh;
                 Assert.AreNotSame(original, fullGeodesic);
                 Assert.IsTrue(fullGeodesic.colors.All(color => Mathf.Abs(color.a - 0.8f) < 1e-6f));
-                SetDefinition(definition, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 0));
+                SetField(visual, "m_MeshType", Enum.ToObject(definitionType.Assembly.GetType("PewPewPew.Ships.ShieldMeshType"), 0));
                 fit.Invoke(visual, new object[] { bounds, mount.transform, definition });
                 Assert.IsTrue(fullGeodesic == null, "Replacing the full geodesic mesh releases it");
             }
@@ -1514,20 +1514,45 @@ namespace PewPewPew.Tests
         }
 
         [Test]
-        public void ShieldDefinition_ConstrainsFadeSettings()
+        public void ShieldVisual_ConstrainsFadeSettings()
         {
-            Type type = Type.GetType("PewPewPew.Ships.ShieldDef, Assembly-CSharp");
-            ScriptableObject definition = ScriptableObject.CreateInstance(type);
+            Type type = Type.GetType("PewPewPew.Ships.ShieldVisual, Assembly-CSharp");
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/Shield Meshes/Basic Shield Visual.prefab");
+            GameObject instance = UnityEngine.Object.Instantiate(prefab);
+            Component visual = instance.GetComponent(type);
             try
             {
-                SetDefinition(definition, "m_HalfAngle", 45f);
-                SetDefinition(definition, "m_FadeStartAngle", 45f);
-                SetDefinition(definition, "m_MaxAlpha", 0.3f);
-                SetDefinition(definition, "m_EdgeAlpha", 0.9f);
-                Assert.Less((float)type.GetProperty("FadeStartAngle").GetValue(definition), 45f);
-                Assert.That((float)type.GetProperty("EdgeAlpha").GetValue(definition), Is.EqualTo(0.3f).Within(1e-6f));
+                SetField(visual, "m_FadeStartProportion", 1f);
+                SetField(visual, "m_MaxAlpha", 0.3f);
+                SetField(visual, "m_EdgeAlpha", 0.9f);
+                type.GetMethod("OnValidate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(visual, null);
+                Assert.Less((float)type.GetField("m_FadeStartProportion", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(visual), 1f);
+                Assert.That((float)type.GetField("m_EdgeAlpha", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(visual), Is.EqualTo(0.3f).Within(1e-6f));
             }
-            finally { UnityEngine.Object.DestroyImmediate(definition); }
+            finally { UnityEngine.Object.DestroyImmediate(instance); }
+        }
+
+        [TestCase("Basic Shield 45", 0.66f, 33.75f)]
+        [TestCase("Basic Shield 180", 0.66f, 67.5f)]
+        [TestCase("Basic Shield 45_Grid", 0.66f, 16f)]
+        [TestCase("Basic Shield 45_Geo", 0.66f, 16f)]
+        [TestCase("Basic Shield 360", 1f, 135f)]
+        public void ShieldAssets_PreserveVisualSettings(string assetName, float alpha, float fadeStartAngle)
+        {
+            Type definitionType = Type.GetType("PewPewPew.Ships.ShieldDef, Assembly-CSharp");
+            Type visualType = Type.GetType("PewPewPew.Ships.ShieldVisual, Assembly-CSharp");
+            UnityEngine.Object definition = UnityEditor.AssetDatabase.LoadAssetAtPath(
+                "Assets/ShipComponents/Shields/" + assetName + ".asset", definitionType);
+            Assert.IsNotNull(definition);
+            Component visual = (Component)definitionType.GetProperty("Visual").GetValue(definition);
+            Assert.IsNotNull(visual);
+            float halfAngle = (float)definitionType.GetProperty("HalfAngle").GetValue(definition);
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            float actualAlpha = (float)visualType.GetField("m_MaxAlpha", flags).GetValue(visual);
+            float proportion = (float)visualType.GetField("m_FadeStartProportion", flags).GetValue(visual);
+            Assert.That(actualAlpha, Is.EqualTo(alpha).Within(1e-6f));
+            Assert.That(halfAngle * proportion, Is.EqualTo(fadeStartAngle).Within(0.001f));
         }
 
         [Test]
@@ -1558,8 +1583,8 @@ namespace PewPewPew.Tests
             Assert.IsTrue(material.HasProperty("_ShieldAlpha"));
         }
 
-        private static void SetDefinition(ScriptableObject definition, string field, object value) =>
-            definition.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(definition, value);
+        private static void SetField(UnityEngine.Object target, string field, object value) =>
+            target.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(target, value);
     }
 
     public class DamageMathTests
@@ -2296,6 +2321,21 @@ namespace PewPewPew.Tests
                 Assert.IsTrue(seen.Add((colour.r << 16) | (colour.g << 8) | colour.b), $"swatch {i} repeats a colour");
             }
             Assert.AreEqual(64, seen.Count);
+        }
+
+        [Test]
+        public void Palette_DoesNotOfferExactShaderKeyColours()
+        {
+            var greenKey = new Color32(0, 255, 0, 255);
+            var magentaKey = new Color32(255, 0, 255, 255);
+            for (int i = 0; i < PlayerPalette.Count; i++)
+            {
+                Color32 colour = PlayerPalette.Colour(i);
+                Assert.AreNotEqual(greenKey, colour, $"swatch {i} matches the green key");
+                Assert.AreNotEqual(magentaKey, colour, $"swatch {i} matches the magenta key");
+            }
+            Assert.IsFalse(PlayerPalette.IsAvailable(greenKey));
+            Assert.IsFalse(PlayerPalette.IsAvailable(magentaKey));
         }
 
         [Test]

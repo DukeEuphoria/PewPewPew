@@ -101,9 +101,85 @@ namespace PewPewPew.Editor
                 Check(clicked == i, "Point marker selects its own mount");
             }
             ValidateMarkerPresentation(preview, catalog, initial, markers);
+            ValidatePreviewNavigation(preview, catalog, initial, markers);
             ValidatePreviewProjection(preview, catalog);
             EditorSceneManager.OpenScene("Assets/Scenes/GameScene.unity");
             Debug.Log($"LOADOUT VALIDATION PASSED: {s_Checks} checks.");
+        }
+
+        private static void ValidatePreviewNavigation(LoadoutShipPreview preview, ShipCatalog catalog,
+            ShipLoadout loadout, System.Collections.Generic.List<LoadoutPreviewMarker> markers)
+        {
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            var raw = (RawImage)typeof(LoadoutShipPreview).GetField("m_Image", flags).GetValue(preview);
+            Rect frame = (Rect)typeof(LoadoutShipPreview).GetField("m_Frame", flags).GetValue(preview);
+            HullPoints hull = catalog.Hulls[loadout.Hull].HullPoints;
+            var point = hull.Points[0];
+            Vector2 original = Rect.PointToNormalized(frame, hull.transform.InverseTransformPoint(point.transform.position));
+            var marker = (RectTransform)markers[0].transform;
+            Vector2 size = marker.sizeDelta;
+            Texture texture = raw.texture;
+            EventSystem events = Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include);
+            var input = new PointerEventData(events) { scrollDelta = Vector2.up };
+            Check(ExecuteEvents.GetEventHandler<IScrollHandler>(marker.gameObject) == preview.gameObject &&
+                ExecuteEvents.GetEventHandler<IDragHandler>(marker.gameObject) == preview.gameObject,
+                "Wheel and drag events on slot buttons reach the preview");
+            preview.OnScroll(input);
+            Rect view = raw.uvRect;
+            Check(view.width < 1 && Mathf.Abs(view.center.x - 0.5f) < 0.0001f &&
+                Mathf.Abs(view.center.y - 0.5f) < 0.0001f, "Zoom is centred on the preview");
+            Check(Vector2.Distance(marker.anchorMin, Rect.PointToNormalized(view, original)) < 0.0001f &&
+                marker.sizeDelta == size && raw.texture == texture, "Zoom moves markers without resizing or rerendering");
+            int clicked = -1;
+            preview.Show(loadout, -1, index => clicked = index);
+            markers[0].GetComponent<Button>().onClick.Invoke();
+            Check(clicked == 0 && raw.uvRect == view, "Zoom survives refresh and markers remain clickable");
+
+            Canvas.ForceUpdateCanvases();
+            RectTransform rect = raw.rectTransform;
+            Vector2 start = RectTransformUtility.WorldToScreenPoint(null, rect.TransformPoint(rect.rect.center));
+            Vector2 end = RectTransformUtility.WorldToScreenPoint(null,
+                rect.TransformPoint(rect.rect.center + rect.rect.size));
+            input.button = PointerEventData.InputButton.Right;
+            input.pressPosition = start;
+            input.position = end;
+            preview.OnBeginDrag(input);
+            preview.OnDrag(input);
+            preview.OnEndDrag(input);
+            view = raw.uvRect;
+            Check(Mathf.Abs(view.xMin) < 0.0001f && Mathf.Abs(view.yMin) < 0.0001f,
+                "Panning clamps at the full-view boundary");
+            Check(Vector2.Distance(marker.anchorMin, Rect.PointToNormalized(view, original)) < 0.0001f &&
+                marker.sizeDelta == size, "Panning moves markers with the hull without resizing them");
+            input.button = PointerEventData.InputButton.Left;
+            input.position = start;
+            preview.OnBeginDrag(input);
+            preview.OnDrag(input);
+            Check(raw.uvRect == view, "Left dragging does not pan the preview");
+            input.scrollDelta = Vector2.up;
+            preview.OnScroll(input);
+            Check(Vector2.Distance(raw.uvRect.center, view.center) < 0.0001f,
+                "Zooming after panning preserves the centre of the view");
+            view = raw.uvRect;
+            Color32[] pixels = (Color32[])typeof(LoadoutShipPreview).GetField("m_HullPixels", flags).GetValue(preview);
+            int x = Mathf.Clamp(Mathf.FloorToInt(view.center.x * texture.width), 0, texture.width - 1);
+            int y = Mathf.Clamp(Mathf.FloorToInt(view.center.y * texture.height), 0, texture.height - 1);
+            Check(preview.ContainsHull(start, null) == (pixels[y * texture.width + x].a != 0),
+                "Hull hit testing follows the zoomed and panned texture");
+            input.scrollDelta = Vector2.down * 1000;
+            preview.OnScroll(input);
+            Check(raw.uvRect == new Rect(0, 0, 1, 1) && Vector2.Distance(marker.anchorMin, original) < 0.0001f,
+                "Zooming out clamps to the full-ship frame and restores marker positions");
+            input.scrollDelta = Vector2.up * 1000;
+            preview.OnScroll(input);
+            float maxZoom = (float)typeof(LoadoutShipPreview).GetField("m_MaxZoom", flags).GetValue(preview);
+            Check(Mathf.Abs(raw.uvRect.width - 1 / maxZoom) < 0.0001f, "Zoom-in respects the configured maximum");
+            if (catalog.Hulls.Length > 1)
+            {
+                preview.Show(catalog.DefaultLoadout(1));
+                Check(raw.uvRect == new Rect(0, 0, 1, 1), "Changing hulls restores the full-ship view");
+            }
+            preview.Show(loadout);
         }
 
         private static void ValidateDetails(ShipCatalog catalog)

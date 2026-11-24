@@ -2,6 +2,8 @@ using UnityEngine;
 
 namespace PewPewPew.Ships
 {
+    public enum ShieldMeshType { Grid, Geodesic }
+
     /// Brief ellipse flash on the ship when its shield absorbs damage; colour shows remaining shield health.
     public class ShieldVisual : MonoBehaviour
     {
@@ -11,6 +13,12 @@ namespace PewPewPew.Ships
         [SerializeField] private float m_FadeTime = 0.3f;
         [SerializeField] private float m_ShieldBloat = 1.2f;
         [SerializeField, Range(0.1f, 90f), Tooltip("Latitude from the ship's equator where the shield becomes transparent.")] private float m_LatitudeFadeAngle = 45f;
+        [SerializeField] private ShieldMeshType m_MeshType = ShieldMeshType.Grid;
+        [SerializeField, Range(3, 64), Tooltip("Latitude segments; longitude density scales proportionally.")] private int m_GridResolution = 24;
+        [SerializeField, Range(0, 5), Tooltip("Number of icosahedron subdivision steps.")] private int m_GeodesicResolution = 2;
+        [SerializeField, Range(0f, 1f)] private float m_MaxAlpha = 1f;
+        [SerializeField, Range(0f, 1f)] private float m_EdgeAlpha = 0f;
+        [SerializeField, Range(0f, 0.999f), Tooltip("Proportion of the shield half angle at which the edge fade begins.")] private float m_FadeStartProportion = 0.75f;
 
         private float m_Alpha;
         private bool m_Held;
@@ -18,6 +26,12 @@ namespace PewPewPew.Ships
         private float m_AppliedLatitudeFadeAngle = -1f;
         private Mesh m_ArcMesh;
         private Mesh m_OriginalMesh;
+
+        private int GridResolution => Mathf.Clamp(m_GridResolution, 3, 64);
+        private int GeodesicResolution => Mathf.Clamp(m_GeodesicResolution, 0, 5);
+        private float MaxAlpha => Mathf.Clamp01(m_MaxAlpha);
+        private float EdgeAlpha => Mathf.Clamp(m_EdgeAlpha, 0f, MaxAlpha);
+        private float FadeStartProportion => Mathf.Clamp(m_FadeStartProportion, 0f, 0.999f);
 
         private void Awake()
         {
@@ -27,6 +41,11 @@ namespace PewPewPew.Ships
         private void OnValidate()
         {
             m_LatitudeFadeAngle = Mathf.Clamp(m_LatitudeFadeAngle, 0.1f, 90f);
+            m_GridResolution = GridResolution;
+            m_GeodesicResolution = GeodesicResolution;
+            m_MaxAlpha = MaxAlpha;
+            m_EdgeAlpha = EdgeAlpha;
+            m_FadeStartProportion = FadeStartProportion;
         }
 
         private void ApplyLatitudeFade()
@@ -43,11 +62,11 @@ namespace PewPewPew.Ships
         {
             transform.localPosition = new Vector3(parentLocalBounds.center.x, parentLocalBounds.center.y, 0f);
             transform.localScale = new Vector3(parentLocalBounds.size.x, parentLocalBounds.size.y, 1f) * m_ShieldBloat;
-            bool originalMesh = definition.MeshType == ShieldMeshType.Grid && definition.HalfAngle >= 180f;
+            bool originalMesh = m_MeshType == ShieldMeshType.Grid && definition.HalfAngle >= 180f;
             var properties = new MaterialPropertyBlock();
             m_Renderer.GetPropertyBlock(properties);
             properties.SetFloat("_UseVertexColors", originalMesh ? 0f : 1f);
-            properties.SetFloat("_ShieldAlpha", originalMesh ? definition.MaxAlpha : 1f);
+            properties.SetFloat("_ShieldAlpha", originalMesh ? MaxAlpha : 1f);
             m_AppliedLatitudeFadeAngle = Mathf.Clamp(m_LatitudeFadeAngle, 0.1f, 90f);
             properties.SetFloat("_LatitudeFadeAngle", m_AppliedLatitudeFadeAngle * Mathf.Deg2Rad);
             m_Renderer.SetPropertyBlock(properties);
@@ -68,18 +87,19 @@ namespace PewPewPew.Ships
                 throw new System.InvalidOperationException("Directional shields require a planar mount Up direction and nonzero hull dimensions.");
 
             m_OriginalMesh = filter.sharedMesh;
-            switch (definition.MeshType)
+            float fadeStartAngle = definition.HalfAngle * FadeStartProportion;
+            switch (m_MeshType)
             {
                 case ShieldMeshType.Grid:
                     m_ArcMesh = ShieldMeshGenerator.CreateArcMesh(forward, scale, definition.HalfAngle,
-                        definition.GridResolution, definition.FadeStartAngle, definition.MaxAlpha, definition.EdgeAlpha);
+                        GridResolution, fadeStartAngle, MaxAlpha, EdgeAlpha);
                     break;
                 case ShieldMeshType.Geodesic:
                     m_ArcMesh = ShieldMeshGenerator.CreateGeodesicArcMesh(forward, scale, definition.HalfAngle,
-                        definition.GeodesicResolution, definition.FadeStartAngle, definition.MaxAlpha, definition.EdgeAlpha);
+                        GeodesicResolution, fadeStartAngle, MaxAlpha, EdgeAlpha);
                     break;
                 default:
-                    throw new System.InvalidOperationException($"Unknown shield mesh type {definition.MeshType}.");
+                    throw new System.InvalidOperationException($"Unknown shield mesh type {m_MeshType}.");
             }
             filter.sharedMesh = m_ArcMesh;
         }
