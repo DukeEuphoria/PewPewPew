@@ -160,16 +160,16 @@ namespace PewPewPew.Core
                     if (score > best)
                     {
                         best = score;
-                        height = Height(x, y) + u * (Height(x + 1, y) - Height(x, y)) +
-                                 v * (Height(x + 1, y + 1) - Height(x, y));
+                        float ha = Height(x, y), hb = Height(x + 1, y), hc = Height(x + 1, y + 1);
+                        height = ha + u * (hb - ha) + v * (hc - ha);
                     }
                     if (score >= 0f) return -Depth * 0.5f - height;
                     score = Triangle(point, a, c, d, out u, out v);
                     if (score > best)
                     {
                         best = score;
-                        height = Height(x, y) + u * (Height(x + 1, y + 1) - Height(x, y)) +
-                                 v * (Height(x, y + 1) - Height(x, y));
+                        float ha = Height(x, y), hc = Height(x + 1, y + 1), hd = Height(x, y + 1);
+                        height = ha + u * (hc - ha) + v * (hd - ha);
                     }
                     if (score >= 0f) return -Depth * 0.5f - height;
                 }
@@ -219,7 +219,9 @@ namespace PewPewPew.Core
                     Mathf.Max(a.y, Mathf.Max(b.y, c.y)) < min.y ||
                     Mathf.Min(a.y, Mathf.Min(b.y, c.y)) > max.y) return;
                 List<Vector2> points = ClipEdge(source, a, b);
+                if (points.Count == 0) return;
                 points = ClipEdge(points, b, c);
+                if (points.Count == 0) return;
                 points = ClipEdge(points, c, a);
                 if (points.Count < 3) return;
                 var facet = new Vector2[points.Count];

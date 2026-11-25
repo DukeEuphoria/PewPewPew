@@ -112,6 +112,37 @@ namespace PewPewPew.Tests
         }
 
         [Test]
+        public void Components_KeepTheirPositionsWhenParentOrSiblingIsReconfigured()
+        {
+            var field = Solid();
+            field.ConfigurePositions(123, 1f, Vector2Int.zero);
+            for (int y = 0; y < field.Height; y++) field.Samples[y * field.Width + 4] = 0;
+            var components = field.Components();
+            Assert.AreEqual(2, components.Count);
+            Vector2 original = field.Position(2, 2);
+            field.ConfigurePositions(123, 0f, Vector2Int.zero);
+            components[1].ConfigurePositions(124, 1f, Vector2Int.zero);
+            Assert.AreEqual(original, components[0].Position(2, 2));
+            var child = components[0].Recenter(out Vector2 offset);
+            Vector2 translation = offset + Vector2.one * ((field.Width - child.Width) * 0.5f);
+            Vector2 childGrid = new Vector2(2, 2) - translation;
+            Assert.Less(Vector2.Distance(original, child.Position((int)childGrid.x, (int)childGrid.y) + translation), 0.00001f);
+        }
+
+        [Test]
+        public void Excavation_UsesOffsetSamplePositions()
+        {
+            var field = Solid();
+            field.ConfigurePositions(123, 1f, Vector2Int.zero);
+            Vector2 point = field.Position(4, 4);
+            const float radius = 0.1f;
+            const float strength = 10f;
+            field.Erode(point, radius, strength);
+            Assert.AreEqual(245, field.Samples[4 * field.Width + 4]);
+            Assert.AreEqual(255, field.Samples[2 * field.Width + 2]);
+        }
+
+        [Test]
         public void Explosion_UsesOffsetSamplePositions()
         {
             var field = Solid();

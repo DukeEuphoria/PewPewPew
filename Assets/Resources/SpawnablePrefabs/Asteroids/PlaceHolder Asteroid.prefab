@@ -275,7 +275,7 @@ MonoBehaviour:
   m_OrbitalBodyDamageMultiplier: 100
   m_MinPieceMass: 1
   m_ReliefFraction: 1
-  m_VertexOffsetFactor: 0.449
+  m_VertexOffsetFactor: 0.45
   m_DespawnDelay: 0.2
   m_ChipExplosion: {fileID: 8333231042855009722, guid: 45006089f74667e458ea2e40d3d6ca0f, type: 3}
   m_ShatterExplosion: {fileID: 2044079080534561436, guid: 4567ccc216b58e040a5647086885f659, type: 3}

@@ -10,6 +10,8 @@ namespace PewPewPew.Core
         public const byte Version = 10;
         public const int MaxCells = 15;
         public const float IsoLevel = 127.5f;
+        private const uint RadiusSeedSalt = 0x85EBCA6Bu;
+        private const uint VertexOffsetSeedSalt = 0xD1B54A35u;
         public readonly int Width;
         public readonly int Height;
         public readonly byte[] Samples;
@@ -46,7 +48,7 @@ namespace PewPewPew.Core
         {
             if (!Finite(minimum) || !Finite(maximum) || minimum < 1f || maximum < minimum || maximum > MaxCells * 0.5f - 1f)
                 throw new ArgumentException("Asteroid occupied radii must be ordered within 1..6.5 cells.");
-            uint state = seed ^ 0x85EBCA6Bu;
+            uint state = seed ^ RadiusSeedSalt;
             Next(ref state);
             return Mathf.Lerp(minimum, maximum, Unit(ref state));
         }
@@ -112,7 +114,7 @@ namespace PewPewPew.Core
 
             int size = MaxCells + 1;
             var source = new Vector2[size * size];
-            uint state = seed ^ 0xD1B54A35u;
+            uint state = seed ^ VertexOffsetSeedSalt;
             for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++) source[y * size + x] = new Vector2(x, y);
             for (int y = 0; y < size; y++)
@@ -361,7 +363,7 @@ namespace PewPewPew.Core
             for (int y = 0; y < Height; y++)
             for (int x = 0; x < Width; x++)
             {
-                float weight = Mathf.Clamp01(1f - Vector2.Distance(new Vector2(x, y), point) / radius);
+                float weight = Mathf.Clamp01(1f - Vector2.Distance(Position(x, y), point) / radius);
                 if (weight <= 0f) continue;
                 int index = y * Width + x;
                 int reduction = Mathf.Max(1, Mathf.RoundToInt(weight * strength));
@@ -407,7 +409,10 @@ namespace PewPewPew.Core
                     Visit(x, y + 1);
                 }
                 var part = new AsteroidGeometry(Width, Height, component, pending);
-                if (m_Positions != null) part.ConfigurePositions(m_PositionSeed, m_OffsetFactor, m_PositionOrigin);
+                part.m_Positions = m_Positions;
+                part.m_PositionSeed = m_PositionSeed;
+                part.m_OffsetFactor = m_OffsetFactor;
+                part.m_PositionOrigin = m_PositionOrigin;
                 result.Add(part);
 
                 void Visit(int x, int y)

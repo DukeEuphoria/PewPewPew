@@ -233,6 +233,9 @@ assignment is batched while the source collider is disabled, avoiding expensive
 repeated intermediate shape builds. Height clipping only scans overlapping
 source cells, never the whole lattice per polygon. Child grids now use a bounded
 integer sample copy instead of the earlier shape-refitting search.
+Component extraction reuses the unchanged sample positions, and remeshing
+reuses its polygons for mass calculation. Fragment areas are calculated once
+per split rather than repeatedly during sorting.
 
 The graphical tests additionally exercise a 32-hit remesh burst, 16 fractures
 and their recentered children, plus a 250-renderer shadow-on/off comparison at

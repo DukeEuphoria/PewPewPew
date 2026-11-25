@@ -6,12 +6,16 @@ namespace PewPewPew.World
 {
     internal static class AsteroidMesh
     {
-        public static List<Vector2[]> Paths(AsteroidGeometry field, Vector2 spacing)
+        public static List<Vector2[]> Paths(AsteroidGeometry field, Vector2 spacing, out float area)
         {
             List<Vector2[]> paths = field.Polygons();
             Vector2 centre = new Vector2(field.Width - 1, field.Height - 1) * 0.5f;
+            area = 0f;
             foreach (Vector2[] path in paths)
+            {
+                area += AsteroidGeometry.PolygonArea(path);
                 for (int i = 0; i < path.Length; i++) path[i] = Vector2.Scale(path[i] - centre, spacing);
+            }
             return paths;
         }
 

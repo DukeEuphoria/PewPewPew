@@ -218,13 +218,16 @@ namespace PewPewPew.World
 
         private void SpawnPieces(List<AsteroidGeometry> components, Vector2 point)
         {
-            var retained = new List<AsteroidGeometry>();
-            components.Sort((a, b) => b.Area().CompareTo(a.Area()));
+            var measured = new List<(AsteroidGeometry field, float area)>(components.Count);
             foreach (AsteroidGeometry component in components)
+                measured.Add((component, component.Area()));
+            measured.Sort((a, b) => b.area.CompareTo(a.area));
+            var retained = new List<AsteroidGeometry>();
+            foreach (var component in measured)
             {
-                float mass = component.Area() * m_Spacing.x * m_Spacing.y * m_Depth * m_Density;
+                float mass = component.area * m_Spacing.x * m_Spacing.y * m_Depth * m_Density;
                 if (mass < m_MinPieceMass) continue;
-                retained.Add(component);
+                retained.Add(component.field);
             }
             if (retained.Count == 0) { Retire(point, true); return; }
             if (retained.Count == 1)
@@ -298,7 +301,7 @@ namespace PewPewPew.World
             if (m_Filter == null || m_SourceCollider == null || m_Collider == null)
                 throw new InvalidOperationException("Asteroid prefab requires mesh, polygon and composite collider components.");
             transform.localScale = Vector3.one;
-            List<Vector2[]> paths = AsteroidMesh.Paths(m_Field, m_Spacing);
+            List<Vector2[]> paths = AsteroidMesh.Paths(m_Field, m_Spacing, out float area);
             if (m_Mesh != null) Destroy(m_Mesh);
             m_Mesh = AsteroidMesh.Create(paths, m_Surface.Depth, m_Surface);
             m_Filter.sharedMesh = m_Mesh;
@@ -307,7 +310,7 @@ namespace PewPewPew.World
             for (int i = 0; i < paths.Count; i++) m_SourceCollider.SetPath(i, paths[i]);
             m_SourceCollider.enabled = true;
             m_Collider.GenerateGeometry();
-            m_Body.mass = Mathf.Max(0.0001f, m_Field.Area() * m_Spacing.x * m_Spacing.y * m_Depth * m_Density);
+            m_Body.mass = Mathf.Max(0.0001f, area * m_Spacing.x * m_Spacing.y * m_Depth * m_Density);
             UpdateSurface();
         }
 
