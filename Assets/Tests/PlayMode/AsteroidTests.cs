@@ -41,8 +41,9 @@ namespace PewPewPew.Tests
             NetworkServer.Listen(1);
             m_Server = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
             m_Server.name = "Test asteroid";
-            Set(m_Server.GetComponent(m_Type), "m_MinOccupiedRadius", 7f);
-            Set(m_Server.GetComponent(m_Type), "m_MaxOccupiedRadius", 7f);
+            Set(m_Server.GetComponent(m_Type), "m_MinOccupiedRadius", 6.5f);
+            Set(m_Server.GetComponent(m_Type), "m_MaxOccupiedRadius", 6.5f);
+            Set(m_Server.GetComponent(m_Type), "m_VertexOffsetFactor", 0f);
             m_Type.GetMethod("Initialize").Invoke(m_Server.GetComponent(m_Type), null);
             NetworkServer.Spawn(m_Server);
         }
@@ -90,7 +91,7 @@ namespace PewPewPew.Tests
         }
 
         [TestCase(2f)]
-        [TestCase(7f)]
+        [TestCase(6.5f)]
         public void PositiveDamage_AccumulatesRegardlessOfMassWhileNonpositiveHitsDoNothing(float radius)
         {
             Set(Server, "m_MinOccupiedRadius", radius);
@@ -107,7 +108,7 @@ namespace PewPewPew.Tests
             Assert.AreEqual("Damaged", Damage(0.75f).ToString());
             Assert.AreEqual(2u, m_Type.GetField("m_Revision", Private).GetValue(Server));
             for (int i = 0; i < before.Length; i++)
-                Assert.AreEqual(i == 144 ? 1 : 0, before[i] - Geometry(Server).Samples[i]);
+                Assert.AreEqual(i == 136 ? 1 : 0, before[i] - Geometry(Server).Samples[i]);
         }
 
         [Test]
@@ -158,25 +159,29 @@ namespace PewPewPew.Tests
         [Test]
         public void Snapshots_ReconstructDamagedAndUntouchedLateObserversWithinBudget()
         {
+            Set(Server, "m_VertexOffsetFactor", 1f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
             m_Client = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
             var replica = (NetworkBehaviour)m_Client.GetComponent(m_Type);
             var server = (NetworkBehaviour)Server;
             var writer = new NetworkWriter();
             server.OnSerialize(writer, true);
-            Assert.AreEqual(63, writer.Position);
+            Assert.AreEqual(67, writer.Position);
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
             Assert.AreEqual(Value("Mass"), m_Type.GetProperty("Mass").GetValue(replica));
+            CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.vertices,
+                m_Client.GetComponent<MeshFilter>().sharedMesh.vertices);
             Damage(1f);
             writer.Reset();
             server.OnSerialize(writer, true);
-            Assert.LessOrEqual(writer.Position, 354);
+            Assert.LessOrEqual(writer.Position, 325);
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
             CollectionAssert.AreEqual(((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(Server)).Samples,
                 ((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(replica)).Samples);
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.vertices,
                 m_Client.GetComponent<MeshFilter>().sharedMesh.vertices);
             Assert.AreEqual(Value("Mass"), m_Type.GetProperty("Mass").GetValue(replica));
-            TestContext.WriteLine($"Untouched/damaged per-object geometry payload: 63/{writer.Position} bytes; 250 damaged: {writer.Position * 250} bytes.");
+            TestContext.WriteLine($"Untouched/damaged per-object geometry payload: 67/{writer.Position} bytes; 250 damaged: {writer.Position * 250} bytes.");
             byte[] malformed = writer.ToArray();
             int sampleCount = ((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(Server)).Samples.Length;
             malformed[malformed.Length - sampleCount - 2] = 18;
@@ -184,6 +189,35 @@ namespace PewPewPew.Tests
             byte[] incompatible = writer.ToArray();
             incompatible[0] = (byte)(AsteroidGeometry.Version - 1);
             Assert.Throws<InvalidOperationException>(() => replica.OnDeserialize(new NetworkReader(incompatible), true));
+        }
+
+        [Test]
+        public void DisplacedGrid_IsVisibleInTheRoofMesh()
+        {
+            Set(Server, "m_VertexOffsetFactor", 1f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            AsteroidGeometry field = Geometry(Server);
+            Vector2 spacing = (Vector2)m_Type.GetField("m_Spacing", Private).GetValue(Server);
+            Vector3[] vertices = m_Server.GetComponent<MeshFilter>().sharedMesh.vertices;
+            int checkedCorners = 0;
+            for (int y = 6; y <= 9; y++)
+            for (int x = 6; x <= 9; x++)
+            {
+                bool surrounded = true;
+                for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                    surrounded &= field.Samples[(y + dy) * field.Width + x + dx] == 255;
+                Vector2 grid = new Vector2(x, y);
+                Vector2 displaced = field.Position(x, y);
+                if (!surrounded || Vector2.Distance(grid, displaced) < 0.05f) continue;
+                Vector2 expected = Vector2.Scale(displaced - Vector2.one * 7.5f, spacing);
+                Vector2 oldGrid = Vector2.Scale(grid - Vector2.one * 7.5f, spacing);
+                Assert.IsTrue(vertices.Any(v => v.z < 0f && Vector2.Distance(v, expected) < 0.0001f));
+                Assert.IsFalse(vertices.Any(v => v.z < 0f && Vector2.Distance(v, oldGrid) < 0.0001f),
+                    "The visible roof must not retain an undisplaced interior grid vertex.");
+                checkedCorners++;
+            }
+            Assert.Greater(checkedCorners, 0);
         }
 
         [UnityTest]
@@ -206,7 +240,7 @@ namespace PewPewPew.Tests
             byte[] before = (byte[])Geometry(Server).Samples.Clone();
             Assert.AreEqual("Damaged", Damage(10000f).ToString());
             for (int i = 0; i < before.Length; i++)
-                Assert.AreEqual(i == 144 ? 0 : before[i], Geometry(Server).Samples[i]);
+                Assert.AreEqual(i == 136 ? 0 : before[i], Geometry(Server).Samples[i]);
             Assert.IsTrue(m_Server.GetComponent<Rigidbody2D>().simulated);
             Assert.AreEqual(1, NetworkServer.spawned.Count);
         }
@@ -301,6 +335,8 @@ namespace PewPewPew.Tests
         [UnityTest]
         public IEnumerator PropagatedCrack_SpawnsConservedChildrenThatSeparateAndKeepFieldCount()
         {
+            Set(Server, "m_VertexOffsetFactor", 1f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
             Type fieldType = Type.GetType("PewPewPew.World.AsteroidField, Assembly-CSharp", true);
             m_FieldObject = new GameObject("Asteroid test field", typeof(NetworkIdentity));
             Component owner = m_FieldObject.AddComponent(fieldType);
@@ -336,7 +372,7 @@ namespace PewPewPew.Tests
             foreach (NetworkIdentity child in children)
             {
                 var field = (AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(child.GetComponent(m_Type));
-                Assert.AreEqual(289, field.Samples.Length);
+                Assert.AreEqual(256, field.Samples.Length);
                 Assert.AreEqual(spacing, m_Type.GetField("m_Spacing", Private).GetValue(child.GetComponent(m_Type)));
                 Assert.AreEqual(depth, m_Type.GetField("m_Depth", Private).GetValue(child.GetComponent(m_Type)));
                 Assert.AreEqual(density, m_Type.GetField("m_Density", Private).GetValue(child.GetComponent(m_Type)));
@@ -347,7 +383,7 @@ namespace PewPewPew.Tests
                 Assert.IsTrue(retained.Any(piece => piece.Recenter(out _).Samples.SequenceEqual(field.Samples)));
                 var writer = new NetworkWriter();
                 ((NetworkBehaviour)child.GetComponent(m_Type)).OnSerialize(writer, true);
-                Assert.LessOrEqual(writer.Position, 354);
+                Assert.LessOrEqual(writer.Position, 325);
                 var replica = (NetworkBehaviour)m_Client.GetComponent(m_Type);
                 replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
                 CollectionAssert.AreEqual(child.GetComponent<MeshFilter>().sharedMesh.vertices,
@@ -376,7 +412,9 @@ namespace PewPewPew.Tests
             float minimumArea = float.PositiveInfinity, maximumArea = 0f;
             float minimumScale = float.PositiveInfinity, maximumScale = 0f;
             Set(Server, "m_MinOccupiedRadius", 2f);
-            Set(Server, "m_MaxOccupiedRadius", 7f);
+            Set(Server, "m_MaxOccupiedRadius", 6.5f);
+            Set(Server, "m_MinScale", 0.9f);
+            Set(Server, "m_MaxScale", 1.1f);
             for (int i = 0; i < 250; i++)
             {
                 m_Type.GetMethod("Initialize").Invoke(Server, null);
@@ -389,13 +427,13 @@ namespace PewPewPew.Tests
                 minimumScale = Mathf.Min(minimumScale, scale); maximumScale = Mathf.Max(maximumScale, scale);
                 writer.Reset();
                 ((NetworkBehaviour)Server).OnSerialize(writer, true);
-                Assert.AreEqual(63, writer.Position);
+                Assert.AreEqual(67, writer.Position);
                 payload += writer.Position;
                 Mesh mesh = m_Server.GetComponent<MeshFilter>().sharedMesh;
                 maxVertices = Mathf.Max(maxVertices, mesh.vertexCount);
             }
             stopwatch.Stop();
-            Assert.AreEqual(15750, payload);
+            Assert.AreEqual(16750, payload);
             Assert.Greater(maximumArea, minimumArea * 5f);
             Assert.Less(minimumScale, 0.95f);
             Assert.Greater(maximumScale, 1.05f);
@@ -418,7 +456,7 @@ namespace PewPewPew.Tests
                 {
                     if (piece.Area() < 1f) continue;
                     var fit = piece.Recenter(out _);
-                    Assert.AreEqual(289, fit.Samples.Length);
+                    Assert.AreEqual(256, fit.Samples.Length);
                     Assert.AreEqual(piece.Area(), fit.Area(), 0.00001f);
                     pieces++;
                 }
@@ -524,8 +562,8 @@ namespace PewPewPew.Tests
             Assert.AreEqual(solidness, Solidness(Server));
             FireBullet(256f);
             Assert.Less(Solidness(Server), solidness);
-            Assert.AreEqual(0, Geometry(Server).Samples[144]);
-            Assert.AreEqual(254, Geometry(Server).Samples[145], "Bullet velocity must reach asteroid overflow traversal.");
+            Assert.AreEqual(0, Geometry(Server).Samples[136]);
+            Assert.AreEqual(254, Geometry(Server).Samples[137], "Bullet velocity must reach asteroid overflow traversal.");
         }
 
         [Test]
@@ -534,9 +572,9 @@ namespace PewPewPew.Tests
             Set(Server, "m_Spacing", Vector2.one);
             Rebuild(Server);
             FireBullet(1000f, radius: 1.1f);
-            Assert.AreEqual(0, Geometry(Server).Samples[144]);
-            Assert.AreEqual(165, Geometry(Server).Samples[145]);
-            Assert.AreEqual(255, Geometry(Server).Samples[146]);
+            foreach (int index in new[] { 119, 120, 135, 136 })
+                Assert.AreEqual(0, Geometry(Server).Samples[index]);
+            Assert.AreEqual(255, Geometry(Server).Samples[137]);
         }
 
         [Test]

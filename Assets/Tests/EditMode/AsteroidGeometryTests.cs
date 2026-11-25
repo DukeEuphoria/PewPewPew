@@ -24,19 +24,112 @@ namespace PewPewPew.Tests
             {
                 AsteroidGeometry field = AsteroidGeometry.Generate(seed);
                 CollectionAssert.AreEqual(field.Samples, AsteroidGeometry.Generate(seed).Samples);
-                Assert.AreEqual(289, field.Samples.Length);
+                Assert.AreEqual(256, field.Samples.Length);
                 Assert.AreEqual(1, field.Components().Count, $"Seed {seed}");
                 Assert.Greater(field.Area(), 2f);
                 Assert.IsTrue(field.Samples.Any(value => value > 0 && value < 255));
-                for (int i = 0; i < 17; i++)
+                for (int i = 0; i < 16; i++)
                 {
                     Assert.AreEqual(0, field.Samples[i]);
-                    Assert.AreEqual(0, field.Samples[272 + i]);
-                    Assert.AreEqual(0, field.Samples[i * 17]);
-                    Assert.AreEqual(0, field.Samples[i * 17 + 16]);
+                    Assert.AreEqual(0, field.Samples[240 + i]);
+                    Assert.AreEqual(0, field.Samples[i * 16]);
+                    Assert.AreEqual(0, field.Samples[i * 16 + 15]);
                 }
             }
             CollectionAssert.AreNotEqual(AsteroidGeometry.Generate(1).Samples, AsteroidGeometry.Generate(2).Samples);
+        }
+
+        [Test]
+        public void VertexOffsets_AreSeededBoundedAndKeepCellsConvex()
+        {
+            var field = new AsteroidGeometry(16, 16, Enumerable.Repeat((byte)255, 256).ToArray());
+            var copy = new AsteroidGeometry(16, 16, field.Samples);
+            field.ConfigurePositions(123, 0f, Vector2Int.zero);
+            Assert.AreEqual(new Vector2(4, 5), field.Position(4, 5));
+            field.ConfigurePositions(123, 1f, Vector2Int.zero);
+            copy.ConfigurePositions(123, 1f, Vector2Int.zero);
+            float smallest = float.PositiveInfinity, largest = 0f;
+            for (int y = 0; y < 16; y++)
+            for (int x = 0; x < 16; x++)
+            {
+                Vector2 position = field.Position(x, y);
+                Assert.AreEqual(position, copy.Position(x, y));
+                float displacement = Vector2.Distance(position, new Vector2(x, y));
+                Assert.LessOrEqual(displacement, 1.000001f);
+                smallest = Mathf.Min(smallest, displacement);
+                largest = Mathf.Max(largest, displacement);
+            }
+            Assert.Less(smallest, 0.3f);
+            Assert.Greater(largest, 0.9f);
+            foreach (Vector2[] polygon in field.Polygons())
+                for (int i = 0; i < polygon.Length; i++)
+                {
+                    Vector2 a = polygon[(i + 1) % polygon.Length] - polygon[i];
+                    Vector2 b = polygon[(i + 2) % polygon.Length] - polygon[(i + 1) % polygon.Length];
+                    Assert.Greater(a.x * b.y - a.y * b.x, 0f);
+                }
+            copy.ConfigurePositions(124, 1f, Vector2Int.zero);
+            Assert.AreNotEqual(field.Position(4, 5), copy.Position(4, 5));
+            copy.ConfigurePositions(123, 0.5f, Vector2Int.zero);
+            for (int y = 0; y < 16; y++)
+            for (int x = 0; x < 16; x++)
+            {
+                Vector2 grid = new Vector2(x, y);
+                Assert.Less(Vector2.Distance(copy.Position(x, y) - grid,
+                    (field.Position(x, y) - grid) * 0.5f), 0.000002f);
+            }
+            foreach (Vector2[] polygon in copy.Polygons())
+                for (int i = 0; i < polygon.Length; i++)
+                {
+                    Vector2 a = polygon[(i + 1) % polygon.Length] - polygon[i];
+                    Vector2 b = polygon[(i + 2) % polygon.Length] - polygon[(i + 1) % polygon.Length];
+                    Assert.Greater(a.x * b.y - a.y * b.x, 0f);
+                }
+            Assert.Throws<ArgumentOutOfRangeException>(() => field.ConfigurePositions(0, 1.01f, Vector2Int.zero));
+        }
+
+        [Test]
+        public void VertexOffsets_SurviveComponentExtractionAndRecentering()
+        {
+            for (uint seed = 0; seed < 100; seed++)
+            {
+                var field = AsteroidGeometry.Generate(seed, 6.5f);
+                field.ConfigurePositions(seed ^ 99, 1f, Vector2Int.zero);
+                field.Crack(new Vector2(1f, 7f), seed + 5);
+                foreach (AsteroidGeometry component in field.Components())
+                {
+                    var child = component.Recenter(out Vector2 offset);
+                    Assert.AreEqual(component.Area(), child.Area(), 0.0001f, $"Seed {seed}");
+                    var before = component.Polygons().SelectMany(p => p).ToArray();
+                    var after = child.Polygons().SelectMany(p => p).ToArray();
+                    Assert.AreEqual(before.Length, after.Length, $"Seed {seed}");
+                    Vector2 translation = offset + Vector2.one *
+                        ((component.Width - 1) * 0.5f - (child.Width - 1) * 0.5f);
+                    for (int i = 0; i < before.Length; i++)
+                        Assert.Less(Vector2.Distance(before[i], after[i] + translation), 0.00001f, $"Seed {seed}");
+                }
+            }
+        }
+
+        [Test]
+        public void Explosion_UsesOffsetSamplePositions()
+        {
+            var field = Solid();
+            field.ConfigurePositions(123, 1f, Vector2Int.zero);
+            Vector2 point = field.Position(4, 4);
+            field.ErodeDamage(point, Vector2.zero, Vector2.right, Vector2.up, 0.6f, 10f, false);
+            Assert.AreEqual(245, field.Samples[40]);
+        }
+
+        [Test]
+        public void PointImpact_UsesNearestOffsetSample()
+        {
+            var field = Solid();
+            field.ConfigurePositions(123, 1f, Vector2Int.zero);
+            Vector2 point = field.Position(4, 4);
+            field.ErodeDamage(point, Vector2.right, Vector2.right, Vector2.up, 0.5f, 256f, true);
+            Assert.AreEqual(0, field.Samples[40]);
+            Assert.AreEqual(254, field.Samples[41]);
         }
 
         [Test]
@@ -61,11 +154,11 @@ namespace PewPewPew.Tests
             Assert.AreEqual(0.25f, field.ErodeImpact(new Vector2(4, 4), Vector2.zero, 0.25f, false));
             Assert.AreEqual(255, field.Samples[40]);
             field = field.Components().Single().Recenter(out Vector2 offset);
-            Vector2 point = Vector2.one * 8f - offset;
+            Vector2 point = Vector2.one * 7.5f - offset;
             Assert.AreEqual(0.75f, field.ErodeImpact(point, Vector2.zero, 0.75f, false));
-            Assert.AreEqual(254, field.Samples[8 * 17 + 8]);
+            Assert.AreEqual(254, field.Samples[7 * 16 + 7]);
             for (int i = 0; i < 1016; i++) field.ErodeImpact(point, Vector2.zero, 0.25f, false);
-            Assert.AreEqual(127, field.Samples[8 * 17 + 8]);
+            Assert.AreEqual(127, field.Samples[7 * 16 + 7]);
             Assert.IsFalse(AsteroidGeometry.Contains(field.Polygons(), point));
         }
 
@@ -85,11 +178,11 @@ namespace PewPewPew.Tests
             AsteroidGeometry source = Solid();
             source.Erode(new Vector2(4, 4), 1.6f, 255f);
             AsteroidGeometry fitted = source.Recenter(out Vector2 offset);
-            Vector2 hole = new Vector2(4, 4) + Vector2.one * 4f - offset;
+            Vector2 hole = Vector2.one * 7.5f - offset;
             Assert.IsFalse(AsteroidGeometry.Contains(fitted.Polygons(), hole));
             Assert.AreEqual(1, fitted.Components().Count);
-            Assert.AreEqual(17, fitted.Width);
-            Assert.AreEqual(17, fitted.Height);
+            Assert.AreEqual(16, fitted.Width);
+            Assert.AreEqual(16, fitted.Height);
             Assert.AreEqual(source.Area(), fitted.Area(), 0.00001f);
             Assert.AreEqual(Solidness(source), Solidness(fitted));
         }
@@ -107,7 +200,7 @@ namespace PewPewPew.Tests
             foreach (AsteroidGeometry piece in pieces)
             {
                 AsteroidGeometry fit = piece.Recenter(out _).Recenter(out _);
-                Assert.AreEqual(289, fit.Samples.Length);
+                Assert.AreEqual(256, fit.Samples.Length);
                 Assert.AreEqual(1, fit.Components().Count);
                 Assert.AreEqual(piece.Area(), fit.Area(), 0.00001f);
                 Assert.AreEqual(Solidness(piece), Solidness(fit));
@@ -117,7 +210,7 @@ namespace PewPewPew.Tests
         [Test]
         public void InvalidFieldsAndExcavation_AreRejected()
         {
-            Assert.Throws<ArgumentException>(() => new AsteroidGeometry(18, 17, new byte[306]));
+            Assert.Throws<ArgumentException>(() => new AsteroidGeometry(17, 16, new byte[272]));
             Assert.Throws<ArgumentException>(() => Solid().Erode(Vector2.zero, 1f, float.NaN));
             Assert.Throws<ArgumentException>(() => Solid().ErodeImpact(Vector2.zero, Vector2.zero, 1f, true));
             Assert.Throws<ArgumentException>(() => Solid().ErodeImpact(Vector2.zero, Vector2.right, float.NaN, true));
@@ -251,12 +344,12 @@ namespace PewPewPew.Tests
             for (uint seed = 0; seed < 100; seed++)
             {
                 var small = AsteroidGeometry.Generate(seed, 2f);
-                var large = AsteroidGeometry.Generate(seed, 7f);
-                Assert.AreEqual(289, small.Samples.Length);
-                Assert.AreEqual(289, large.Samples.Length);
+                var large = AsteroidGeometry.Generate(seed, 6.5f);
+                Assert.AreEqual(256, small.Samples.Length);
+                Assert.AreEqual(256, large.Samples.Length);
                 Assert.Greater(large.Area(), small.Area() * 5f);
                 for (int i = 0; i < small.Samples.Length; i++) Assert.GreaterOrEqual(large.Samples[i], small.Samples[i]);
-                Assert.That(AsteroidGeometry.InitialRadius(seed, 2f, 7f), Is.InRange(2f, 7f));
+                Assert.That(AsteroidGeometry.InitialRadius(seed, 2f, 6.5f), Is.InRange(2f, 6.5f));
             }
         }
 
@@ -366,19 +459,62 @@ namespace PewPewPew.Tests
             Assert.Throws<ArgumentException>(() => new AsteroidSurface(0, Vector2.zero, Vector2.one, 1f, 2f, 4f));
         }
 
+        [Test]
+        public void Surface_UsesDisplacedVerticesAndPreservesPlanesAndWalls()
+        {
+            const uint seed = 123;
+            var field = new AsteroidGeometry(16, 16, Enumerable.Repeat((byte)255, 256).ToArray());
+            field.ConfigurePositions(seed, 1f, Vector2Int.zero);
+            var surface = new AsteroidSurface(seed, Vector2.one * 7.5f, Vector2.one, 1f, 0.8f, 5f, 1f);
+            Vector2[] cell = {
+                surface.Local(field.Position(7, 7)), surface.Local(field.Position(8, 7)),
+                surface.Local(field.Position(8, 8)), surface.Local(field.Position(7, 8))
+            };
+            var facets = surface.Facets(cell);
+            Assert.AreEqual(AsteroidGeometry.PolygonArea(cell), facets.Sum(AsteroidGeometry.PolygonArea), 0.00001f);
+            foreach (Vector2 corner in cell)
+                Assert.IsTrue(facets.SelectMany(facet => facet).Any(point => Vector2.Distance(point, corner) < 0.00001f));
+            Assert.IsFalse(facets.SelectMany(facet => facet)
+                .Any(point => Vector2.Distance(surface.Source(point), new Vector2(7, 7)) < 0.00001f),
+                "The roof must not introduce the old undisplaced grid vertex.");
+            foreach (Vector2[] facet in facets)
+            for (int i = 1; i < facet.Length - 1; i++)
+            {
+                Vector2 centre = (facet[0] + facet[i] + facet[i + 1]) / 3f;
+                float height = (surface.Front(facet[0]) + surface.Front(facet[i]) + surface.Front(facet[i + 1])) / 3f;
+                Assert.AreEqual(height, surface.Front(centre), 0.0001f);
+            }
+            Vector2 start = surface.Local(field.Position(5, 6));
+            Vector2 end = surface.Local(field.Position(10, 9));
+            var cuts = surface.WallCuts(start, end);
+            for (int i = 1; i < cuts.Count; i++)
+            {
+                Vector2 a = Vector2.Lerp(start, end, cuts[i - 1]);
+                Vector2 b = Vector2.Lerp(start, end, cuts[i]);
+                Assert.AreEqual((surface.Front(a) + surface.Front(b)) * 0.5f,
+                    surface.Front((a + b) * 0.5f), 0.0002f);
+            }
+            Vector2 offset = new Vector2(2f, -1f);
+            var child = surface.Child(offset);
+            foreach (Vector2 corner in cell)
+                Assert.AreEqual(surface.Front(corner), child.Front(corner - offset), 0.00001f);
+        }
+
         [TestCase(2f, 1f)]
         [TestCase(6f, 2f)]
         public void Surface_DomeRisesTowardTheOriginalCentreAndScalesWithTheRock(float radius, float spacing)
         {
-            var domed = new AsteroidSurface(123, Vector2.one * 8f, Vector2.one / spacing, 1f, 0.4f, radius);
+            var domed = new AsteroidSurface(123, Vector2.one * 7.5f, Vector2.one / spacing, 1f, 0.4f, radius);
             var flat = new AsteroidSurface(123, domed.Offset, domed.Scale, domed.Depth, domed.Relief, 0f);
             Vector2 middle = Vector2.right * (radius * spacing * 0.5f);
             Vector2 edge = Vector2.right * (radius * spacing);
             float rise = flat.Front(Vector2.zero) - domed.Front(Vector2.zero);
             float middleRise = flat.Front(middle) - domed.Front(middle);
-            Assert.AreEqual(radius * spacing, rise, 0.00001f);
-            Assert.AreEqual(radius * spacing * Mathf.Sqrt(0.75f), middleRise, 0.00001f);
-            Assert.AreEqual(flat.Front(edge), domed.Front(edge), 0.00001f);
+            Assert.AreEqual(spacing * Mathf.Sqrt(radius * radius - 0.5f), rise, 0.00001f);
+            float inner = radius * 0.5f - 0.5f, outer = radius * 0.5f + 0.5f;
+            Assert.AreEqual(spacing * 0.5f * (Mathf.Sqrt(radius * radius - inner * inner - 0.25f) +
+                Mathf.Sqrt(radius * radius - outer * outer - 0.25f)), middleRise, 0.00001f);
+            Assert.GreaterOrEqual(flat.Front(edge), domed.Front(edge));
             Assert.Greater(rise, middleRise);
             Assert.Throws<ArgumentException>(() => new AsteroidSurface(0, Vector2.zero, Vector2.one, 1f, 0f, float.NaN));
             Assert.Throws<ArgumentException>(() => new AsteroidSurface(0, Vector2.zero, Vector2.one, 1f, 0f, -1f));

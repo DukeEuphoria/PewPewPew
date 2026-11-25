@@ -12,28 +12,45 @@ namespace PewPewPew.Core
         public readonly float Depth;
         public readonly float Relief;
         public readonly float DomeRadius;
+        private readonly AsteroidGeometry m_Lattice;
 
-        public AsteroidSurface(uint seed, Vector2 offset, Vector2 scale, float depth, float relief, float domeRadius)
+        public AsteroidSurface(uint seed, Vector2 offset, Vector2 scale, float depth, float relief, float domeRadius,
+            float vertexOffsetFactor = 0f)
         {
             if (!AsteroidGeometry.Finite(offset.x) || !AsteroidGeometry.Finite(offset.y) ||
                 !AsteroidGeometry.Finite(scale.x) || !AsteroidGeometry.Finite(scale.y) ||
                 !AsteroidGeometry.Finite(depth) || !AsteroidGeometry.Finite(relief) ||
                 !AsteroidGeometry.Finite(domeRadius) ||
                 scale.x <= 0f || scale.y <= 0f || depth <= 0f || relief < 0f || relief > depth ||
-                domeRadius < 0f || domeRadius > AsteroidGeometry.MaxCells * 0.5f)
+                domeRadius < 0f || domeRadius > Mathf.Sqrt(2f) * (AsteroidGeometry.MaxCells * 0.5f + 1f) ||
+                !AsteroidGeometry.Finite(vertexOffsetFactor) || vertexOffsetFactor < 0f || vertexOffsetFactor > 1f)
                 throw new ArgumentException("Invalid asteroid surface descriptor.");
             Seed = seed; Offset = offset; Scale = scale; Depth = depth; Relief = relief; DomeRadius = domeRadius;
+            m_Lattice = null;
+            if (vertexOffsetFactor > 0f)
+            {
+                int size = AsteroidGeometry.MaxCells + 1;
+                m_Lattice = new AsteroidGeometry(size, size, new byte[size * size]);
+                m_Lattice.ConfigurePositions(seed, vertexOffsetFactor, Vector2Int.zero);
+            }
+        }
+
+        private AsteroidSurface(AsteroidSurface parent, Vector2 offset)
+        {
+            Seed = parent.Seed; Offset = parent.Source(offset); Scale = parent.Scale;
+            Depth = parent.Depth; Relief = parent.Relief; DomeRadius = parent.DomeRadius;
+            m_Lattice = parent.m_Lattice;
         }
 
         public Vector2 Source(Vector2 local) => Offset + Vector2.Scale(local, Scale);
         public Vector2 Local(Vector2 source) =>
             new Vector2((source.x - Offset.x) / Scale.x, (source.y - Offset.y) / Scale.y);
-        public AsteroidSurface Child(Vector2 offset) =>
-            new AsteroidSurface(Seed, Source(offset), Scale, Depth, Relief, DomeRadius);
+        public AsteroidSurface Child(Vector2 offset) => new AsteroidSurface(this, offset);
 
         public float Front(Vector2 local)
         {
             Vector2 source = Source(local);
+            if (m_Lattice != null) return DisplacedFront(source);
             int x = Mathf.FloorToInt(source.x), y = Mathf.FloorToInt(source.y);
             float u = source.x - x, v = source.y - y;
             float a = Height(x, y), c = Height(x + 1, y + 1);
@@ -48,13 +65,15 @@ namespace PewPewPew.Core
             uint hash = unchecked(Seed ^ (uint)x * 374761393u ^ (uint)y * 668265263u);
             hash = unchecked((hash ^ (hash >> 13)) * 1274126177u);
             hash ^= hash >> 16;
-            Vector2 radial = new Vector2(x, y) - Vector2.one * (AsteroidGeometry.MaxCells * 0.5f);
+            Vector2 radial = (m_Lattice == null ? new Vector2(x, y) : m_Lattice.Position(x, y)) -
+                             Vector2.one * (AsteroidGeometry.MaxCells * 0.5f);
             float dome = Mathf.Sqrt(Mathf.Max(0f, DomeRadius * DomeRadius - radial.sqrMagnitude)) / Scale.x;
             return dome + Relief * (0.15f + (hash >> 8) / 16777216f * 0.85f);
         }
 
         public List<Vector2[]> Facets(Vector2[] polygon)
         {
+            if (m_Lattice != null) return DisplacedFacets(polygon);
             var source = new List<Vector2>(polygon.Length);
             Vector2 min = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
             Vector2 max = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
@@ -107,6 +126,7 @@ namespace PewPewPew.Core
 
         public List<float> WallCuts(Vector2 a, Vector2 b)
         {
+            if (m_Lattice != null) return DisplacedWallCuts(a, b);
             a = Source(a); b = Source(b);
             var cuts = new List<float> { 0f, 1f };
             Axis(a.x, b.x); Axis(a.y, b.y); Axis(a.x - a.y, b.x - b.y);
@@ -123,5 +143,156 @@ namespace PewPewPew.Core
                 }
             }
         }
+
+        private float DisplacedFront(Vector2 point)
+        {
+            int minX = Mathf.Max(0, Mathf.FloorToInt(point.x) - 1);
+            int maxX = Mathf.Min(AsteroidGeometry.MaxCells - 1, Mathf.FloorToInt(point.x) + 1);
+            int minY = Mathf.Max(0, Mathf.FloorToInt(point.y) - 1);
+            int maxY = Mathf.Min(AsteroidGeometry.MaxCells - 1, Mathf.FloorToInt(point.y) + 1);
+            float best = -0.0001f, height = 0f;
+            for (int y = minY; y <= maxY; y++)
+                for (int x = minX; x <= maxX; x++)
+                {
+                    Vector2 a = m_Lattice.Position(x, y), b = m_Lattice.Position(x + 1, y);
+                    Vector2 c = m_Lattice.Position(x + 1, y + 1), d = m_Lattice.Position(x, y + 1);
+                    float score = Triangle(point, a, b, c, out float u, out float v);
+                    if (score > best)
+                    {
+                        best = score;
+                        height = Height(x, y) + u * (Height(x + 1, y) - Height(x, y)) +
+                                 v * (Height(x + 1, y + 1) - Height(x, y));
+                    }
+                    if (score >= 0f) return -Depth * 0.5f - height;
+                    score = Triangle(point, a, c, d, out u, out v);
+                    if (score > best)
+                    {
+                        best = score;
+                        height = Height(x, y) + u * (Height(x + 1, y + 1) - Height(x, y)) +
+                                 v * (Height(x, y + 1) - Height(x, y));
+                    }
+                    if (score >= 0f) return -Depth * 0.5f - height;
+                }
+            if (best > -0.0001f) return -Depth * 0.5f - height;
+            throw new InvalidOperationException("Asteroid surface point lies outside its displaced lattice.");
+        }
+
+        private static float Triangle(Vector2 point, Vector2 a, Vector2 b, Vector2 c, out float u, out float v)
+        {
+            Vector2 ab = b - a, ac = c - a, ap = point - a;
+            float area = Cross(ab, ac);
+            u = Cross(ap, ac) / area;
+            v = Cross(ab, ap) / area;
+            return Mathf.Min(Mathf.Min(u, v), 1f - u - v);
+        }
+
+        private List<Vector2[]> DisplacedFacets(Vector2[] polygon)
+        {
+            var source = new List<Vector2>(polygon.Length);
+            Vector2 min = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+            Vector2 max = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+            foreach (Vector2 point in polygon)
+            {
+                Vector2 p = Source(point);
+                source.Add(p); min = Vector2.Min(min, p); max = Vector2.Max(max, p);
+            }
+            var result = new List<Vector2[]>();
+            AsteroidSurface frame = this;
+            for (int y = Mathf.Max(0, Mathf.FloorToInt(min.y) - 1);
+                 y <= Mathf.Min(AsteroidGeometry.MaxCells - 1, Mathf.FloorToInt(max.y) + 1); y++)
+                for (int x = Mathf.Max(0, Mathf.FloorToInt(min.x) - 1);
+                     x <= Mathf.Min(AsteroidGeometry.MaxCells - 1, Mathf.FloorToInt(max.x) + 1); x++)
+                {
+                    Vector2 a = m_Lattice.Position(x, y), b = m_Lattice.Position(x + 1, y);
+                    Vector2 c = m_Lattice.Position(x + 1, y + 1), d = m_Lattice.Position(x, y + 1);
+                    Add(a, b, c);
+                    Add(a, c, d);
+                }
+            if (result.Count == 0 && AsteroidGeometry.PolygonArea(polygon) > 0f)
+                throw new InvalidOperationException("Asteroid polygon lies outside its displaced surface lattice.");
+            return result;
+
+            void Add(Vector2 a, Vector2 b, Vector2 c)
+            {
+                if (Mathf.Max(a.x, Mathf.Max(b.x, c.x)) < min.x ||
+                    Mathf.Min(a.x, Mathf.Min(b.x, c.x)) > max.x ||
+                    Mathf.Max(a.y, Mathf.Max(b.y, c.y)) < min.y ||
+                    Mathf.Min(a.y, Mathf.Min(b.y, c.y)) > max.y) return;
+                List<Vector2> points = ClipEdge(source, a, b);
+                points = ClipEdge(points, b, c);
+                points = ClipEdge(points, c, a);
+                if (points.Count < 3) return;
+                var facet = new Vector2[points.Count];
+                for (int i = 0; i < facet.Length; i++) facet[i] = frame.Local(points[i]);
+                if (AsteroidGeometry.PolygonArea(facet) > 0f) result.Add(facet);
+            }
+        }
+
+        private static List<Vector2> ClipEdge(List<Vector2> points, Vector2 a, Vector2 b)
+        {
+            var result = new List<Vector2>();
+            if (points.Count == 0) return result;
+            Vector2 previous = points[points.Count - 1];
+            double previousDistance = Distance(previous);
+            foreach (Vector2 point in points)
+            {
+                double distance = Distance(point);
+                if ((previousDistance >= 0d) != (distance >= 0d))
+                    result.Add(Vector2.LerpUnclamped(previous, point, (float)(previousDistance / (previousDistance - distance))));
+                if (distance >= 0d) result.Add(point);
+                previous = point;
+                previousDistance = distance;
+            }
+            return result;
+
+            double Distance(Vector2 point) =>
+                ((double)b.x - a.x) * ((double)point.y - a.y) -
+                ((double)b.y - a.y) * ((double)point.x - a.x);
+        }
+
+        private List<float> DisplacedWallCuts(Vector2 start, Vector2 end)
+        {
+            Vector2 a = Source(start), b = Source(end);
+            Vector2 min = Vector2.Min(a, b), max = Vector2.Max(a, b);
+            var cuts = new List<float> { 0f, 1f };
+            for (int y = Mathf.Max(0, Mathf.FloorToInt(min.y) - 1);
+                 y <= Mathf.Min(AsteroidGeometry.MaxCells - 1, Mathf.FloorToInt(max.y) + 1); y++)
+                for (int x = Mathf.Max(0, Mathf.FloorToInt(min.x) - 1);
+                     x <= Mathf.Min(AsteroidGeometry.MaxCells - 1, Mathf.FloorToInt(max.x) + 1); x++)
+                {
+                    Vector2 p = m_Lattice.Position(x, y), q = m_Lattice.Position(x + 1, y);
+                    Vector2 r = m_Lattice.Position(x + 1, y + 1), s = m_Lattice.Position(x, y + 1);
+                    Add(p, q); Add(p, s); Add(p, r);
+                    if (x == AsteroidGeometry.MaxCells - 1) Add(q, r);
+                    if (y == AsteroidGeometry.MaxCells - 1) Add(s, r);
+                }
+            cuts.Sort();
+            for (int i = cuts.Count - 1; i > 0; i--)
+                if (cuts[i] - cuts[i - 1] < 0.000001f) cuts.RemoveAt(i);
+            return cuts;
+
+            void Add(Vector2 p, Vector2 q)
+            {
+                Vector2 direction = b - a, edge = q - p;
+                float denominator = Cross(direction, edge);
+                if (Mathf.Abs(denominator) < 0.0000001f)
+                {
+                    if (Mathf.Abs(Cross(p - a, direction)) > 0.0000001f || direction.sqrMagnitude == 0f) return;
+                    AddCut(Vector2.Dot(p - a, direction) / direction.sqrMagnitude);
+                    AddCut(Vector2.Dot(q - a, direction) / direction.sqrMagnitude);
+                    return;
+                }
+                float t = Cross(p - a, edge) / denominator;
+                float u = Cross(p - a, direction) / denominator;
+                if (u >= 0f && u <= 1f) AddCut(t);
+            }
+
+            void AddCut(float t)
+            {
+                if (t > 0f && t < 1f) cuts.Add(t);
+            }
+        }
+
+        private static float Cross(Vector2 a, Vector2 b) => a.x * b.y - a.y * b.x;
     }
 }

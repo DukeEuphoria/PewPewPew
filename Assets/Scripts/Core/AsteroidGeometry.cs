@@ -7,13 +7,18 @@ namespace PewPewPew.Core
     /// A bounded surface field, not a voxel volume. All coordinates are in sample space.
     public sealed class AsteroidGeometry
     {
-        public const byte Version = 7;
-        public const int MaxCells = 16;
+        public const byte Version = 10;
+        public const int MaxCells = 15;
         public const float IsoLevel = 127.5f;
         public readonly int Width;
         public readonly int Height;
         public readonly byte[] Samples;
         private readonly float[] m_PendingErosion;
+        private Vector2[] m_Positions;
+        private uint m_PositionSeed;
+        private float m_OffsetFactor;
+        private Vector2Int m_PositionOrigin;
+        public float OffsetFactor => m_OffsetFactor;
 
         public AsteroidGeometry(int width, int height, byte[] samples)
         {
@@ -40,13 +45,13 @@ namespace PewPewPew.Core
         public static float InitialRadius(uint seed, float minimum, float maximum)
         {
             if (!Finite(minimum) || !Finite(maximum) || minimum < 1f || maximum < minimum || maximum > MaxCells * 0.5f - 1f)
-                throw new ArgumentException("Asteroid occupied radii must be ordered within 1..7 cells.");
+                throw new ArgumentException("Asteroid occupied radii must be ordered within 1..6.5 cells.");
             uint state = seed ^ 0x85EBCA6Bu;
             Next(ref state);
             return Mathf.Lerp(minimum, maximum, Unit(ref state));
         }
 
-        public static AsteroidGeometry Generate(uint seed) => Generate(seed, InitialRadius(seed, 2f, 7f));
+        public static AsteroidGeometry Generate(uint seed) => Generate(seed, InitialRadius(seed, 2f, 6.5f));
 
         public static AsteroidGeometry Generate(uint seed, float radius)
         {
@@ -95,6 +100,83 @@ namespace PewPewPew.Core
         private static byte Solidness(float distance) =>
             (byte)Mathf.Clamp(Mathf.RoundToInt(IsoLevel + distance * 255f), 0, 255);
 
+        public void ConfigurePositions(uint seed, float factor, Vector2Int origin)
+        {
+            if (!Finite(factor) || factor < 0f || factor > 1f)
+                throw new ArgumentOutOfRangeException(nameof(factor));
+            m_PositionSeed = seed;
+            m_OffsetFactor = factor;
+            m_PositionOrigin = origin;
+            m_Positions = null;
+            if (factor == 0f) return;
+
+            int size = MaxCells + 1;
+            var source = new Vector2[size * size];
+            uint state = seed ^ 0xD1B54A35u;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++) source[y * size + x] = new Vector2(x, y);
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                int index = y * size + x;
+                Vector2 original = source[index];
+                Vector2 displacement = Vector2.zero;
+                bool valid = false;
+                for (int attempt = 0; attempt < 40 && !valid; attempt++)
+                {
+                    if (attempt < 8)
+                    {
+                        float angle = Unit(ref state) * Mathf.PI * 2f;
+                        float radius = Mathf.Sqrt(Unit(ref state));
+                        displacement = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                    }
+                    else displacement *= 0.5f;
+                    source[index] = original + displacement;
+                    valid = true;
+                    for (int cy = Mathf.Max(0, y - 1); cy <= Mathf.Min(MaxCells - 1, y); cy++)
+                    for (int cx = Mathf.Max(0, x - 1); cx <= Mathf.Min(MaxCells - 1, x); cx++)
+                        if (!ValidCell(source, size, cx, cy)) valid = false;
+                }
+                if (!valid) throw new InvalidOperationException("Could not generate valid asteroid vertex offsets.");
+            }
+            m_Positions = new Vector2[Samples.Length];
+            for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+            {
+                int sx = x + origin.x, sy = y + origin.y;
+                Vector2 grid = new Vector2(x, y);
+                m_Positions[y * Width + x] = sx >= 0 && sy >= 0 && sx < size && sy < size
+                    ? grid + (source[sy * size + sx] - new Vector2(sx, sy)) * factor : grid;
+            }
+        }
+
+        private static float Cross(Vector2 a, Vector2 b) => a.x * b.y - a.y * b.x;
+
+        private static bool ValidCell(Vector2[] positions, int width, int x, int y)
+        {
+            Vector2 a = positions[y * width + x] - new Vector2(x, y);
+            Vector2 b = positions[y * width + x + 1] - new Vector2(x + 1, y);
+            Vector2 c = positions[(y + 1) * width + x + 1] - new Vector2(x + 1, y + 1);
+            Vector2 d = positions[(y + 1) * width + x] - new Vector2(x, y + 1);
+            return ValidCorner(Vector2.right, Vector2.up, b - a, c - b) &&
+                   ValidCorner(Vector2.up, Vector2.left, c - b, d - c) &&
+                   ValidCorner(Vector2.left, Vector2.down, d - c, a - d) &&
+                   ValidCorner(Vector2.down, Vector2.right, a - d, b - a);
+        }
+
+        private static bool ValidCorner(Vector2 a, Vector2 b, Vector2 da, Vector2 db)
+        {
+            // The corner cross product is quadratic as offsets scale from zero to one.
+            float linear = Cross(da, b) + Cross(a, db), quadratic = Cross(da, db);
+            if (1f + linear + quadratic <= 0.01f) return false;
+            if (quadratic <= 0f) return true;
+            float minimum = -linear / (2f * quadratic);
+            return minimum <= 0f || minimum >= 1f ||
+                   1f + linear * minimum + quadratic * minimum * minimum > 0.01f;
+        }
+
+        public Vector2 Position(int x, int y) => m_Positions == null ? new Vector2(x, y) : m_Positions[y * Width + x];
+
         public List<Vector2[]> Polygons()
         {
             var result = new List<Vector2[]>();
@@ -106,8 +188,8 @@ namespace PewPewPew.Core
                 int code = (a >= IsoLevel ? 1 : 0) | (b >= IsoLevel ? 2 : 0) |
                            (c >= IsoLevel ? 4 : 0) | (d >= IsoLevel ? 8 : 0);
                 if (code == 0) continue;
-                Vector2 bl = new Vector2(x, y), br = new Vector2(x + 1, y);
-                Vector2 tr = new Vector2(x + 1, y + 1), tl = new Vector2(x, y + 1);
+                Vector2 bl = Position(x, y), br = Position(x + 1, y);
+                Vector2 tr = Position(x + 1, y + 1), tl = Position(x, y + 1);
                 Vector2 bottom = Edge(bl, br, a, b), right = Edge(br, tr, b, c);
                 Vector2 top = Edge(tl, tr, d, c), left = Edge(bl, tl, a, d);
                 switch (code)
@@ -156,12 +238,34 @@ namespace PewPewPew.Core
                 !Finite(axisX.x) || !Finite(axisX.y) || !Finite(axisY.x) || !Finite(axisY.y) ||
                 (double)axisX.x * axisY.y - (double)axisX.y * axisY.x == 0d)
                 throw new ArgumentException("Damage requires finite coordinates, nondegenerate world axes, nonnegative radius and positive damage.");
-            if (radius <= 0.5f) return ErodeImpact(point, direction, damage, projectile);
+            if (radius <= 0.5f)
+            {
+                if (m_Positions != null && point.x >= -0.5f - m_OffsetFactor && point.y >= -0.5f - m_OffsetFactor &&
+                    point.x <= Width - 0.5f + m_OffsetFactor && point.y <= Height - 0.5f + m_OffsetFactor)
+                {
+                    double nearest = double.PositiveInfinity;
+                    Vector2 closest = point;
+                    for (int y = 0; y < Height; y++)
+                    for (int x = 0; x < Width; x++)
+                    {
+                        Vector2 delta = Position(x, y) - point;
+                        double worldX = (double)axisX.x * delta.x + (double)axisY.x * delta.y;
+                        double worldY = (double)axisX.y * delta.x + (double)axisY.y * delta.y;
+                        double distance = worldX * worldX + worldY * worldY;
+                        if (distance >= nearest) continue;
+                        nearest = distance;
+                        closest = new Vector2(x, y);
+                    }
+                    point = closest;
+                }
+                return ErodeImpact(point, direction, damage, projectile);
+            }
             float spent = 0f;
             for (int y = 0; y < Height; y++)
             for (int x = 0; x < Width; x++)
             {
-                double dx = x - (double)point.x, dy = y - (double)point.y;
+                Vector2 position = Position(x, y);
+                double dx = position.x - (double)point.x, dy = position.y - (double)point.y;
                 double worldX = dx * axisX.x + dy * axisY.x, worldY = dx * axisX.y + dy * axisY.y;
                 double distance = Math.Sqrt(worldX * worldX + worldY * worldY);
                 if (distance >= radius) continue;
@@ -302,7 +406,9 @@ namespace PewPewPew.Core
                     Visit(x, y - 1);
                     Visit(x, y + 1);
                 }
-                result.Add(new AsteroidGeometry(Width, Height, component, pending));
+                var part = new AsteroidGeometry(Width, Height, component, pending);
+                if (m_Positions != null) part.ConfigurePositions(m_PositionSeed, m_OffsetFactor, m_PositionOrigin);
+                result.Add(part);
 
                 void Visit(int x, int y)
                 {
@@ -399,7 +505,11 @@ namespace PewPewPew.Core
             }
             offset = new Vector2(originX, originY) + Vector2.one * (MaxCells * 0.5f) -
                      new Vector2(Width - 1, Height - 1) * 0.5f;
-            return new AsteroidGeometry(width, width, samples, pending);
+            var result = new AsteroidGeometry(width, width, samples, pending);
+            if (m_Positions != null)
+                result.ConfigurePositions(m_PositionSeed, m_OffsetFactor,
+                    m_PositionOrigin + new Vector2Int(originX, originY));
+            return result;
         }
 
         public readonly struct BoundaryEdge : IEquatable<BoundaryEdge>

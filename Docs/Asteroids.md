@@ -7,33 +7,40 @@ and shattering can still move them. Ship and orbital-body gravity is unchanged.
 
 ## Geometry and bandwidth
 
-- Maximum resolution is **16x16 cells**, requiring **17x17 samples**.
+- Maximum resolution is **16x16 samples**, defining **15x15 cells**.
 - Each sample is an unsigned byte of solidness. A complete field is at most
-  **289 bytes**, independent of asteroid mass. The isosurface is **127.5**:
+  **256 bytes**, independent of asteroid mass. The isosurface is **127.5**:
   **0-127 is outside; 128-255 is solid.** Boundary vertices interpolate between
   samples on opposite sides of this threshold. Generation centres the density
   ramp on 127.5 at the silhouette, saturating at 0 and 255 on either side.
 - Smaller rocks occupy fewer cells of the same full grid. Seeded occupied
-  radius ranges from 2 to 7 cells; increasing coverage does not change spacing.
+  radius ranges from 2 to 6.5 cells; increasing coverage does not change spacing.
 - Inspector settings author base cell spacing, physical thickness and material
   density (all initially 1), plus a uniform scale variance (0.9 to 1.1).
   The selected scale affects cell spacing and thickness, not the sample count.
+- `m_VertexOffsetFactor` scales each seeded random vector within the unit
+  circle by the cell width: 0 leaves a regular grid, 1 allows displacements
+  up to one cell width. Candidates are resampled or shortened as needed to
+  keep cells convex at every factor. Changing the factor scales the same
+  seeded offsets rather than selecting new ones.
+  Meshes, colliders and geometric mass use the same displaced sample positions;
+  explosion falloff uses their actual world-space positions.
 - The generator uses its own fixed integer random sequence. Seed, generator
   version, and physical descriptor reconstruct untouched rocks.
 - Damage changes the current field. Late observers receive that field, not
   an unbounded damage history. No mesh vertices are transmitted.
-- Generator/format **version 7** adds the inherited dome radius, retaining the
+- Generator/format **version 10** uses the displaced roof lattice, retaining the
   127.5 contour. There are no health fields. The
   descriptor includes the selected occupied radius and physical spacing/depth:
   observers need not share Inspector ranges.
   Mixed versions are explicitly rejected; there is no older-format migration.
-- Initial asteroid-specific serialization is **63 bytes** for untouched rocks,
-  or at most **354 bytes** for damaged rocks/children (63 + 2 dimensions + 289
-  samples). At 250 rocks those states total **15,750 or 88,500 bytes**.
+- Initial asteroid-specific serialization is **67 bytes** for untouched rocks,
+  or at most **325 bytes** for damaged rocks/children (67 + 2 dimensions + 256
+  samples). At 250 rocks those states total **16,750 or 81,250 bytes**.
 - Live updates additionally include 17 bytes of effect position, inherited
   velocity, and chip/shatter selection. State and its effect arrive together;
   repeated revisions do not replay an effect, and initial synchronization
-  never replays old debris. The maximum live state is **371 bytes**.
+  never replays old debris. The maximum live state is **342 bytes**.
 - These sizes **exclude** Mirror identity/behaviour framing, network transforms,
   transport overhead, and all other game state.
 
@@ -41,7 +48,7 @@ The front/back mesh and exposed side walls are generated from the same filled
 polygons used by a PolygonCollider2D source and a manually rebuilt
 CompositeCollider2D. Internal cell seams are merged; drilled holes remain empty.
 The empty outer sample border is included within the resolution cap.
-Between samples of 0 and 255 the contour crosses halfway along the grid edge.
+Between samples of 0 and 255 the contour crosses halfway along the displaced edge.
 Sub-threshold neighbours are preserved during component extraction so splitting
 does not shift the surviving interpolated boundary.
 
@@ -50,7 +57,7 @@ does not shift the surviving interpolated boundary.
 The camera-facing, negative-Z roof has a broad hemispherical rise toward its
 original centre, plus seeded angular relief. The dome radius is the furthest
 original silhouette vertex from that centre, so smaller rocks have smaller
-domes. Heights are sampled on the original lattice and remain faceted, not
+domes. Heights are sampled on the displaced lattice and remain faceted, not
 smoothly shaded. The positive-Z back remains flat. `m_ReliefFraction` controls
 the additional angular relief as a fraction of original logical thickness.
 Both dome and relief are render-only: they do not change physical mass,
@@ -162,10 +169,11 @@ fractional damage; there is no separate health allocation or health snapshot.
   Components below `m_MinPieceMass` become cosmetic debris. If just one
   substantial component survives, retain it and play a chip effect; no fake
   multi-piece shatter is reported.
-- Each child uses a full 17x17-sample grid containing its existing cut shape.
+- Each child uses a full 16x16-sample grid containing its existing cut shape.
   Recentering shifts samples by integer cells only: no resampling, fitting,
   enlargement or depth normalization. Holes, solidness and fractional pending
   erosion are preserved exactly. Smaller children simply occupy fewer cells.
+- Children preserve their parent's seeded sample offsets through recentering.
 - Children inherit cell spacing (including the parent's scale variance),
   thickness and material density. Their mass is therefore the exact retained
   geometric volume, within floating-point tolerance.
@@ -219,8 +227,8 @@ for fraction-preserving penetration and zero-layer bypass.
 Focused validation includes real host/remote state, child snapshots,
 game-zoom shadows and a rendered single-texture check.
 
-The editor's 250-rock generation/remesh check takes approximately half a second.
-This is sequential editor CPU work, not a gameplay frame-rate guarantee. Collider path
+The earlier editor 250-rock generation/remesh timing predates the displaced roof
+lattice and must be remeasured. Collider path
 assignment is batched while the source collider is disabled, avoiding expensive
 repeated intermediate shape builds. Height clipping only scans overlapping
 source cells, never the whole lattice per polygon. Child grids now use a bounded

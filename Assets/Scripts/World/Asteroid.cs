@@ -16,14 +16,14 @@ namespace PewPewPew.World
         HitResult TakeDamage(float amount, Vector2 point, PlayerState attacker);
     }
 
-    /// Server-owned, drillable rock. Solidness is capped at 289 bytes regardless of physical size.
+    /// Server-owned, drillable rock. Solidness is capped at 256 bytes regardless of physical size.
     public class Asteroid : SpaceObject, IDamageable
     {
         [SerializeField, Min(0.01f)] private float m_CellSpacing = 1f;
         [SerializeField, Min(0.01f)] private float m_Thickness = 1f;
         [SerializeField, Min(0.01f)] private float m_MaterialDensity = 1f;
-        [SerializeField, Range(1f, 7f)] private float m_MinOccupiedRadius = 2f;
-        [SerializeField, Range(1f, 7f)] private float m_MaxOccupiedRadius = 7f;
+        [SerializeField, Range(1f, 6.5f)] private float m_MinOccupiedRadius = 2f;
+        [SerializeField, Range(1f, 6.5f)] private float m_MaxOccupiedRadius = 6.5f;
         [SerializeField, Min(0.01f)] private float m_MinScale = 0.9f;
         [SerializeField, Min(0.01f)] private float m_MaxScale = 1.1f;
         [SerializeField] private float m_FragmentScatterSpeed = 2f;
@@ -32,6 +32,8 @@ namespace PewPewPew.World
         [SerializeField] private float m_OrbitalBodyDamageMultiplier = 10f;
         [SerializeField, Min(0.01f)] private float m_MinPieceMass = 0.5f;
         [SerializeField, Range(0f, 1f)] private float m_ReliefFraction = 0.35f;
+        [SerializeField, Range(0f, 1f), Tooltip("Maximum seeded vertex displacement as a fraction of cell width.")]
+        private float m_VertexOffsetFactor = 0.5f;
         [SerializeField, Min(0.1f)] private float m_DespawnDelay = 0.2f;
         [SerializeField] private GameObject m_ChipExplosion;
         [SerializeField] private GameObject m_ShatterExplosion;
@@ -86,6 +88,7 @@ namespace PewPewPew.World
             m_Seed = unchecked((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
             m_GenerationRadius = AsteroidGeometry.InitialRadius(m_Seed, m_MinOccupiedRadius, m_MaxOccupiedRadius);
             m_Field = AsteroidGeometry.Generate(m_Seed, m_GenerationRadius);
+            m_Field.ConfigurePositions(m_Seed ^ 0x9E3779B9u, m_VertexOffsetFactor, Vector2Int.zero);
             uint state = m_Seed ^ 0xC2B2AE35u;
             float scale = Mathf.Lerp(m_MinScale, m_MaxScale, (AsteroidGeometry.Next(ref state) >> 8) / 16777216f);
             m_Density = m_MaterialDensity;
@@ -98,7 +101,7 @@ namespace PewPewPew.World
                 foreach (Vector2 point in polygon)
                     domeRadius = Mathf.Max(domeRadius, (point - centre).magnitude);
             m_Surface = new AsteroidSurface(m_Seed ^ 0x9E3779B9u, centre,
-                Vector2.one / step, m_Depth, m_Depth * m_ReliefFraction, domeRadius);
+                Vector2.one / step, m_Depth, m_Depth * m_ReliefFraction, domeRadius, m_VertexOffsetFactor);
             m_HasSnapshot = false;
             m_Broken = false;
             m_Revision = 0;
@@ -338,6 +341,7 @@ namespace PewPewPew.World
             writer.WriteFloat(m_Surface.Depth);
             writer.WriteFloat(m_Surface.Relief);
             writer.WriteFloat(m_Surface.DomeRadius);
+            writer.WriteFloat(m_Field.OffsetFactor);
             writer.WriteBool(m_Broken);
             writer.WriteBool(m_HasSnapshot);
             if (m_HasSnapshot)
@@ -362,10 +366,14 @@ namespace PewPewPew.World
             float radius = reader.ReadFloat();
             Vector2 spacing = reader.ReadVector2();
             float depth = reader.ReadFloat(), density = reader.ReadFloat();
-            var surface = new AsteroidSurface(reader.ReadUInt(), reader.ReadVector2(), reader.ReadVector2(),
-                reader.ReadFloat(), reader.ReadFloat(), reader.ReadFloat());
+            uint surfaceSeed = reader.ReadUInt();
+            Vector2 surfaceOffset = reader.ReadVector2(), surfaceScale = reader.ReadVector2();
+            float surfaceDepth = reader.ReadFloat(), relief = reader.ReadFloat(), domeRadius = reader.ReadFloat();
+            float offsetFactor = reader.ReadFloat();
+            var surface = new AsteroidSurface(surfaceSeed, surfaceOffset, surfaceScale,
+                surfaceDepth, relief, domeRadius, offsetFactor);
             bool broken = reader.ReadBool(), snapshot = reader.ReadBool();
-            if (!AsteroidGeometry.Finite(radius) || radius < 0f || radius > 7f || (!snapshot && radius < 1f) ||
+            if (!AsteroidGeometry.Finite(radius) || radius < 0f || radius > 6.5f || (!snapshot && radius < 1f) ||
                 !Positive(spacing.x) || !Positive(spacing.y) || !Positive(depth) ||
                 !Positive(density))
                 throw new InvalidOperationException("Invalid asteroid descriptor.");
@@ -374,10 +382,13 @@ namespace PewPewPew.World
             {
                 int width = reader.ReadByte(), height = reader.ReadByte();
                 if (width < 2 || height < 2 || width > AsteroidGeometry.MaxCells + 1 || height > AsteroidGeometry.MaxCells + 1)
-                    throw new InvalidOperationException("Asteroid snapshot exceeds the 16x16-cell cap.");
+                    throw new InvalidOperationException("Asteroid snapshot exceeds the 16x16-sample cap.");
                 field = new AsteroidGeometry(width, height, reader.ReadBytes(width * height));
             }
             else field = AsteroidGeometry.Generate(seed, radius);
+            Vector2 origin = surface.Offset - new Vector2(field.Width - 1, field.Height - 1) * 0.5f;
+            field.ConfigurePositions(surface.Seed, offsetFactor,
+                new Vector2Int(Mathf.RoundToInt(origin.x), Mathf.RoundToInt(origin.y)));
             Vector2 effectPoint = Vector2.zero, effectVelocity = Vector2.zero;
             bool shatterEffect = false;
             if (!initialState)
@@ -417,8 +428,9 @@ namespace PewPewPew.World
             m_CellSpacing = Mathf.Max(0.01f, m_CellSpacing);
             m_Thickness = Mathf.Max(0.01f, m_Thickness);
             m_MaterialDensity = Mathf.Max(0.01f, m_MaterialDensity);
-            m_MinOccupiedRadius = Mathf.Clamp(m_MinOccupiedRadius, 1f, 7f);
-            m_MaxOccupiedRadius = Mathf.Clamp(m_MaxOccupiedRadius, m_MinOccupiedRadius, 7f);
+            m_MinOccupiedRadius = Mathf.Clamp(m_MinOccupiedRadius, 1f, 6.5f);
+            m_MaxOccupiedRadius = Mathf.Clamp(m_MaxOccupiedRadius, m_MinOccupiedRadius, 6.5f);
+            m_VertexOffsetFactor = Mathf.Clamp01(m_VertexOffsetFactor);
             m_MinScale = Mathf.Max(0.01f, m_MinScale);
             m_MaxScale = Mathf.Max(m_MinScale, m_MaxScale);
             m_CollisionDamageRadius = Mathf.Max(0f, m_CollisionDamageRadius);
