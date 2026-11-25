@@ -160,13 +160,15 @@ namespace PewPewPew.Tests
         public void Snapshots_ReconstructDamagedAndUntouchedLateObserversWithinBudget()
         {
             Set(Server, "m_VertexOffsetFactor", 1f);
+            Set(Server, "m_MinSplats", 4);
+            Set(Server, "m_MaxSplats", 4);
             m_Type.GetMethod("Initialize").Invoke(Server, null);
             m_Client = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
             var replica = (NetworkBehaviour)m_Client.GetComponent(m_Type);
             var server = (NetworkBehaviour)Server;
             var writer = new NetworkWriter();
             server.OnSerialize(writer, true);
-            Assert.AreEqual(67, writer.Position);
+            Assert.AreEqual(72, writer.Position);
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
             Assert.AreEqual(Value("Mass"), m_Type.GetProperty("Mass").GetValue(replica));
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.vertices,
@@ -176,7 +178,7 @@ namespace PewPewPew.Tests
             Damage(1f);
             writer.Reset();
             server.OnSerialize(writer, true);
-            Assert.LessOrEqual(writer.Position, 325);
+            Assert.LessOrEqual(writer.Position, 330);
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
             CollectionAssert.AreEqual(((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(Server)).Samples,
                 ((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(replica)).Samples);
@@ -185,7 +187,7 @@ namespace PewPewPew.Tests
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.colors,
                 m_Client.GetComponent<MeshFilter>().sharedMesh.colors);
             Assert.AreEqual(Value("Mass"), m_Type.GetProperty("Mass").GetValue(replica));
-            TestContext.WriteLine($"Untouched/damaged per-object geometry payload: 67/{writer.Position} bytes; 250 damaged: {writer.Position * 250} bytes.");
+            TestContext.WriteLine($"Untouched/damaged per-object geometry payload: 72/{writer.Position} bytes; 250 damaged: {writer.Position * 250} bytes.");
             byte[] malformed = writer.ToArray();
             int sampleCount = ((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(Server)).Samples.Length;
             malformed[malformed.Length - sampleCount - 2] = 18;
@@ -381,13 +383,14 @@ namespace PewPewPew.Tests
                 Assert.AreEqual(depth, m_Type.GetField("m_Depth", Private).GetValue(child.GetComponent(m_Type)));
                 Assert.AreEqual(density, m_Type.GetField("m_Density", Private).GetValue(child.GetComponent(m_Type)));
                 var inherited = (AsteroidSurface)m_Type.GetField("m_Surface", Private).GetValue(child.GetComponent(m_Type));
-                Assert.AreEqual(surface.DomeRadius, inherited.DomeRadius);
+                Assert.AreEqual(surface.ShapeSeed, inherited.ShapeSeed);
+                Assert.AreEqual(surface.SplatCount, inherited.SplatCount);
                 Vector2 offset = m_Server.transform.InverseTransformPoint(child.transform.position);
                 Assert.AreEqual(surface.Front(offset), inherited.Front(Vector2.zero), 0.00001f);
                 Assert.IsTrue(retained.Any(piece => piece.Recenter(out _).Samples.SequenceEqual(field.Samples)));
                 var writer = new NetworkWriter();
                 ((NetworkBehaviour)child.GetComponent(m_Type)).OnSerialize(writer, true);
-                Assert.LessOrEqual(writer.Position, 325);
+                Assert.LessOrEqual(writer.Position, 330);
                 var replica = (NetworkBehaviour)m_Client.GetComponent(m_Type);
                 replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
                 CollectionAssert.AreEqual(child.GetComponent<MeshFilter>().sharedMesh.vertices,
@@ -433,13 +436,13 @@ namespace PewPewPew.Tests
                 minimumScale = Mathf.Min(minimumScale, scale); maximumScale = Mathf.Max(maximumScale, scale);
                 writer.Reset();
                 ((NetworkBehaviour)Server).OnSerialize(writer, true);
-                Assert.AreEqual(67, writer.Position);
+                Assert.AreEqual(72, writer.Position);
                 payload += writer.Position;
                 Mesh mesh = m_Server.GetComponent<MeshFilter>().sharedMesh;
                 maxVertices = Mathf.Max(maxVertices, mesh.vertexCount);
             }
             stopwatch.Stop();
-            Assert.AreEqual(16750, payload);
+            Assert.AreEqual(18000, payload);
             Assert.Greater(maximumArea, minimumArea * 5f);
             Assert.Less(minimumScale, 0.95f);
             Assert.Greater(maximumScale, 1.05f);
@@ -575,8 +578,9 @@ namespace PewPewPew.Tests
         [Test]
         public void BulletExplosion_UsesItsRadiusWithoutForwardPropagation()
         {
-            Set(Server, "m_Spacing", Vector2.one);
-            Rebuild(Server);
+            Set(Server, "m_MinScale", 1f);
+            Set(Server, "m_MaxScale", 1f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
             FireBullet(1000f, radius: 1.1f);
             foreach (int index in new[] { 119, 120, 135, 136 })
                 Assert.AreEqual(0, Geometry(Server).Samples[index]);
@@ -843,8 +847,11 @@ namespace PewPewPew.Tests
             foreach (Vector3 point in m_Server.GetComponent<MeshFilter>().sharedMesh.vertices.Where(point => point.z < 0f))
                 Assert.AreEqual(surface.Front(point), point.z, surface.Depth * 0.00001f);
             byte[] damaged = (byte[])Geometry(Server).Samples.Clone();
-            Assert.Greater(-surface.Front(Vector2.zero) - surface.Depth * 0.5f,
-                surface.DomeRadius / surface.Scale.x, "The original centre should include both dome height and rock relief.");
+            var domesOnly = new AsteroidSurface(surface.Seed, surface.Offset, surface.Scale, surface.Depth, 0f,
+                surface.ShapeSeed, surface.MinSplatRadius, surface.MaxSplatRadius, surface.SplatCount,
+                Geometry(Server).OffsetFactor);
+            Assert.Less(surface.Front(Vector2.zero), domesOnly.Front(Vector2.zero),
+                "The roof should include relief in addition to the splat domes.");
             Set(Server, "m_Surface", new AsteroidSurface(surface.Seed, surface.Offset, surface.Scale, surface.Depth, 0f, 0f));
             Rebuild(Server);
             CollectionAssert.AreEqual(damaged, Geometry(Server).Samples);
@@ -908,8 +915,8 @@ namespace PewPewPew.Tests
                 rock.shadowCastingMode = ShadowCastingMode.On;
                 receiver.SetActive(false);
                 caster.SetActive(true);
-                caster.transform.position = new Vector3(3f, 3f, -10f);
-                caster.transform.localScale = new Vector3(3f, 3f, 1f);
+                caster.transform.position = new Vector3(8f, 8f, -20f);
+                caster.transform.localScale = new Vector3(5f, 5f, 1f);
                 caster.GetComponent<Renderer>().sharedMaterial = receiverMaterial;
                 caster.GetComponent<Renderer>().renderingLayerMask = 12u;
                 Color[] receiving = Capture();

@@ -13,8 +13,14 @@ and shattering can still move them. Ship and orbital-body gravity is unchanged.
   **0-127 is outside; 128-255 is solid.** Boundary vertices interpolate between
   samples on opposite sides of this threshold. Generation centres the density
   ramp on 127.5 at the silhouette, saturating at 0 and 255 on either side.
-- Smaller rocks occupy fewer cells of the same full grid. Seeded occupied
-  radius ranges from 2 to 6.5 cells; increasing coverage does not change spacing.
+- Each rock is generated from a seeded number of overlapping splats. The
+  Inspector's minimum and maximum splat counts default to 2 and 4 (supported
+  range 1–16); each splat independently picks a radius from the existing 2–6.5
+  cell range. Positions are constrained to the grid and share solid samples
+  with earlier splats, so the generated rock is connected. Large splats have
+  less room to move, and later splats may be partly or completely covered.
+  At each sample splat densities add together, capped at 255: adding a splat
+  never reduces existing density. Cell spacing and the 16x16 resolution are unchanged.
 - Inspector settings author base cell spacing, physical thickness and material
   density (all initially 1), plus a uniform scale variance (0.9 to 1.1).
   The selected scale affects cell spacing and thickness, not the sample count.
@@ -29,18 +35,18 @@ and shattering can still move them. Ship and orbital-body gravity is unchanged.
   version, and physical descriptor reconstruct untouched rocks.
 - Damage changes the current field. Late observers receive that field, not
   an unbounded damage history. No mesh vertices are transmitted.
-- Generator/format **version 10** uses the displaced roof lattice, retaining the
-  127.5 contour. There are no health fields. The
-  descriptor includes the selected occupied radius and physical spacing/depth:
+- Generator/format **version 11** uses seeded overlapping splats and the
+  displaced roof lattice, retaining the 127.5 contour. There are no health fields. The
+  descriptor includes the splat seed, count, radius range and physical spacing/depth:
   observers need not share Inspector ranges.
   Mixed versions are explicitly rejected; there is no older-format migration.
-- Initial asteroid-specific serialization is **67 bytes** for untouched rocks,
-  or at most **325 bytes** for damaged rocks/children (67 + 2 dimensions + 256
-  samples). At 250 rocks those states total **16,750 or 81,250 bytes**.
+- Initial asteroid-specific serialization is **72 bytes** for untouched rocks,
+  or at most **330 bytes** for damaged rocks/children (72 + 2 dimensions + 256
+  samples). At 250 rocks those states total **18,000 or 82,500 bytes**.
 - Live updates additionally include 17 bytes of effect position, inherited
   velocity, and chip/shatter selection. State and its effect arrive together;
   repeated revisions do not replay an effect, and initial synchronization
-  never replays old debris. The maximum live state is **342 bytes**.
+  never replays old debris. The maximum live state is **347 bytes**.
 - These sizes **exclude** Mirror identity/behaviour framing, network transforms,
   transport overhead, and all other game state.
 
@@ -54,10 +60,9 @@ does not shift the surviving interpolated boundary.
 
 ## Visual thickness and PC shadows
 
-The camera-facing, negative-Z roof has a broad hemispherical rise toward its
-original centre, plus seeded angular relief. The dome radius is the furthest
-original silhouette vertex from that centre, so smaller rocks have smaller
-domes. Heights are sampled on the displaced lattice and remain faceted, not
+The camera-facing, negative-Z roof combines a hemisphere for each original
+splat by taking the highest dome at each lattice sample, plus seeded angular
+relief. Heights are sampled on the displaced lattice and remain faceted, not
 smoothly shaded. The positive-Z back remains flat. `m_ReliefFraction` controls
 the additional angular relief as a fraction of original logical thickness.
 Both dome and relief are render-only: they do not change physical mass,
@@ -68,10 +73,9 @@ permanent planes. Roof polygons are clipped against overlapping source facets;
 walls are split at matching height-grid and diagonal crossings. Front/back UVs
 remain in XY, with nondegenerate projected wall UVs.
 
-Children inherit a separate immutable surface seed, affine source-frame mapping,
-reference visual depth, relief amplitude, and original dome radius. These occupy
-32 bytes, not a
-heightmap. Children retain parent cell spacing and physical depth, along with
+Children inherit the immutable splat descriptor, surface seed, affine source-frame
+mapping, reference visual depth and relief amplitude, not a heightmap.
+Children retain parent cell spacing and physical depth, along with
 the surviving original roof planes and flat back plane. The surface moves and
 rotates with the asteroid, rather than being anchored to world coordinates.
 Damage never recentres or regenerates the dome; fragments retain their part

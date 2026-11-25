@@ -267,6 +267,8 @@ MonoBehaviour:
   m_MaterialDensity: 1
   m_MinOccupiedRadius: 2
   m_MaxOccupiedRadius: 6.5
+  m_MinSplats: 1
+  m_MaxSplats: 4
   m_MinScale: 0.7
   m_MaxScale: 2
   m_FragmentScatterSpeed: 2

@@ -40,6 +40,89 @@ namespace PewPewPew.Tests
             CollectionAssert.AreNotEqual(AsteroidGeometry.Generate(1).Samples, AsteroidGeometry.Generate(2).Samples);
         }
 
+        [TestCase(1f, 1f)]
+        [TestCase(2f, 6.5f)]
+        [TestCase(6.5f, 6.5f)]
+        public void Splats_AreSeededConnectedBoundedAndOnlyAddDensity(float minRadius, float maxRadius)
+        {
+            for (uint seed = 0; seed < 100; seed++)
+            {
+                byte[] previous = null;
+                for (int count = 1; count <= 4; count++)
+                {
+                    var splats = AsteroidGeometry.CreateSplats(seed, minRadius, maxRadius, count);
+                    var field = AsteroidGeometry.Generate(seed, minRadius, maxRadius, count);
+                    CollectionAssert.AreEqual(field.Samples, AsteroidGeometry.Generate(seed, minRadius, maxRadius, count).Samples);
+                    Assert.AreEqual(1, field.Components().Count, $"Seed {seed}, count {count}");
+                    for (int i = 0; i < splats.Length; i++)
+                    {
+                        Assert.That(splats[i].Radius, Is.InRange(minRadius, maxRadius));
+                        Assert.That(splats[i].Centre.x, Is.InRange(splats[i].Radius + 0.5f, 14.5f - splats[i].Radius));
+                        Assert.That(splats[i].Centre.y, Is.InRange(splats[i].Radius + 0.5f, 14.5f - splats[i].Radius));
+                        if (i > 0)
+                            Assert.IsTrue(splats.Take(i).Any(parent =>
+                                Vector2.Distance(parent.Centre, splats[i].Centre) < parent.Radius + splats[i].Radius));
+                    }
+                    for (int i = 0; i < field.Samples.Length; i++)
+                        if (previous != null) Assert.GreaterOrEqual(field.Samples[i], previous[i], $"Seed {seed}, sample {i}");
+                    for (int i = 0; i < 16; i++)
+                    {
+                        Assert.AreEqual(0, field.Samples[i]);
+                        Assert.AreEqual(0, field.Samples[240 + i]);
+                        Assert.AreEqual(0, field.Samples[i * 16]);
+                        Assert.AreEqual(0, field.Samples[i * 16 + 15]);
+                    }
+                    previous = field.Samples;
+                }
+            }
+            Assert.Throws<ArgumentOutOfRangeException>(() => AsteroidGeometry.CreateSplats(0, minRadius, maxRadius, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                AsteroidGeometry.CreateSplats(0, minRadius, maxRadius, AsteroidGeometry.MaxSplats + 1));
+            for (uint seed = 0; seed < 20; seed++)
+                Assert.AreEqual(1, AsteroidGeometry.Generate(seed, minRadius, maxRadius, AsteroidGeometry.MaxSplats)
+                    .Components().Count, $"Maximum count, seed {seed}");
+        }
+
+        [Test]
+        public void Surface_UsesTheHighestIndividualSplatDomeAndPreservesItInChildren()
+        {
+            const uint seed = 123;
+            var splats = AsteroidGeometry.CreateSplats(seed, 2.5f, 2.5f, 4);
+            var surface = new AsteroidSurface(456, Vector2.zero, Vector2.one, 1f, 0f, seed, 2.5f, 2.5f, 4);
+            var winners = new HashSet<int>();
+            for (int y = 0; y <= 15; y++)
+            for (int x = 0; x <= 15; x++)
+            {
+                Vector2 point = new Vector2(x, y);
+                float height = 0f;
+                int winner = -1;
+                for (int i = 0; i < splats.Length; i++)
+                {
+                    float candidate = Mathf.Sqrt(Mathf.Max(0f,
+                        splats[i].Radius * splats[i].Radius - (point - splats[i].Centre).sqrMagnitude));
+                    if (candidate > height) { height = candidate; winner = i; }
+                }
+                Assert.AreEqual(-0.5f - height, surface.Front(point), 0.00001f);
+                if (winner >= 0) winners.Add(winner);
+            }
+            Assert.GreaterOrEqual(winners.Count, 2, "More than one splat must contribute to the roof.");
+            Vector2 offset = new Vector2(2f, -1f);
+            var child = surface.Child(offset);
+            Assert.AreEqual(surface.Front(new Vector2(7f, 7f)), child.Front(new Vector2(7f, 7f) - offset), 0.00001f);
+        }
+
+        [Test]
+        public void Splats_AddPartialDensitiesAndClampAtFullDensity()
+        {
+            var one = AsteroidGeometry.Generate(0, 2f, 4f, 1);
+            var two = AsteroidGeometry.Generate(0, 2f, 4f, 2);
+            Assert.That(one.Samples[100], Is.InRange(43, 45));
+            Assert.That(two.Samples[100], Is.InRange(52, 54),
+                "Overlapping partial densities must add, not replace or take the maximum.");
+            Assert.That(one.Samples[116], Is.InRange(75, 77));
+            Assert.AreEqual(255, two.Samples[116], "Overlapping densities must saturate rather than wrap.");
+        }
+
         [Test]
         public void VertexOffsets_AreSeededBoundedAndKeepCellsConvex()
         {

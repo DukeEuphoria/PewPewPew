@@ -19,11 +19,16 @@ namespace PewPewPew.World
     /// Server-owned, drillable rock. Solidness is capped at 256 bytes regardless of physical size.
     public class Asteroid : SpaceObject, IDamageable
     {
+        private const uint SurfaceSeedSalt = 0x9E3779B9u;
+        private const uint ScaleSeedSalt = 0xC2B2AE35u;
+        private const uint SplatCountSeedSalt = 0xB5297A4Du;
         [SerializeField, Min(0.01f)] private float m_CellSpacing = 1f;
         [SerializeField, Min(0.01f)] private float m_Thickness = 1f;
         [SerializeField, Min(0.01f)] private float m_MaterialDensity = 1f;
         [SerializeField, Range(1f, 6.5f)] private float m_MinOccupiedRadius = 2f;
         [SerializeField, Range(1f, 6.5f)] private float m_MaxOccupiedRadius = 6.5f;
+        [SerializeField, Range(1, AsteroidGeometry.MaxSplats)] private int m_MinSplats = 2;
+        [SerializeField, Range(1, AsteroidGeometry.MaxSplats)] private int m_MaxSplats = 4;
         [SerializeField, Min(0.01f)] private float m_MinScale = 0.9f;
         [SerializeField, Min(0.01f)] private float m_MaxScale = 1.1f;
         [SerializeField] private float m_FragmentScatterSpeed = 2f;
@@ -40,7 +45,6 @@ namespace PewPewPew.World
         [SerializeField] private AudioClip m_ChipSound;
         [SerializeField] private AudioClip m_ShatterSound;
 
-        private float m_GenerationRadius;
         private uint m_Seed;
         private uint m_Revision;
         private AsteroidGeometry m_Field;
@@ -85,23 +89,23 @@ namespace PewPewPew.World
             if (!Positive(m_CellSpacing) || !Positive(m_Thickness) || !Positive(m_MaterialDensity) ||
                 !Positive(m_MinScale) || !Positive(m_MaxScale) || m_MaxScale < m_MinScale)
                 throw new InvalidOperationException("Asteroid physical dimensions, density and ordered scale limits must be finite and positive.");
+            if (m_MinSplats < 1 || m_MaxSplats < m_MinSplats || m_MaxSplats > AsteroidGeometry.MaxSplats)
+                throw new InvalidOperationException("Asteroid splat counts must be ordered within the supported range.");
             m_Seed = unchecked((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
-            m_GenerationRadius = AsteroidGeometry.InitialRadius(m_Seed, m_MinOccupiedRadius, m_MaxOccupiedRadius);
-            m_Field = AsteroidGeometry.Generate(m_Seed, m_GenerationRadius);
-            m_Field.ConfigurePositions(m_Seed ^ 0x9E3779B9u, m_VertexOffsetFactor, Vector2Int.zero);
-            uint state = m_Seed ^ 0xC2B2AE35u;
+            uint countState = m_Seed ^ SplatCountSeedSalt;
+            int splatCount = m_MinSplats + (int)(AsteroidGeometry.Next(ref countState) % (uint)(m_MaxSplats - m_MinSplats + 1));
+            uint state = m_Seed ^ ScaleSeedSalt;
             float scale = Mathf.Lerp(m_MinScale, m_MaxScale, (AsteroidGeometry.Next(ref state) >> 8) / 16777216f);
             m_Density = m_MaterialDensity;
             float step = m_CellSpacing * scale;
             m_Spacing = Vector2.one * step;
             m_Depth = m_Thickness * scale;
             Vector2 centre = Vector2.one * (AsteroidGeometry.MaxCells * 0.5f);
-            float domeRadius = 0f;
-            foreach (Vector2[] polygon in m_Field.Polygons())
-                foreach (Vector2 point in polygon)
-                    domeRadius = Mathf.Max(domeRadius, (point - centre).magnitude);
-            m_Surface = new AsteroidSurface(m_Seed ^ 0x9E3779B9u, centre,
-                Vector2.one / step, m_Depth, m_Depth * m_ReliefFraction, domeRadius, m_VertexOffsetFactor);
+            m_Surface = new AsteroidSurface(m_Seed ^ SurfaceSeedSalt, centre, Vector2.one / step,
+                m_Depth, m_Depth * m_ReliefFraction, m_Seed, m_MinOccupiedRadius, m_MaxOccupiedRadius,
+                splatCount, m_VertexOffsetFactor);
+            m_Field = m_Surface.CreateField();
+            m_Field.ConfigurePositions(m_Surface.Seed, m_VertexOffsetFactor, Vector2Int.zero);
             m_HasSnapshot = false;
             m_Broken = false;
             m_Revision = 0;
@@ -119,7 +123,6 @@ namespace PewPewPew.World
             m_Density = density;
             m_Surface = surface;
             m_Seed = seed;
-            m_GenerationRadius = 0f;
             m_HasSnapshot = true;
             Rebuild();
         }
@@ -334,7 +337,10 @@ namespace PewPewPew.World
             writer.WriteByte(AsteroidGeometry.Version);
             writer.WriteUInt(m_Seed);
             writer.WriteUInt(m_Revision);
-            writer.WriteFloat(m_GenerationRadius);
+            writer.WriteUInt(m_Surface.ShapeSeed);
+            writer.WriteFloat(m_Surface.MinSplatRadius);
+            writer.WriteFloat(m_Surface.MaxSplatRadius);
+            writer.WriteByte((byte)m_Surface.SplatCount);
             writer.WriteVector2(m_Spacing);
             writer.WriteFloat(m_Depth);
             writer.WriteFloat(m_Density);
@@ -343,7 +349,6 @@ namespace PewPewPew.World
             writer.WriteVector2(m_Surface.Scale);
             writer.WriteFloat(m_Surface.Depth);
             writer.WriteFloat(m_Surface.Relief);
-            writer.WriteFloat(m_Surface.DomeRadius);
             writer.WriteFloat(m_Field.OffsetFactor);
             writer.WriteBool(m_Broken);
             writer.WriteBool(m_HasSnapshot);
@@ -366,18 +371,19 @@ namespace PewPewPew.World
             byte version = reader.ReadByte();
             if (version != AsteroidGeometry.Version) throw new InvalidOperationException($"Unsupported asteroid generator version {version}.");
             uint seed = reader.ReadUInt(), revision = reader.ReadUInt();
-            float radius = reader.ReadFloat();
+            uint shapeSeed = reader.ReadUInt();
+            float minSplatRadius = reader.ReadFloat(), maxSplatRadius = reader.ReadFloat();
+            int splatCount = reader.ReadByte();
             Vector2 spacing = reader.ReadVector2();
             float depth = reader.ReadFloat(), density = reader.ReadFloat();
             uint surfaceSeed = reader.ReadUInt();
             Vector2 surfaceOffset = reader.ReadVector2(), surfaceScale = reader.ReadVector2();
-            float surfaceDepth = reader.ReadFloat(), relief = reader.ReadFloat(), domeRadius = reader.ReadFloat();
+            float surfaceDepth = reader.ReadFloat(), relief = reader.ReadFloat();
             float offsetFactor = reader.ReadFloat();
             var surface = new AsteroidSurface(surfaceSeed, surfaceOffset, surfaceScale,
-                surfaceDepth, relief, domeRadius, offsetFactor);
+                surfaceDepth, relief, shapeSeed, minSplatRadius, maxSplatRadius, splatCount, offsetFactor);
             bool broken = reader.ReadBool(), snapshot = reader.ReadBool();
-            if (!AsteroidGeometry.Finite(radius) || radius < 0f || radius > 6.5f || (!snapshot && radius < 1f) ||
-                !Positive(spacing.x) || !Positive(spacing.y) || !Positive(depth) ||
+            if (!Positive(spacing.x) || !Positive(spacing.y) || !Positive(depth) ||
                 !Positive(density))
                 throw new InvalidOperationException("Invalid asteroid descriptor.");
             AsteroidGeometry field;
@@ -388,7 +394,7 @@ namespace PewPewPew.World
                     throw new InvalidOperationException("Asteroid snapshot exceeds the 16x16-sample cap.");
                 field = new AsteroidGeometry(width, height, reader.ReadBytes(width * height));
             }
-            else field = AsteroidGeometry.Generate(seed, radius);
+            else field = surface.CreateField();
             Vector2 origin = surface.Offset - new Vector2(field.Width - 1, field.Height - 1) * 0.5f;
             field.ConfigurePositions(surface.Seed, offsetFactor,
                 new Vector2Int(Mathf.RoundToInt(origin.x), Mathf.RoundToInt(origin.y)));
@@ -407,7 +413,7 @@ namespace PewPewPew.World
             if (!broken && !Positive(mass))
                 throw new InvalidOperationException("A live asteroid must have finite positive mass.");
             if (isServer || (!initialState && revision <= m_Revision)) return;
-            m_Seed = seed; m_Revision = revision; m_GenerationRadius = radius;
+            m_Seed = seed; m_Revision = revision;
             m_Spacing = spacing; m_Depth = depth; m_Density = density;
             m_Broken = broken; m_HasSnapshot = snapshot;
             m_Surface = surface;
@@ -433,6 +439,8 @@ namespace PewPewPew.World
             m_MaterialDensity = Mathf.Max(0.01f, m_MaterialDensity);
             m_MinOccupiedRadius = Mathf.Clamp(m_MinOccupiedRadius, 1f, 6.5f);
             m_MaxOccupiedRadius = Mathf.Clamp(m_MaxOccupiedRadius, m_MinOccupiedRadius, 6.5f);
+            m_MinSplats = Mathf.Clamp(m_MinSplats, 1, AsteroidGeometry.MaxSplats);
+            m_MaxSplats = Mathf.Clamp(m_MaxSplats, m_MinSplats, AsteroidGeometry.MaxSplats);
             m_VertexOffsetFactor = Mathf.Clamp01(m_VertexOffsetFactor);
             m_MinScale = Mathf.Max(0.01f, m_MinScale);
             m_MaxScale = Mathf.Max(m_MinScale, m_MaxScale);

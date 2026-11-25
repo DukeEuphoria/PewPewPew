@@ -12,7 +12,12 @@ namespace PewPewPew.Core
         public readonly float Depth;
         public readonly float Relief;
         public readonly float DomeRadius;
+        public readonly uint ShapeSeed;
+        public readonly float MinSplatRadius;
+        public readonly float MaxSplatRadius;
+        public readonly int SplatCount;
         private readonly AsteroidGeometry m_Lattice;
+        private readonly AsteroidGeometry.Splat[] m_Splats;
 
         public AsteroidSurface(uint seed, Vector2 offset, Vector2 scale, float depth, float relief, float domeRadius,
             float vertexOffsetFactor = 0f)
@@ -26,6 +31,8 @@ namespace PewPewPew.Core
                 !AsteroidGeometry.Finite(vertexOffsetFactor) || vertexOffsetFactor < 0f || vertexOffsetFactor > 1f)
                 throw new ArgumentException("Invalid asteroid surface descriptor.");
             Seed = seed; Offset = offset; Scale = scale; Depth = depth; Relief = relief; DomeRadius = domeRadius;
+            ShapeSeed = 0; MinSplatRadius = 0f; MaxSplatRadius = 0f; SplatCount = 0;
+            m_Splats = null;
             m_Lattice = null;
             if (vertexOffsetFactor > 0f)
             {
@@ -35,10 +42,27 @@ namespace PewPewPew.Core
             }
         }
 
+        public AsteroidSurface(uint seed, Vector2 offset, Vector2 scale, float depth, float relief,
+            uint shapeSeed, float minSplatRadius, float maxSplatRadius, int splatCount, float vertexOffsetFactor = 0f)
+            : this(seed, offset, scale, depth, relief, 0f, vertexOffsetFactor)
+        {
+            ShapeSeed = shapeSeed; MinSplatRadius = minSplatRadius; MaxSplatRadius = maxSplatRadius;
+            SplatCount = splatCount;
+            m_Splats = AsteroidGeometry.CreateSplats(shapeSeed, minSplatRadius, maxSplatRadius, splatCount);
+        }
+
+        public AsteroidGeometry CreateField()
+        {
+            if (m_Splats == null) throw new InvalidOperationException("This surface has no generated splat layout.");
+            return AsteroidGeometry.Generate(ShapeSeed, m_Splats);
+        }
+
         private AsteroidSurface(AsteroidSurface parent, Vector2 offset)
         {
             Seed = parent.Seed; Offset = parent.Source(offset); Scale = parent.Scale;
             Depth = parent.Depth; Relief = parent.Relief; DomeRadius = parent.DomeRadius;
+            ShapeSeed = parent.ShapeSeed; MinSplatRadius = parent.MinSplatRadius;
+            MaxSplatRadius = parent.MaxSplatRadius; SplatCount = parent.SplatCount; m_Splats = parent.m_Splats;
             m_Lattice = parent.m_Lattice;
         }
 
@@ -65,9 +89,18 @@ namespace PewPewPew.Core
             uint hash = unchecked(Seed ^ (uint)x * 374761393u ^ (uint)y * 668265263u);
             hash = unchecked((hash ^ (hash >> 13)) * 1274126177u);
             hash ^= hash >> 16;
-            Vector2 radial = (m_Lattice == null ? new Vector2(x, y) : m_Lattice.Position(x, y)) -
-                             Vector2.one * (AsteroidGeometry.MaxCells * 0.5f);
-            float dome = Mathf.Sqrt(Mathf.Max(0f, DomeRadius * DomeRadius - radial.sqrMagnitude)) / Scale.x;
+            Vector2 position = m_Lattice == null ? new Vector2(x, y) : m_Lattice.Position(x, y);
+            float domeSquared = 0f;
+            if (m_Splats == null)
+            {
+                Vector2 radial = position - Vector2.one * (AsteroidGeometry.MaxCells * 0.5f);
+                domeSquared = DomeRadius * DomeRadius - radial.sqrMagnitude;
+            }
+            else
+                foreach (AsteroidGeometry.Splat splat in m_Splats)
+                    domeSquared = Mathf.Max(domeSquared,
+                        splat.Radius * splat.Radius - (position - splat.Centre).sqrMagnitude);
+            float dome = Mathf.Sqrt(Mathf.Max(0f, domeSquared)) / Scale.x;
             return dome + Relief * (0.15f + (hash >> 8) / 16777216f * 0.85f);
         }
 

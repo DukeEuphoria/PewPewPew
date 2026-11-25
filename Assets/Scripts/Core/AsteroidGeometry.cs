@@ -7,11 +7,24 @@ namespace PewPewPew.Core
     /// A bounded surface field, not a voxel volume. All coordinates are in sample space.
     public sealed class AsteroidGeometry
     {
-        public const byte Version = 10;
+        public const byte Version = 11;
         public const int MaxCells = 15;
         public const float IsoLevel = 127.5f;
         private const uint RadiusSeedSalt = 0x85EBCA6Bu;
         private const uint VertexOffsetSeedSalt = 0xD1B54A35u;
+        private const uint SplatSeedSalt = 0xA24BAED5u;
+        private const int SplatPlacementAttempts = 24;
+        private const float SplatMinSeparation = 0.5f;
+        private const float SplatMaxSeparation = 0.85f;
+        private const float EdgeMargin = 0.5f;
+        private const float ShapeNoise = 0.275f;
+        public const int MaxSplats = 16;
+        public readonly struct Splat
+        {
+            public readonly Vector2 Centre;
+            public readonly float Radius;
+            public Splat(Vector2 centre, float radius) { Centre = centre; Radius = radius; }
+        }
         public readonly int Width;
         public readonly int Height;
         public readonly byte[] Samples;
@@ -59,44 +72,97 @@ namespace PewPewPew.Core
         {
             if (!Finite(radius) || radius < 1f || radius > MaxCells * 0.5f - 1f)
                 throw new ArgumentOutOfRangeException(nameof(radius));
-            uint state = seed;
+            return Generate(seed, radius, radius, 1);
+        }
+
+        public static AsteroidGeometry Generate(uint seed, float minimumRadius, float maximumRadius, int splatCount) =>
+            Generate(seed, CreateSplats(seed, minimumRadius, maximumRadius, splatCount));
+
+        public static Splat[] CreateSplats(uint seed, float minimumRadius, float maximumRadius, int count)
+        {
+            if (!Finite(minimumRadius) || !Finite(maximumRadius) || minimumRadius < 1f ||
+                maximumRadius < minimumRadius || maximumRadius > MaxCells * 0.5f - 1f)
+                throw new ArgumentException("Asteroid splat radii must be ordered within 1..6.5 cells.");
+            if (count < 1 || count > MaxSplats) throw new ArgumentOutOfRangeException(nameof(count));
+            uint state = seed ^ SplatSeedSalt;
+            var splats = new Splat[count];
+            var occupied = new bool[(MaxCells + 1) * (MaxCells + 1)];
+            var noise = new float[occupied.Length];
+            for (int y = 1; y < MaxCells; y++)
+            for (int x = 1; x < MaxCells; x++)
+                noise[y * (MaxCells + 1) + x] = ShapeNoiseAt(seed, x, y);
+            for (int i = 0; i < count; i++)
+            {
+                float radius = Mathf.Lerp(minimumRadius, maximumRadius, Unit(ref state));
+                Vector2 centre = Vector2.one * (MaxCells * 0.5f);
+                if (i > 0)
+                {
+                    // The grid centre overlaps the first splat and is a valid fallback for every radius.
+                    int bestCoverage = -1;
+                    for (int attempt = 0; attempt < SplatPlacementAttempts; attempt++)
+                    {
+                        Splat parent = splats[(int)(Next(ref state) % (uint)i)];
+                        float angle = Unit(ref state) * Mathf.PI * 2f;
+                        float distance = (parent.Radius + radius) *
+                                         Mathf.Lerp(SplatMinSeparation, SplatMaxSeparation, Unit(ref state));
+                        Vector2 candidate = parent.Centre + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                        float min = radius + EdgeMargin, max = MaxCells - min;
+                        candidate = new Vector2(Mathf.Clamp(candidate.x, min, max), Mathf.Clamp(candidate.y, min, max));
+                        int added = 0;
+                        bool overlap = false;
+                        for (int y = 1; y < MaxCells; y++)
+                        for (int x = 1; x < MaxCells; x++)
+                        {
+                            int index = y * (MaxCells + 1) + x;
+                            float effectiveRadius = radius + noise[index];
+                            if ((new Vector2(x, y) - candidate).sqrMagnitude > effectiveRadius * effectiveRadius) continue;
+                            if (occupied[index]) overlap = true;
+                            else added++;
+                        }
+                        if (!overlap || added <= bestCoverage) continue;
+                        bestCoverage = added;
+                        centre = candidate;
+                    }
+                }
+                splats[i] = new Splat(centre, radius);
+                for (int y = 1; y < MaxCells; y++)
+                for (int x = 1; x < MaxCells; x++)
+                {
+                    int index = y * (MaxCells + 1) + x;
+                    float effectiveRadius = radius + noise[index];
+                    if ((new Vector2(x, y) - centre).sqrMagnitude <= effectiveRadius * effectiveRadius)
+                        occupied[index] = true;
+                }
+            }
+            return splats;
+        }
+
+        private static float ShapeNoiseAt(uint seed, int x, int y) =>
+            Mathf.Sin(x * 2.7f + (seed & 255)) * Mathf.Sin(y * 3.1f + ((seed >> 8) & 255)) * ShapeNoise;
+
+        private static float SplatDistance(Splat splat, int x, int y, float noise) =>
+            splat.Radius - Vector2.Distance(new Vector2(x, y), splat.Centre) + noise;
+
+        internal static AsteroidGeometry Generate(uint seed, Splat[] splats)
+        {
+            if (splats == null || splats.Length < 1 || splats.Length > MaxSplats)
+                throw new ArgumentException("Asteroid generation requires a valid splat layout.", nameof(splats));
             int width = MaxCells + 1;
             var samples = new byte[width * width];
-            var centres = new Vector2[5];
-            var radii = new float[5];
-            centres[0] = Vector2.one * (MaxCells * 0.5f);
-            radii[0] = radius * 0.65f;
-            for (int i = 1; i < centres.Length; i++)
-            {
-                float angle = Unit(ref state) * Mathf.PI * 2f;
-                centres[i] = centres[0] + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (radius * 0.35f * Unit(ref state));
-                radii[i] = radius * (0.4f + Unit(ref state) * 0.25f);
-            }
             for (int y = 1; y < MaxCells; y++)
             for (int x = 1; x < MaxCells; x++)
             {
-                Vector2 point = new Vector2(x, y);
-                float distance = float.NegativeInfinity;
-                for (int i = 0; i < centres.Length; i++)
-                    distance = Mathf.Max(distance, radii[i] - Vector2.Distance(point, centres[i]));
-                float noise = Mathf.Sin(point.x * 2.7f + centres[1].x) *
-                              Mathf.Sin(point.y * 3.1f + centres[1].y);
-                samples[y * width + x] = Solidness(distance + noise * 0.275f);
+                int density = 0;
+                float noise = ShapeNoiseAt(seed, x, y);
+                foreach (Splat splat in splats)
+                    density += Solidness(SplatDistance(splat, x, y, noise));
+                samples[y * width + x] = (byte)Mathf.Min(density, byte.MaxValue);
             }
             var field = new AsteroidGeometry(width, width, samples);
             List<AsteroidGeometry> components = field.Components();
             if (components.Count == 0) throw new InvalidOperationException("Seeded asteroid generation produced no material.");
             if (components.Count == 1) return field;
-            AsteroidGeometry largest = components[0];
-            float largestArea = largest.Area();
-            for (int i = 1; i < components.Count; i++)
-            {
-                float area = components[i].Area();
-                if (area <= largestArea) continue;
-                largest = components[i];
-                largestArea = area;
-            }
-            return largest;
+            throw new InvalidOperationException("Seeded asteroid splats produced disconnected material.");
         }
 
         private static byte Solidness(float distance) =>
