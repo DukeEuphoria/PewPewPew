@@ -301,9 +301,9 @@ namespace PewPewPew.World
             if (m_Filter == null || m_SourceCollider == null || m_Collider == null)
                 throw new InvalidOperationException("Asteroid prefab requires mesh, polygon and composite collider components.");
             transform.localScale = Vector3.one;
-            List<Vector2[]> paths = AsteroidMesh.Paths(m_Field, m_Spacing, out float area);
+            List<Vector2[]> paths = AsteroidMesh.Paths(m_Field, m_Spacing, out float area, out List<float[]> solidWeights);
             if (m_Mesh != null) Destroy(m_Mesh);
-            m_Mesh = AsteroidMesh.Create(paths, m_Surface.Depth, m_Surface);
+            m_Mesh = AsteroidMesh.Create(paths, solidWeights, m_Surface.Depth, m_Surface);
             m_Filter.sharedMesh = m_Mesh;
             m_SourceCollider.enabled = false;
             m_SourceCollider.pathCount = paths.Count;

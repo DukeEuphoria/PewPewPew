@@ -2,7 +2,8 @@ Shader "PewPewPew/AsteroidLit"
 {
     Properties
     {
-        [MainTexture] _BaseMap("Rock Texture", 2D) = "white" {}
+        [MainTexture] _BaseMap("Solid Texture", 2D) = "white" {}
+        [NoScaleOffset] _CrackedMap("Cracked Texture", 2D) = "white" {}
         [MainColor] _BaseColor("Tint", Color) = (1, 1, 1, 1)
         [HideInInspector] _SurfaceMapping("Surface Mapping", Vector) = (1, 1, 0, 0)
     }
@@ -29,6 +30,7 @@ Shader "PewPewPew/AsteroidLit"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_CrackedMap); SAMPLER(sampler_CrackedMap);
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
                 half4 _BaseColor;
@@ -39,6 +41,7 @@ Shader "PewPewPew/AsteroidLit"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                float4 color : COLOR;
             };
             struct Varyings
             {
@@ -48,6 +51,7 @@ Shader "PewPewPew/AsteroidLit"
                 float3 positionOS : TEXCOORD2;
                 float3 normalOS : TEXCOORD3;
                 half fog : TEXCOORD4;
+                half solidWeight : TEXCOORD5;
             };
             Varyings vert(Attributes input)
             {
@@ -58,6 +62,7 @@ Shader "PewPewPew/AsteroidLit"
                 output.positionOS = input.positionOS.xyz;
                 output.normalOS = input.normalOS;
                 output.fog = ComputeFogFactor(output.positionCS.z);
+                output.solidWeight = input.color.r;
                 return output;
             }
             half3 Rock(TEXTURE2D_PARAM(map, samplerMap), float3 coordinates, half3 weights)
@@ -73,7 +78,9 @@ Shader "PewPewPew/AsteroidLit"
                 half3 weights = pow(abs(normalize(input.normalOS)), 4);
                 weights /= max(dot(weights, half3(1, 1, 1)), 0.0001h);
                 SurfaceData surface = (SurfaceData)0;
-                surface.albedo = Rock(TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap), source, weights) * _BaseColor.rgb;
+                half3 solid = Rock(TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap), source, weights);
+                half3 cracked = Rock(TEXTURE2D_ARGS(_CrackedMap, sampler_CrackedMap), source, weights);
+                surface.albedo = lerp(cracked, solid, saturate(input.solidWeight)) * _BaseColor.rgb;
                 surface.alpha = 1;
                 surface.occlusion = 1;
                 surface.normalTS = half3(0, 0, 1);

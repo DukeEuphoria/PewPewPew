@@ -85,21 +85,28 @@ lights already cover the asteroid's rendering layers (4 and 8); test lights
 must use those layers too. Shadow atlases, cascades, and scene light bias are
 unchanged. Increasing PC shadow distance includes other casters as well.
 
-## Single-texture rock surface
+## Solid and cracked rock surface
 
-The asteroid material uses `PewPewPew/AsteroidLit`, with one **Rock Texture**
-slot. The editable procedural starter texture is `AsteroidIntact.png` in
-`Assets/Materials`. Replace it on `Asteroid.mat` to change the art.
-Default material tiling is 0.25 on both axes: each repeat spans four source
-cells, twice the previous texture width and height.
+The asteroid material uses `PewPewPew/AsteroidLit`, with **Solid Texture**
+and **Cracked Texture** slots. The starter textures are
+`AsteroidIntact.png` and the procedurally generated `AsteroidFractured.png`
+in `Assets/Materials`.
+Both textures share the solid texture's tiling and source-frame mapping.
 The editor menu **PewPewPew/Create Default Asteroid Material** reproduces the
-defaults when those generated assets do not already exist; it refuses to
-overwrite existing artwork.
+material when the generated solid texture and material do not already exist.
+The separate **PewPewPew/Create Default Cracked Asteroid Texture** menu creates
+the cracked texture. Neither menu overwrites existing artwork.
+The generated cracked texture uses broad, dark fissures to remain visible
+when downsampled at game zoom. Small hits and distant rocks can still show only
+a subtle change because the texture blend follows the sample density.
 
-Solidity-based intact/cracked blending is disabled. There is no per-asteroid
-solidness texture allocation or upload. Damage and hard edges are represented
-only by the marching-squares mesh and collider; the texture does not fill holes.
-Threshold-based texture switching is not implemented in this rollback.
+The mesh stores a solid-texture weight per vertex: 0 at the 127.5 isosurface
+and 1 at density 255, interpolated linearly between them. The shader blends
+the cracked and solid textures using this weight, stored as an 8-bit vertex
+colour channel. Exposed contour edges are
+therefore cracked even on an undamaged rock. Roof facet and wall vertices
+interpolate weights from their source polygons; the mesh topology is unchanged.
+There is no per-asteroid solidness texture or additional network data.
 
 Triplanar surface sampling covers roofs and walls. The immutable source frame
 anchors the rock texture through fragment recentering. A shared material and
@@ -225,7 +232,7 @@ for fraction-preserving penetration and zero-layer bypass.
 ## Performance validation
 
 Focused validation includes real host/remote state, child snapshots,
-game-zoom shadows and a rendered single-texture check.
+game-zoom shadows and rendered texture-blend and real-asteroid visibility checks.
 
 The earlier editor 250-rock generation/remesh timing predates the displaced roof
 lattice and must be remeasured. Collider path

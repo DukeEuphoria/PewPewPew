@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using PewPewPew.Core;
@@ -86,6 +87,42 @@ namespace PewPewPew.Tests
                     Assert.Greater(a.x * b.y - a.y * b.x, 0f);
                 }
             Assert.Throws<ArgumentOutOfRangeException>(() => field.ConfigurePositions(0, 1.01f, Vector2Int.zero));
+        }
+
+        [TestCase(0f)]
+        [TestCase(1f)]
+        public void PolygonWeights_FollowDensityAndIsosurfaceForEveryMarchingCase(float offset)
+        {
+            const int size = 2;
+            byte[] solid = { 160, 200, 230, 255 };
+            for (int code = 1; code < 16; code++)
+            {
+                var samples = new byte[size * size];
+                for (int i = 0; i < samples.Length; i++)
+                    if ((code & (1 << i)) != 0) samples[i] = solid[i];
+                var field = new AsteroidGeometry(size, size, samples);
+                field.ConfigurePositions(123, offset, Vector2Int.zero);
+                var weights = new List<float[]>();
+                var polygons = field.Polygons(weights);
+                var original = field.Polygons();
+                Assert.AreEqual(original.Count, polygons.Count);
+                Assert.AreEqual(polygons.Count, weights.Count);
+                for (int p = 0; p < polygons.Count; p++)
+                {
+                    CollectionAssert.AreEqual(original[p], polygons[p]);
+                    Assert.AreEqual(polygons[p].Length, weights[p].Length);
+                    for (int v = 0; v < polygons[p].Length; v++)
+                    {
+                        float expected = 0f;
+                        for (int y = 0; y < size; y++)
+                        for (int x = 0; x < size; x++)
+                            if (polygons[p][v].Equals(field.Position(x, y)))
+                                expected = Mathf.Clamp01((samples[y * size + x] - AsteroidGeometry.IsoLevel) /
+                                    (byte.MaxValue - AsteroidGeometry.IsoLevel));
+                        Assert.AreEqual(expected, weights[p][v], 0.000001f, $"Case {code}, vertex {v}");
+                    }
+                }
+            }
         }
 
         [Test]

@@ -171,6 +171,8 @@ namespace PewPewPew.Tests
             Assert.AreEqual(Value("Mass"), m_Type.GetProperty("Mass").GetValue(replica));
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.vertices,
                 m_Client.GetComponent<MeshFilter>().sharedMesh.vertices);
+            CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.colors,
+                m_Client.GetComponent<MeshFilter>().sharedMesh.colors);
             Damage(1f);
             writer.Reset();
             server.OnSerialize(writer, true);
@@ -180,6 +182,8 @@ namespace PewPewPew.Tests
                 ((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(replica)).Samples);
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.vertices,
                 m_Client.GetComponent<MeshFilter>().sharedMesh.vertices);
+            CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.colors,
+                m_Client.GetComponent<MeshFilter>().sharedMesh.colors);
             Assert.AreEqual(Value("Mass"), m_Type.GetProperty("Mass").GetValue(replica));
             TestContext.WriteLine($"Untouched/damaged per-object geometry payload: 67/{writer.Position} bytes; 250 damaged: {writer.Position * 250} bytes.");
             byte[] malformed = writer.ToArray();
@@ -388,6 +392,8 @@ namespace PewPewPew.Tests
                 replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
                 CollectionAssert.AreEqual(child.GetComponent<MeshFilter>().sharedMesh.vertices,
                     m_Client.GetComponent<MeshFilter>().sharedMesh.vertices);
+                CollectionAssert.AreEqual(child.GetComponent<MeshFilter>().sharedMesh.colors,
+                    m_Client.GetComponent<MeshFilter>().sharedMesh.colors);
                 Assert.AreEqual(child.GetComponent<Rigidbody2D>().mass, replica.GetComponent<Rigidbody2D>().mass, 0.00001f);
                 Assert.Greater(child.GetComponent<Rigidbody2D>().linearVelocity.magnitude, 0f);
                 Assert.IsTrue(Physics2D.GetIgnoreCollision(children[0].GetComponent<CompositeCollider2D>(),
@@ -578,23 +584,35 @@ namespace PewPewPew.Tests
         }
 
         [Test]
-        public void SurfaceTexture_RendersOneRockTextureAcrossTheSurface()
+        public void SurfaceTexture_BlendsCrackedAndSolidTextures()
         {
             if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 Assert.Ignore("Rock texture validation requires a graphics device.");
+            var asteroidMaterial = m_Server.GetComponent<MeshRenderer>().sharedMaterial;
+            Assert.AreEqual(AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Materials/AsteroidIntact.png"),
+                asteroidMaterial.GetTexture("_BaseMap"));
+            Assert.AreEqual(AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Materials/AsteroidFractured.png"),
+                asteroidMaterial.GetTexture("_CrackedMap"));
             var cameraObject = new GameObject("Rock blend camera", typeof(Camera));
             var lightObject = new GameObject("Rock blend light", typeof(Light));
             var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             var material = new Material(Shader.Find("PewPewPew/AsteroidLit"));
             var intact = new Texture2D(1, 1);
+            var cracked = new Texture2D(1, 1);
             var target = new RenderTexture(64, 64, 24);
             var image = new Texture2D(64, 64, TextureFormat.RGB24, false);
             RenderTexture previous = RenderTexture.active;
+            Mesh quadMesh = null;
             try
             {
                 m_Server.SetActive(false);
                 intact.SetPixel(0, 0, Color.green); intact.Apply();
+                cracked.SetPixel(0, 0, Color.red); cracked.Apply();
                 material.SetTexture("_BaseMap", intact);
+                material.SetTexture("_CrackedMap", cracked);
+                quadMesh = quad.GetComponent<MeshFilter>().mesh;
+                quadMesh.colors = quadMesh.vertices.Select(vertex =>
+                    new Color(vertex.x + 0.5f, 0f, 0f, 1f)).ToArray();
                 quad.layer = 31;
                 quad.transform.localScale = Vector3.one * 2f;
                 quad.GetComponent<Renderer>().sharedMaterial = material;
@@ -615,19 +633,197 @@ namespace PewPewPew.Tests
                 RenderTexture.active = target;
                 image.ReadPixels(new Rect(0, 0, 64, 64), 0, 0); image.Apply();
                 Color left = image.GetPixel(12, 32), middle = image.GetPixel(32, 32), right = image.GetPixel(52, 32);
-                foreach (Color pixel in new[] { left, middle, right })
-                {
-                    Assert.Greater(pixel.g - pixel.r, 0.1f, "The single green rock texture must be visible across the surface.");
-                    Assert.AreEqual(middle.g, pixel.g, 0.03f);
-                    Assert.AreEqual(middle.r, pixel.r, 0.03f);
-                }
+                Assert.Greater(left.r - left.g, 0.1f, "The cracked texture must dominate the left side.");
+                Assert.Greater(right.g - right.r, 0.1f, "The solid texture must dominate the right side.");
+                Assert.Greater(middle.r, right.r);
+                Assert.Greater(middle.g, left.g);
             }
             finally
             {
                 m_Server.SetActive(true);
                 RenderTexture.active = previous;
-                foreach (Object item in new Object[] { image, target, intact, material, quad, cameraObject, lightObject })
+                foreach (Object item in new Object[] { image, target, intact, cracked, material, quad, quadMesh, cameraObject, lightObject })
                     Object.DestroyImmediate(item);
+            }
+        }
+
+        [Test]
+        public void SurfaceTexture_RealAsteroidShowsCracksAtGameZoom()
+        {
+            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
+                Assert.Ignore("Rock texture validation requires a graphics device.");
+            const int size = 512;
+            const int channelThreshold = 5;
+            Set(Server, "m_MinScale", 1f);
+            Set(Server, "m_MaxScale", 1f);
+            Set(Server, "m_VertexOffsetFactor", 0.45f);
+            Set(Server, "m_ReliefFraction", 1f);
+            UnityEngine.Random.State random = UnityEngine.Random.state;
+            try
+            {
+                UnityEngine.Random.InitState(42);
+                m_Type.GetMethod("Initialize").Invoke(Server, null);
+            }
+            finally { UnityEngine.Random.state = random; }
+
+            var renderer = m_Server.GetComponent<MeshRenderer>();
+            Material originalMaterial = renderer.sharedMaterial;
+            var material = new Material(originalMaterial);
+            var cameraObject = new GameObject("Rock visibility camera", typeof(Camera));
+            var lightObject = new GameObject("Rock visibility light", typeof(Light));
+            var target = new RenderTexture(size, size, 24);
+            var image = new Texture2D(size, size, TextureFormat.RGB24, false);
+            RenderTexture previous = RenderTexture.active;
+            try
+            {
+                m_Server.layer = 31;
+                renderer.sharedMaterial = material;
+                renderer.renderingLayerMask = 12u;
+                var camera = cameraObject.GetComponent<Camera>();
+                camera.orthographic = true;
+                camera.orthographicSize = 20f;
+                camera.cullingMask = 1 << 31;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = Color.black;
+                cameraObject.transform.position = new Vector3(0, 0, -100);
+                var light = lightObject.GetComponent<Light>();
+                light.type = LightType.Directional;
+                light.intensity = 0.5f;
+                lightObject.AddComponent<UniversalAdditionalLightData>().renderingLayers = 12u;
+                target.Create();
+
+                Texture cracked = material.GetTexture("_CrackedMap");
+                material.SetTexture("_CrackedMap", material.GetTexture("_BaseMap"));
+                Color32[] solid = Render();
+                material.SetTexture("_CrackedMap", cracked);
+                Color32[] initial = Render();
+                Geometry(Server).ErodeImpact(new Vector2(8, 8), Vector2.zero, 25f, false);
+                Rebuild(Server);
+                Color32[] hit = Render();
+                Geometry(Server).ErodeImpact(new Vector2(8, 8), Vector2.zero, 75f, false);
+                Rebuild(Server);
+                Color32[] damaged = Render();
+
+                Assert.Greater(DifferentPixels(solid, initial), 1200,
+                    "The real cracked texture should remain visible at game zoom.");
+                Assert.Greater(DifferentPixels(initial, hit), 30,
+                    "A 25-level hit should change the rendered rock.");
+                Assert.Greater(DifferentPixels(initial, damaged), 150,
+                    "A weakened sample should visibly change the rendered rock.");
+
+                Color32[] Render()
+                {
+                    RenderPipeline.SubmitRenderRequest(camera, new RenderPipeline.StandardRequest { destination = target });
+                    RenderTexture.active = target;
+                    image.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+                    image.Apply();
+                    return image.GetPixels32();
+                }
+
+                int DifferentPixels(Color32[] a, Color32[] b)
+                {
+                    int count = 0;
+                    for (int i = 0; i < a.Length; i++)
+                        if (Mathf.Max(Mathf.Abs(a[i].r - b[i].r), Mathf.Abs(a[i].g - b[i].g),
+                                Mathf.Abs(a[i].b - b[i].b)) > channelThreshold) count++;
+                    return count;
+                }
+            }
+            finally
+            {
+                renderer.sharedMaterial = originalMaterial;
+                RenderTexture.active = previous;
+                foreach (Object item in new Object[] { image, target, material, cameraObject, lightObject })
+                    Object.DestroyImmediate(item);
+            }
+        }
+
+        [TestCase(0f)]
+        [TestCase(1f)]
+        public void SurfaceWeights_FollowDamageOnRoofBackAndWalls(float offsetFactor)
+        {
+            const int size = 5;
+            const uint seed = 123;
+            const float damage = 64f;
+            var samples = new byte[size * size];
+            for (int y = 1; y < size - 1; y++)
+            for (int x = 1; x < size - 1; x++) samples[y * size + x] = byte.MaxValue;
+            var field = new AsteroidGeometry(size, size, samples);
+            field.ConfigurePositions(seed, offsetFactor, Vector2Int.zero);
+            Set(Server, "m_Field", field);
+            Set(Server, "m_Spacing", Vector2.one);
+            Set(Server, "m_Surface", new AsteroidSurface(seed, Vector2.one * 2f, Vector2.one,
+                1f, 0.2f, 3f, offsetFactor));
+            Rebuild(Server);
+            Vector3[] before = m_Server.GetComponent<MeshFilter>().sharedMesh.vertices;
+            Vector2 centre = field.Position(2, 2) - Vector2.one * 2f;
+            AssertCentreWeight(1f);
+            field.ErodeImpact(new Vector2(2, 2), Vector2.zero, damage, false);
+            Rebuild(Server);
+            Mesh mesh = m_Server.GetComponent<MeshFilter>().sharedMesh;
+            CollectionAssert.AreEqual(before, mesh.vertices);
+            AssertCentreWeight((byte.MaxValue - damage - AsteroidGeometry.IsoLevel) /
+                (byte.MaxValue - AsteroidGeometry.IsoLevel));
+            Vector3[] normals = mesh.normals;
+            Color[] colors = mesh.colors;
+            Vector3[] vertices = mesh.vertices;
+            var boundary = AsteroidGeometry.Boundary(field.Polygons());
+            int wallVertices = 0;
+            for (int i = 0; i < normals.Length; i++)
+            {
+                if (Mathf.Abs(normals[i].z) < 0.00001f)
+                {
+                    Assert.AreEqual(0f, colors[i].r, 0.00001f);
+                    wallVertices++;
+                }
+                Vector2 samplePoint = (Vector2)vertices[i] + Vector2.one * 2f;
+                foreach (var edge in boundary)
+                {
+                    Vector2 direction = edge.B - edge.A;
+                    if (direction.sqrMagnitude == 0f) continue;
+                    float t = Mathf.Clamp01(Vector2.Dot(samplePoint - edge.A, direction) / direction.sqrMagnitude);
+                    if (Vector2.Distance(samplePoint, edge.A + direction * t) < 0.00001f)
+                        Assert.AreEqual(0f, colors[i].r, "Contour vertices must use the cracked texture.");
+                }
+            }
+            Assert.Greater(wallVertices, 0);
+
+            void AssertCentreWeight(float expected)
+            {
+                Mesh current = m_Server.GetComponent<MeshFilter>().sharedMesh;
+                Vector3[] vertices = current.vertices;
+                Color[] weights = current.colors;
+                int front = 0, back = 0;
+                for (int i = 0; i < vertices.Length; i++)
+                    if (Vector2.Distance(vertices[i], centre) < 0.00001f)
+                    {
+                        Assert.AreEqual(expected, weights[i].r, 0.0001f);
+                        if (vertices[i].z < 0f) front++; else back++;
+                    }
+                Assert.Greater(front, 0);
+                Assert.Greater(back, 0);
+            }
+        }
+
+        [Test]
+        public void SurfaceWeights_RemainValidAcrossDisplacedSeeds()
+        {
+            const float offsetFactor = 1f;
+            const uint seedCount = 40;
+            Vector2 centre = Vector2.one * (AsteroidGeometry.MaxCells * 0.5f);
+            for (uint seed = 0; seed < seedCount; seed++)
+            {
+                var field = AsteroidGeometry.Generate(seed, 6.5f);
+                field.ConfigurePositions(seed, offsetFactor, Vector2Int.zero);
+                Set(Server, "m_Field", field);
+                Set(Server, "m_Spacing", Vector2.one);
+                Set(Server, "m_Surface", new AsteroidSurface(seed, centre, Vector2.one, 1f, 0.2f,
+                    7f, offsetFactor));
+                Rebuild(Server);
+                Mesh mesh = m_Server.GetComponent<MeshFilter>().sharedMesh;
+                Color[] weights = mesh.colors;
+                Assert.AreEqual(mesh.vertexCount, weights.Length, $"Seed {seed}");
+                Assert.IsTrue(weights.All(weight => weight.r >= 0f && weight.r <= 1f), $"Seed {seed}");
             }
         }
 

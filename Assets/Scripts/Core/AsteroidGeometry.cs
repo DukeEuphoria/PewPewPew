@@ -179,7 +179,7 @@ namespace PewPewPew.Core
 
         public Vector2 Position(int x, int y) => m_Positions == null ? new Vector2(x, y) : m_Positions[y * Width + x];
 
-        public List<Vector2[]> Polygons()
+        public List<Vector2[]> Polygons(List<float[]> solidWeights = null)
         {
             var result = new List<Vector2[]>();
             for (int y = 0; y < Height - 1; y++)
@@ -194,32 +194,47 @@ namespace PewPewPew.Core
                 Vector2 tr = Position(x + 1, y + 1), tl = Position(x, y + 1);
                 Vector2 bottom = Edge(bl, br, a, b), right = Edge(br, tr, b, c);
                 Vector2 top = Edge(tl, tr, d, c), left = Edge(bl, tl, a, d);
+                float wa = solidWeights == null ? 0f : Weight(a), wb = solidWeights == null ? 0f : Weight(b);
+                float wc = solidWeights == null ? 0f : Weight(c), wd = solidWeights == null ? 0f : Weight(d);
                 switch (code)
                 {
-                    case 1: result.Add(new[] { bl, bottom, left }); break;
-                    case 2: result.Add(new[] { bottom, br, right }); break;
-                    case 3: result.Add(new[] { bl, br, right, left }); break;
-                    case 4: result.Add(new[] { right, tr, top }); break;
+                    case 1: Add(new[] { bl, bottom, left }, wa, 0f, 0f); break;
+                    case 2: Add(new[] { bottom, br, right }, 0f, wb, 0f); break;
+                    case 3: Add(new[] { bl, br, right, left }, wa, wb, 0f, 0f); break;
+                    case 4: Add(new[] { right, tr, top }, 0f, wc, 0f); break;
                     // Diagonally touching corners are separate material components.
                     case 5:
-                        result.Add(new[] { bl, bottom, left });
-                        result.Add(new[] { right, tr, top }); break;
-                    case 6: result.Add(new[] { bottom, br, tr, top }); break;
-                    case 7: result.Add(new[] { bl, br, tr, top, left }); break;
-                    case 8: result.Add(new[] { left, top, tl }); break;
-                    case 9: result.Add(new[] { bl, bottom, top, tl }); break;
+                        Add(new[] { bl, bottom, left }, wa, 0f, 0f);
+                        Add(new[] { right, tr, top }, 0f, wc, 0f); break;
+                    case 6: Add(new[] { bottom, br, tr, top }, 0f, wb, wc, 0f); break;
+                    case 7: Add(new[] { bl, br, tr, top, left }, wa, wb, wc, 0f, 0f); break;
+                    case 8: Add(new[] { left, top, tl }, 0f, 0f, wd); break;
+                    case 9: Add(new[] { bl, bottom, top, tl }, wa, 0f, 0f, wd); break;
                     case 10:
-                        result.Add(new[] { bottom, br, right });
-                        result.Add(new[] { left, top, tl }); break;
-                    case 11: result.Add(new[] { bl, br, right, top, tl }); break;
-                    case 12: result.Add(new[] { left, right, tr, tl }); break;
-                    case 13: result.Add(new[] { bl, bottom, right, tr, tl }); break;
-                    case 14: result.Add(new[] { bottom, br, tr, tl, left }); break;
-                    case 15: result.Add(new[] { bl, br, tr, tl }); break;
+                        Add(new[] { bottom, br, right }, 0f, wb, 0f);
+                        Add(new[] { left, top, tl }, 0f, 0f, wd); break;
+                    case 11: Add(new[] { bl, br, right, top, tl }, wa, wb, 0f, 0f, wd); break;
+                    case 12: Add(new[] { left, right, tr, tl }, 0f, 0f, wc, wd); break;
+                    case 13: Add(new[] { bl, bottom, right, tr, tl }, wa, 0f, 0f, wc, wd); break;
+                    case 14: Add(new[] { bottom, br, tr, tl, left }, 0f, wb, wc, wd, 0f); break;
+                    case 15: Add(new[] { bl, br, tr, tl }, wa, wb, wc, wd); break;
                 }
             }
             return result;
+
+            void Add(Vector2[] polygon, float a, float b, float c, float d = 0f, float e = 0f)
+            {
+                result.Add(polygon);
+                if (solidWeights == null) return;
+                var weights = new float[polygon.Length];
+                weights[0] = a; weights[1] = b; weights[2] = c;
+                if (weights.Length > 3) weights[3] = d;
+                if (weights.Length > 4) weights[4] = e;
+                solidWeights.Add(weights);
+            }
         }
+
+        private static float Weight(int solidness) => Mathf.Clamp01((solidness - IsoLevel) / (byte.MaxValue - IsoLevel));
 
         private static Vector2 Edge(Vector2 a, Vector2 b, int va, int vb) =>
             va == vb ? (a + b) * 0.5f : Vector2.LerpUnclamped(a, b, (IsoLevel - va) / (float)(vb - va));

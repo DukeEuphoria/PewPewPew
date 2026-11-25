@@ -18,7 +18,8 @@ namespace PewPewPew.World
             if (s_FragmentMesh == null)
             {
                 var field = new AsteroidGeometry(2, 2, new byte[] { 255, 255, 255, 0 });
-                s_FragmentMesh = AsteroidMesh.Create(AsteroidMesh.Paths(field, Vector2.one, out _), 0.5f);
+                var paths = AsteroidMesh.Paths(field, Vector2.one, out _, out var solidWeights);
+                s_FragmentMesh = AsteroidMesh.Create(paths, solidWeights, 0.5f);
             }
             int count = Mathf.Min(shatter ? 12 : 5, MaxLiveFragments - s_LiveFragments);
             for (int i = 0; i < count; i++)
