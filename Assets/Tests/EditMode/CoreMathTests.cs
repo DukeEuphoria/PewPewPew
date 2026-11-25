@@ -1839,15 +1839,6 @@ namespace PewPewPew.Tests
     public class AsteroidMathTests
     {
         [Test]
-        public void SpinSpeed_SmallerSpinsFaster()
-        {
-            Assert.AreEqual(120f, AsteroidMath.SpinSpeed(1, 120f));
-            Assert.AreEqual(30f, AsteroidMath.SpinSpeed(4, 120f));
-            Assert.Greater(AsteroidMath.SpinSpeed(2, 120f), AsteroidMath.SpinSpeed(10, 120f));
-            Assert.AreEqual(120f, AsteroidMath.SpinSpeed(0, 120f));
-        }
-
-        [Test]
         public void Density_IsWithinZeroToOneAndDeterministic()
         {
             for (int i = 0; i < 100; i++)
@@ -1865,28 +1856,6 @@ namespace PewPewPew.Tests
         {
             var position = new Vector2(123f, 456f);
             Assert.LessOrEqual(AsteroidMath.Density(position, 300, 5, 3), AsteroidMath.Density(position, 300, 5, 1));
-        }
-
-        [Test]
-        public void Split_SizeOneDoesNotSplit()
-        {
-            Assert.IsEmpty(AsteroidMath.Split(1, new Random(1)));
-        }
-
-        [Test]
-        public void Split_PiecesSumToSizeAndAreValid()
-        {
-            var random = new Random(42);
-            for (int size = 2; size <= 10; size++)
-            {
-                for (int run = 0; run < 50; run++)
-                {
-                    int[] pieces = AsteroidMath.Split(size, random);
-                    Assert.AreEqual(size, pieces.Sum());
-                    Assert.GreaterOrEqual(pieces.Length, 2);
-                    Assert.IsTrue(pieces.All(p => p >= 1 && p < size));
-                }
-            }
         }
     }
 

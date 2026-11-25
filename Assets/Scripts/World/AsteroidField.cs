@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using Mirror;
 using PewPewPew.Core;
 using PewPewPew.GameSystems;
@@ -11,8 +13,6 @@ namespace PewPewPew.World
     {
         [SerializeField] private Asteroid m_Prefab;
         [SerializeField] private int m_TargetCount = 100;
-        [SerializeField] private int m_MinSize = 1;
-        [SerializeField] private int m_MaxSize = 20;
 
         [SerializeField] 
         [Range(0f, 10f)] private float m_MinSpeed = 1f;
@@ -32,10 +32,6 @@ namespace PewPewPew.World
         [SerializeField] private bool m_OrbitClockwise;
         [SerializeField, Range(0f, 1f), Tooltip("0 keeps orbits as circular as possible; 1 allows very elongated ones. Each asteroid picks a random amount up to this.")]
         private float m_OrbitEllipticity;
-        [SerializeField, Min(0f), Tooltip("Typical spin in degrees per second for a size 1 asteroid; larger ones spin proportionally slower.")]
-        private float m_SpinAtSizeOne = 120f;
-        [SerializeField, Range(0f, 1f), Tooltip("Random spread around the typical spin, as a fraction.")]
-        private float m_SpinVariation = 0.5f;
 
         // Eccentricity at full ellipticity; staying below 1 keeps orbits bound.
         private const float MaxEccentricity = 0.85f;
@@ -46,6 +42,11 @@ namespace PewPewPew.World
         public static AsteroidField Instance { get; private set; }
 
         private void Awake() => Instance = this;
+
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
 
         protected override void OnValidate()
         {
@@ -67,22 +68,56 @@ namespace PewPewPew.World
             SpawnRandom();
         }
 
-        public void Spawn(int size, Vector2 position, Vector2 velocity)
+        public void Spawn(Vector2 position, Vector2 velocity)
         {
             Asteroid asteroid = Instantiate(m_Prefab, position, Quaternion.identity,transform.parent);
-            asteroid.Initialize(size);
+            asteroid.Initialize();
             var body = asteroid.GetComponent<Rigidbody2D>();
             body.linearVelocity = velocity;
-            float spin = AsteroidMath.SpinSpeed(size, m_SpinAtSizeOne) * Random.Range(1f - m_SpinVariation, 1f + m_SpinVariation);
-            body.angularVelocity = Random.value < 0.5f ? -spin : spin;
+            body.angularVelocity = 0f;
+            Register(asteroid);
+        }
+
+        internal Asteroid SpawnPiece(AsteroidGeometry field, Vector2 spacing, float depth, float density,
+            AsteroidSurface surface, uint seed, Vector2 position, Quaternion rotation,
+            Vector2 velocity, float spin)
+        {
+            Asteroid asteroid = Instantiate(m_Prefab, position, rotation, transform.parent);
+            asteroid.InitializePiece(field, spacing, depth, density, surface, seed);
+            var body = asteroid.GetComponent<Rigidbody2D>();
+            body.linearVelocity = velocity;
+            body.angularVelocity = spin;
+            Register(asteroid);
+            return asteroid;
+        }
+
+        private void Register(Asteroid asteroid)
+        {
+            asteroid.CountIn(this);
             m_Count++;
             NetworkServer.Spawn(asteroid.gameObject);
+        }
+
+        internal void SeparateSiblings(List<Asteroid> children) => StartCoroutine(RestoreSiblingCollisions(children));
+
+        private IEnumerator RestoreSiblingCollisions(List<Asteroid> children)
+        {
+            for (int i = 0; i < children.Count; i++)
+            for (int j = i + 1; j < children.Count; j++)
+                Physics2D.IgnoreCollision(children[i].GetComponent<CompositeCollider2D>(),
+                    children[j].GetComponent<CompositeCollider2D>());
+            yield return new WaitForSeconds(0.35f);
+            for (int i = 0; i < children.Count; i++)
+            for (int j = i + 1; j < children.Count; j++)
+                if (children[i] != null && children[j] != null)
+                    Physics2D.IgnoreCollision(children[i].GetComponent<CompositeCollider2D>(),
+                        children[j].GetComponent<CompositeCollider2D>(), false);
         }
 
         private void SpawnRandom()
         {
             Vector2 position = RandomDenseWorldPosition();
-            Spawn(Random.Range(m_MinSize, m_MaxSize + 1), position, SpawnVelocity(position));
+            Spawn(position, Vector2.zero);
         }
 
         private Vector2 SpawnVelocity(Vector2 position)

@@ -10,7 +10,7 @@ namespace PewPewPew.Ships
         [SerializeField, Tooltip("HUD bar prefab for armour.")] private HudGauge m_ArmourBar;
         [SerializeField, Tooltip("HUD bar prefab for the ship's power storage.")] private HudGauge m_PowerBar;
         [SerializeField] private float m_ArmourRepairRate = 1f;
-        [SerializeField, Tooltip("Armour lost per point of damage it blocks.")] private float m_ArmourWearRatio = 0.1f;
+        [SerializeField, Tooltip("Armour lost per point of collision damage it blocks. Projectiles use direct armour damage.")] private float m_ArmourWearRatio = 0.1f;
         [SerializeField] private float m_MaxPowerStorage = 100f;
         [SerializeField, Tooltip("Flat-space quadratic drag coefficient: drag force = friction * speed^2. Reduced above GameWorld's gravity threshold.")] private float m_Friction = 0.01f;
         [SerializeField] private float m_AngularAcceleration = 360f;

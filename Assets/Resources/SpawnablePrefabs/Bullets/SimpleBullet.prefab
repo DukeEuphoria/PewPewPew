@@ -222,7 +222,12 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
-  m_ImpactDamage: 10
+  m_AsteroidDamage: 25
+  m_AsteroidCrackChance: 0.001
+  m_DamageRadius: 0.25
+  m_ShieldDamage: 1
+  m_ArmourDamage: 1
+  m_HullComponentDamage: 1
   m_Lifetime: 3
   m_DespawnDelay: 0.2
   m_DamageExplosion: {fileID: 8333231042855009722, guid: 45006089f74667e458ea2e40d3d6ca0f, type: 3}

@@ -39,6 +39,14 @@ namespace PewPewPew.Core
             return damage - blocked;
         }
 
+        public static float AbsorbProjectileArmour(float damage, ComponentHealth armour, float strengthMultiplier = 1f)
+        {
+            strengthMultiplier = Mathf.Max(1f, strengthMultiplier);
+            float blocked = Mathf.Min(damage, armour.Current * strengthMultiplier);
+            armour.Damage(blocked / strengthMultiplier);
+            return damage - blocked;
+        }
+
         /// 1 at the mount point, falling linearly to 0 at radius; 0 for systems without a point.
         public static float ProximityWeight(Vector2 hitPoint, Vector2? point, float radius)
         {

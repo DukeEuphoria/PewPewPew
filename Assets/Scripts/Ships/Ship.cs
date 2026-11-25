@@ -584,12 +584,61 @@ namespace PewPewPew.Ships
         public HitResult TakeDamage(float amount, Vector2 point, PlayerState attacker)
         {
             if (!isServer || amount <= 0f || m_Hull.Health.IsDestroyed) return HitResult.NoDamage;
+            AttributeDamage(attacker);
+            float remaining = AbsorbShields(amount, point);
+            if (remaining <= 0f) return HitResult.ShieldAbsorbed;
+            float leftover = DamageMath.AbsorbArmour(remaining, m_Armour, m_HullDef.ArmourWearRatio, m_ArmourStrengthMultiplier);
+            if (leftover <= 0f) return HitResult.NoDamage;
+            DamageSystems(leftover, point);
+            return HitResult.Damaged;
+        }
+
+        public HitResult TakeProjectileDamage(ProjectileDamage damage, Vector2 point, PlayerState attacker)
+        {
+            if (!isServer || m_Hull.Health.IsDestroyed) return HitResult.NoDamage;
+            if (!damage.IsValid || !float.IsFinite(point.x) || !float.IsFinite(point.y))
+            {
+                Debug.LogError("Projectile damage requires finite nonnegative ratings and finite impact coordinates.", this);
+                return HitResult.NoDamage;
+            }
+            float fraction = 1f;
+            bool changed = false;
+            if (damage.Shield > 0f)
+            {
+                float residual = AbsorbShields(damage.Shield, point);
+                fraction = residual / damage.Shield;
+                changed = residual < damage.Shield;
+                if (fraction <= 0f)
+                {
+                    if (changed) AttributeDamage(attacker);
+                    return HitResult.ShieldAbsorbed;
+                }
+            }
+            if (damage.Armour > 0f)
+            {
+                float incoming = damage.Armour * fraction;
+                float residual = DamageMath.AbsorbProjectileArmour(incoming, m_Armour, m_ArmourStrengthMultiplier);
+                changed |= residual < incoming;
+                fraction = residual / damage.Armour;
+            }
+            if (damage.HullComponents * fraction > 0f)
+                changed |= DamageSystems(damage.HullComponents * fraction, point, attacker);
+            if (!changed) return HitResult.NoDamage;
+            AttributeDamage(attacker);
+            return HitResult.Damaged;
+        }
+
+        private void AttributeDamage(PlayerState attacker)
+        {
             if (attacker != null && attacker != Owner)
             {
                 m_LastAttacker = attacker;
                 m_LastAttackTime = Time.time;
             }
-            float remaining = amount;
+        }
+
+        private float AbsorbShields(float remaining, Vector2 point)
+        {
             Vector2 shieldOffset = point - (Vector2)transform.TransformPoint(m_ShieldCenter);
             for (int i = 0; i < m_Shields.Count && remaining > 0f; i++)
             {
@@ -600,17 +649,23 @@ namespace PewPewPew.Ships
                 if (after < remaining) RpcShieldHit(i, shield.Charge.Fraction);
                 remaining = after;
             }
-            if (remaining <= 0f) return HitResult.ShieldAbsorbed;
-            float leftover = DamageMath.AbsorbArmour(remaining, m_Armour, m_HullDef.ArmourWearRatio, m_ArmourStrengthMultiplier);
-            if (leftover <= 0f) return HitResult.NoDamage;
+            return remaining;
+        }
+
+        private bool DamageSystems(float amount, Vector2 point, PlayerState attacker = null)
+        {
+            bool changed = false;
             Vector2 localPoint = transform.InverseTransformPoint(point);
             foreach (ShipSystem system in m_Systems)
             {
                 float weight = system.Def.TakesFullDamage ? 1f : DamageMath.ProximityWeight(localPoint, system.PointPosition, m_SystemHitRadius);
-                system.Health.Damage(leftover * weight);
+                float before = system.Health.Current;
+                system.Health.Damage(amount * weight);
+                changed |= system.Health.Current < before;
             }
+            if (changed) AttributeDamage(attacker);
             CheckHull();
-            return HitResult.Damaged;
+            return changed;
         }
 
         [ServerCallback]

@@ -63,7 +63,12 @@ namespace PewPewPew.Match
             {
                 text.AppendLine($"Fire rate: {gun.FireRate:0.##}/s  Burst: {gun.BulletsPerBurst}");
                 text.AppendLine($"Projectile speed: {gun.LaunchSpeed:0.##}");
-                if (gun.BulletPrefab != null) text.AppendLine($"Projectile damage: {gun.BulletPrefab.ImpactDamage:0.##}");
+                if (gun.BulletPrefab != null)
+                {
+                    var damage = gun.BulletPrefab.Damage;
+                    text.AppendLine($"Projectile damage - asteroid: {damage.Asteroid:0.##}  Shield: {damage.Shield:0.##}");
+                    text.AppendLine($"Armour: {damage.Armour:0.##}  Hull/components: {damage.HullComponents:0.##}");
+                }
                 text.AppendLine($"Pattern: {gun.Pattern}  Angles: {gun.MinLaunchAngle:0.##} to {gun.MaxLaunchAngle:0.##} degrees");
             }
             else if (component is ShieldDef shield)

@@ -1,4 +1,5 @@
 using Mirror;
+using PewPewPew.Core;
 using PewPewPew.Match;
 using PewPewPew.Ships;
 using PewPewPew.World;
@@ -9,7 +10,12 @@ namespace PewPewPew.Weapons
     /// Flies straight and ignores gravity so clients can simulate it from the launch velocity alone. Hits are resolved on the server.
     public class Bullet : SpaceObject
     {
-        [SerializeField] private float m_ImpactDamage = 10f;
+        [SerializeField, Min(0f), Tooltip("Damage against asteroid solidness and strength.")] private float m_AsteroidDamage = 10f;
+        [SerializeField, Range(0f, 1f), Tooltip("Probability of attempting an asteroid crack after a damaging hit.")] private float m_AsteroidCrackChance = 0.01f;
+        [SerializeField, Min(0f), Tooltip("World-space damage radius. Up to 0.5 is a point impact; larger values are explosions.")] private float m_DamageRadius = 0.5f;
+        [SerializeField, Min(0f), Tooltip("Shield-rated damage. Zero bypasses shields.")] private float m_ShieldDamage = 10f;
+        [SerializeField, Min(0f), Tooltip("Direct armour damage. Zero bypasses armour.")] private float m_ArmourDamage = 1f;
+        [SerializeField, Min(0f), Tooltip("Damage to hull and nearby components after defensive layers.")] private float m_HullComponentDamage = 10f;
         [SerializeField] private float m_Lifetime = 3f;
         [SerializeField, Tooltip("Keeps the object alive briefly after a hit so clients receive the explosion.")] private float m_DespawnDelay = 0.2f;
         [SerializeField] private GameObject m_DamageExplosion;
@@ -22,7 +28,10 @@ namespace PewPewPew.Weapons
         private PlayerState m_Attacker;
         private bool m_Spent;
 
-        public float ImpactDamage => m_ImpactDamage;
+        public ProjectileDamage Damage => new ProjectileDamage(m_AsteroidDamage, m_ShieldDamage,
+            m_ArmourDamage, m_HullComponentDamage);
+        public float AsteroidCrackChance => m_AsteroidCrackChance;
+        public float DamageRadius => m_DamageRadius;
 
         protected override void Awake()
         {
@@ -62,7 +71,17 @@ namespace PewPewPew.Weapons
 
             Vector2 point = other.ClosestPoint(transform.position);
             IDamageable target = other.GetComponentInParent<IDamageable>();
-            HitResult result = target != null ? target.TakeDamage(m_ImpactDamage, point, m_Attacker) : HitResult.NoDamage;
+            HitResult result = HitResult.NoDamage;
+            ProjectileDamage damage = Damage;
+            if (!damage.IsValid)
+                Debug.LogError("Projectile damage ratings must be finite and nonnegative.", this);
+            else if (target is Ship ship)
+                result = ship.TakeProjectileDamage(damage, point, m_Attacker);
+            else if (target is Asteroid asteroid)
+                result = asteroid.TakeProjectileDamage(damage.Asteroid, point, m_Body.linearVelocity,
+                    DamageRadius, AsteroidCrackChance, m_Attacker);
+            else if (target != null)
+                result = target.TakeDamage(damage.HullComponents, point, m_Attacker);
 
             m_Spent = true;
             m_Collider.enabled = false;

@@ -4,7 +4,8 @@
     "references": [
         "Mirror",
         "Mirror.Tests.Common",
-        "PewPewPew.Core"
+        "PewPewPew.Core",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

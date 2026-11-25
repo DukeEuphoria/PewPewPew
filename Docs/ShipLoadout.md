@@ -139,6 +139,39 @@ totals.
 
 ## Authoring components
 
+### Projectile damage
+
+Gun details display four damage ratings authored on the **bullet prefab**, not
+the gun definition: asteroid, shield, armour, and hull/components.
+
+A projectile carries one surviving fraction, initially 1. Shields receive
+`shieldRating * fraction`, preserving directional coverage, overlapping shields,
+charge, and per-impact caps. Residual damage divided by the full shield rating
+becomes the fraction reaching armour. Armour receives `armourRating * fraction`;
+its residual divided by the full armour rating reaches hull/components.
+Those systems receive `hullComponentRating * fraction` with existing
+full-damage/proximity weighting.
+
+Zero shield or armour ratings **bypass that layer** without changing its health
+or the surviving fraction. Zero hull/components damage can strip defences
+without damaging internals. An all-zero hit does nothing. Ratings must be finite
+and nonnegative. Asteroids use only the asteroid rating.
+
+Projectile armour damage directly depletes base armour health, not the hull's
+wear ratio. With a strength boost `s >= 1`, armour absorbs up to
+`currentArmour * s` effective damage, losing `absorbed / s` base health.
+Physical collisions retain their existing blocking and armour-wear rules.
+
+For shield/armour/hull ratings 20/10/8, shields absorbing 10 leave half a hit.
+Armour then receives 5; if it absorbs 3, hull/components receive 1.6.
+
+The existing bullet starts at **10 asteroid / 10 shield / 1 armour / 10
+hull-components**. Armour 1 approximates the old unboosted 0.1-wear armour loss,
+but does not exactly reproduce Bulwark's 0.08 wear or low-armour penetration.
+Intact armour now blocks until its effective health is exhausted.
+
+### Component metadata
+
 Component metadata belongs on the existing `ShipComponentDef` ScriptableObject
 assets, not on the visual prefabs:
 
