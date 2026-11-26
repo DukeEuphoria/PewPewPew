@@ -283,6 +283,16 @@ MonoBehaviour:
   m_ShatterExplosion: {fileID: 2044079080534561436, guid: 4567ccc216b58e040a5647086885f659, type: 3}
   m_ChipSound: {fileID: 8300000, guid: 91806d6425f834d1897ded278936ac7f, type: 3}
   m_ShatterSound: {fileID: 8300000, guid: 24fa0215fc26f4239be505589d87ac68, type: 3}
+  m_TreasureChance: 0.7
+  m_MaxTreasure: 3
+  m_PeekingTreasureChance: 0.3
+  m_TreasureWeights:
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
 --- !u!114 &7246261333361110013
 MonoBehaviour:
   m_ObjectHideFlags: 0

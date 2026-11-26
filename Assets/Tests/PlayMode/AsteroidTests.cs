@@ -27,6 +27,7 @@ namespace PewPewPew.Tests
         private GameObject m_Client;
         private GameObject m_TransportObject;
         private GameObject m_FieldObject;
+        private GameObject m_WorldObject;
         private Transport m_PreviousTransport;
 
         [SetUp]
@@ -39,11 +40,14 @@ namespace PewPewPew.Tests
             m_TransportObject.AddComponent<AudioListener>();
             Transport.active = m_TransportObject.AddComponent<MemoryTransport>();
             NetworkServer.Listen(1);
+            m_WorldObject = new GameObject("Asteroid test world");
+            m_WorldObject.AddComponent(Type.GetType("PewPewPew.GameSystems.GameWorld, Assembly-CSharp", true));
             m_Server = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
             m_Server.name = "Test asteroid";
             Set(m_Server.GetComponent(m_Type), "m_MinOccupiedRadius", 6.5f);
             Set(m_Server.GetComponent(m_Type), "m_MaxOccupiedRadius", 6.5f);
             Set(m_Server.GetComponent(m_Type), "m_VertexOffsetFactor", 0f);
+            Set(m_Server.GetComponent(m_Type), "m_TreasureChance", 0f);
             m_Type.GetMethod("Initialize").Invoke(m_Server.GetComponent(m_Type), null);
             NetworkServer.Spawn(m_Server);
         }
@@ -57,12 +61,15 @@ namespace PewPewPew.Tests
             if (m_Server != null) Object.DestroyImmediate(m_Server);
             if (m_Client != null) Object.DestroyImmediate(m_Client);
             if (m_FieldObject != null) Object.DestroyImmediate(m_FieldObject);
+            if (m_WorldObject != null) Object.DestroyImmediate(m_WorldObject);
             Object.DestroyImmediate(m_TransportObject);
             foreach (GameObject debris in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
                 if (debris.name == "Temporary asteroid fragment") Object.DestroyImmediate(debris);
         }
 
         private Component Server => m_Server.GetComponent(m_Type);
+        private IList Deposits(Component asteroid) => (IList)m_Type.GetField("m_Treasure", Private).GetValue(asteroid);
+        private static T DepositValue<T>(object deposit, string field) => (T)deposit.GetType().GetField(field).GetValue(deposit);
         private float Value(string name) => (float)m_Type.GetProperty(name).GetValue(Server);
         private void Set(Component asteroid, string field, object value) => m_Type.GetField(field, Private).SetValue(asteroid, value);
         private object Damage(float amount, Vector2? point = null, float radius = 0.5f) => m_Type.GetMethod("TakeAreaDamage").Invoke(Server,
@@ -88,6 +95,379 @@ namespace PewPewPew.Tests
             NetworkServer.Spawn(bulletObject);
             type.GetMethod("OnTriggerEnter2D", Private).Invoke(bullet,
                 new object[] { m_Server.GetComponent<CompositeCollider2D>() });
+        }
+
+        [Test]
+        public void TreasureGeneration_UsesAllVariantsAndTargetsPeekingProportion()
+        {
+            Type generator = Type.GetType("PewPewPew.World.AsteroidTreasure, Assembly-CSharp", true);
+            MethodInfo generate = generator.GetMethod("Generate", BindingFlags.Static | BindingFlags.NonPublic);
+            var materials = new System.Collections.Generic.HashSet<TreasureMaterial>();
+            var sizes = new System.Collections.Generic.HashSet<TreasureSize>();
+            int peeking = 0, generated = 0;
+            for (uint seed = 0; seed < 1200; seed++)
+            {
+                var deposits = (IList)generate.Invoke(null, new object[]
+                {
+                    Geometry(Server), Vector2.one, seed, 1f, 1, 0.3f, new[] { 1f, 1f, 1f, 1f, 1f, 1f }
+                });
+                Assert.AreEqual(1, deposits.Count);
+                object deposit = deposits[0];
+                materials.Add(DepositValue<TreasureMaterial>(deposit, "Material"));
+                sizes.Add(DepositValue<TreasureSize>(deposit, "Size"));
+                if (DepositValue<bool>(deposit, "Peeking")) peeking++;
+                generated++;
+            }
+            Assert.AreEqual(6, materials.Count);
+            Assert.AreEqual(3, sizes.Count);
+            Assert.That((float)peeking / generated, Is.InRange(0.25f, 0.35f));
+        }
+
+        [Test]
+        public void TreasurePeeking_IsVisibleAtGameZoom()
+        {
+            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
+                Assert.Ignore("A graphics device is required to measure treasure visibility.");
+            const int imageSize = 512;
+            const int population = 100;
+            const int channelThreshold = 20;
+            const int visiblePixels = 2;
+            var cameraObject = new GameObject("Treasure visibility camera", typeof(Camera));
+            var lightObject = new GameObject("Treasure visibility light", typeof(Light));
+            var target = new RenderTexture(imageSize, imageSize, 24);
+            var image = new Texture2D(imageSize, imageSize, TextureFormat.RGB24, false);
+            RenderTexture previous = RenderTexture.active;
+            UnityEngine.Random.State random = UnityEngine.Random.state;
+            try
+            {
+                m_Server.layer = 31;
+                Set(Server, "m_TreasureChance", 1f);
+                Set(Server, "m_MaxTreasure", 1);
+                Set(Server, "m_PeekingTreasureChance", 0.3f);
+                Set(Server, "m_MinOccupiedRadius", 2f);
+                Set(Server, "m_MaxOccupiedRadius", 6.5f);
+                var camera = cameraObject.GetComponent<Camera>();
+                camera.orthographic = true;
+                camera.orthographicSize = 20f;
+                camera.farClipPlane = 200f;
+                camera.cullingMask = 1 << 31;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = Color.black;
+                cameraObject.transform.position = new Vector3(0f, 0f, -100f);
+                var light = lightObject.GetComponent<Light>();
+                light.type = LightType.Directional;
+                light.intensity = 1f;
+                lightObject.AddComponent<UniversalAdditionalLightData>().renderingLayers = 12u;
+                target.Create();
+                int visible = 0, visiblePeeking = 0, peeking = 0, eligible = 0;
+                for (int i = 0; i < population; i++)
+                {
+                    UnityEngine.Random.InitState(i);
+                    m_Type.GetMethod("Initialize").Invoke(Server, null);
+                    if (Deposits(Server).Count == 0) continue;
+                    eligible++;
+                    bool peeks = DepositValue<bool>(Deposits(Server)[0], "Peeking");
+                    if (peeks) peeking++;
+                    m_Type.GetMethod("UpdateTreasureVisuals", Private).Invoke(Server, null);
+                    var visuals = (IList)m_Type.GetField("m_TreasureVisuals", Private).GetValue(Server);
+                    if (visuals.Count == 0) continue;
+                    var visual = (GameObject)visuals[0];
+                    visual.SetActive(false);
+                    Color32[] before = Render();
+                    visual.SetActive(true);
+                    Color32[] after = Render();
+                    int changed = 0;
+                    for (int p = 0; p < before.Length; p++)
+                        if (Mathf.Max(Mathf.Abs(before[p].r - after[p].r), Mathf.Abs(before[p].g - after[p].g),
+                                Mathf.Abs(before[p].b - after[p].b)) > channelThreshold) changed++;
+                    if (changed >= visiblePixels)
+                    {
+                        visible++;
+                        if (peeks) visiblePeeking++;
+                    }
+                }
+                TestContext.WriteLine($"Visible items at game zoom: {visible}/{eligible}; " +
+                    $"visible peeking items: {visiblePeeking}/{peeking}.");
+                Assert.GreaterOrEqual(eligible, population * 0.9f);
+                Assert.That((float)visible / eligible, Is.InRange(0.2f, 0.4f));
+                Assert.GreaterOrEqual(visiblePeeking, peeking * 0.9f);
+
+                Color32[] Render()
+                {
+                    RenderPipeline.SubmitRenderRequest(camera, new RenderPipeline.StandardRequest { destination = target });
+                    RenderTexture.active = target;
+                    image.ReadPixels(new Rect(0, 0, imageSize, imageSize), 0, 0);
+                    image.Apply();
+                    return image.GetPixels32();
+                }
+            }
+            finally
+            {
+                UnityEngine.Random.state = random;
+                RenderTexture.active = previous;
+                foreach (Object item in new Object[] { image, target, cameraObject, lightObject })
+                    Object.DestroyImmediate(item);
+            }
+        }
+
+        [Test]
+        public void TreasureSnapshot_ReconstructsAuthoritativeDeposit()
+        {
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            Set(Server, "m_PeekingTreasureChance", 1f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            Assert.AreEqual(1, Deposits(Server).Count);
+            m_Client = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
+            var replica = (NetworkBehaviour)m_Client.GetComponent(m_Type);
+            var writer = new NetworkWriter();
+            ((NetworkBehaviour)Server).OnSerialize(writer, true);
+            Assert.AreEqual(90, writer.Position);
+            replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
+            Assert.AreEqual(1, Deposits(replica).Count);
+            object original = Deposits(Server)[0], copy = Deposits(replica)[0];
+            Assert.AreEqual(DepositValue<TreasureMaterial>(original, "Material"), DepositValue<TreasureMaterial>(copy, "Material"));
+            object[] detected = { TreasureMaterial.Gold };
+            Assert.IsTrue((bool)m_Type.GetMethod("TryGetTreasureMaterial", Private).Invoke(replica, detected));
+            Assert.AreEqual(DepositValue<TreasureMaterial>(original, "Material"), detected[0]);
+            Assert.AreEqual(DepositValue<TreasureSize>(original, "Size"), DepositValue<TreasureSize>(copy, "Size"));
+            Assert.AreEqual(DepositValue<Vector2>(original, "Position"), DepositValue<Vector2>(copy, "Position"));
+            Assert.AreEqual(DepositValue<float>(original, "Radius"), DepositValue<float>(copy, "Radius"));
+            Assert.AreEqual(DepositValue<bool>(original, "Peeking"), DepositValue<bool>(copy, "Peeking"));
+            byte[] malformed = writer.ToArray();
+            malformed[76] = byte.MaxValue;
+            Assert.Throws<InvalidOperationException>(() => replica.OnDeserialize(new NetworkReader(malformed), true));
+            Damage(1f, Vector2.zero);
+            Assert.AreEqual(1, Deposits(Server).Count);
+            writer.Reset();
+            ((NetworkBehaviour)Server).OnSerialize(writer, true);
+            replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
+            Assert.AreEqual(1, Deposits(replica).Count);
+            CollectionAssert.AreEqual(Geometry(Server).Samples, Geometry(replica).Samples);
+        }
+
+        [Test]
+        public void TreasureSnapshots_RemainBoundedAcrossPopulation()
+        {
+            const int population = 250;
+            const int emptyBytes = 73;
+            const int depositBytes = 17;
+            const int maximumDeposits = 16;
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", maximumDeposits);
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            var writer = new NetworkWriter();
+            int totalDeposits = 0, maximumPayload = 0;
+            for (int i = 0; i < population; i++)
+            {
+                m_Type.GetMethod("Initialize").Invoke(Server, null);
+                int count = Deposits(Server).Count;
+                writer.Reset();
+                ((NetworkBehaviour)Server).OnSerialize(writer, true);
+                Assert.AreEqual(emptyBytes + depositBytes * count, writer.Position);
+                Assert.LessOrEqual(writer.Position, emptyBytes + depositBytes * maximumDeposits);
+                totalDeposits += count;
+                maximumPayload = Mathf.Max(maximumPayload, writer.Position);
+            }
+            timer.Stop();
+            TestContext.WriteLine($"{population} treasure-bearing asteroid generations: {timer.ElapsedMilliseconds} ms; " +
+                $"{totalDeposits} items; largest initial payload {maximumPayload} bytes.");
+            Assert.Greater(totalDeposits, population);
+        }
+
+        [Test]
+        public void TreasurePrefab_HasPersistentIdentityAndServerPhysics()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Resources/SpawnablePrefabs/Treasure/TreasurePickup.prefab");
+            Assert.IsNotNull(prefab);
+            Assert.AreNotEqual(0u, prefab.GetComponent<NetworkIdentity>().assetId);
+            Type rigidbodySync = Type.GetType("Mirror.NetworkRigidbodyUnreliable2D, Mirror.Components", true);
+            Assert.AreEqual(SyncDirection.ServerToClient, ((NetworkBehaviour)prefab.GetComponent(rigidbodySync)).syncDirection);
+            Assert.IsFalse(prefab.GetComponent<CircleCollider2D>().isTrigger);
+        }
+
+        [Test]
+        public void TreasureRelease_RequiresClearedFootprintAndInheritsPointVelocity()
+        {
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            var bytes = new byte[81];
+            for (int y = 1; y < 8; y++)
+            for (int x = 1; x < 8; x++) bytes[y * 9 + x] = 255;
+            Set(Server, "m_Field", new AsteroidGeometry(9, 9, bytes));
+            Set(Server, "m_Spacing", Vector2.one);
+            object deposit = Deposits(Server)[0];
+            deposit.GetType().GetField("Position").SetValue(deposit, Vector2.zero);
+            deposit.GetType().GetField("Radius").SetValue(deposit, 0.25f);
+            Deposits(Server)[0] = deposit;
+            Rebuild(Server);
+            var body = m_Server.GetComponent<Rigidbody2D>();
+            body.linearVelocity = new Vector2(3f, 2f);
+            body.angularVelocity = 45f;
+            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            Damage(1f, Vector2.zero);
+            Assert.AreEqual(1, Deposits(Server).Count);
+            Assert.IsFalse(NetworkServer.spawned.Values.Any(identity => identity.GetComponent(pickupType) != null));
+            Vector2 expectedVelocity = body.GetPointVelocity(Vector2.zero);
+            Damage(254f, Vector2.zero);
+            Assert.AreEqual(0, Deposits(Server).Count);
+            NetworkIdentity pickup = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null);
+            Assert.AreEqual(expectedVelocity, pickup.GetComponent<Rigidbody2D>().linearVelocity);
+            Assert.AreEqual(body.angularVelocity, pickup.GetComponent<Rigidbody2D>().angularVelocity);
+            Damage(1f, new Vector2(1f, 0f));
+            Assert.AreEqual(1, NetworkServer.spawned.Values.Count(identity => identity.GetComponent(pickupType) != null));
+        }
+
+        [Test]
+        public void BuriedTreasure_AppearsWhenItsCentreIsExcavatedButRemainsEmbedded()
+        {
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            Set(Server, "m_PeekingTreasureChance", 0f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            var bytes = new byte[81];
+            for (int y = 1; y < 8; y++)
+            for (int x = 1; x < 8; x++) bytes[y * 9 + x] = 255;
+            Set(Server, "m_Field", new AsteroidGeometry(9, 9, bytes));
+            Set(Server, "m_Spacing", Vector2.one);
+            object deposit = Deposits(Server)[0];
+            deposit.GetType().GetField("Position").SetValue(deposit, Vector2.zero);
+            deposit.GetType().GetField("Radius").SetValue(deposit, 0.75f);
+            Deposits(Server)[0] = deposit;
+            Rebuild(Server);
+            m_Type.GetMethod("UpdateTreasureVisuals", Private).Invoke(Server, null);
+            var visuals = (IList)m_Type.GetField("m_TreasureVisuals", Private).GetValue(Server);
+            Assert.AreEqual(0, visuals.Count);
+            Damage(255f, Vector2.zero);
+            m_Type.GetMethod("UpdateTreasureVisuals", Private).Invoke(Server, null);
+            Assert.AreEqual(1, Deposits(Server).Count);
+            Assert.AreEqual(1, visuals.Count);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TreasureSplit_TransfersSingleSupportOrReleasesSplitSupport(bool spansSplit)
+        {
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            Type fieldType = Type.GetType("PewPewPew.World.AsteroidField, Assembly-CSharp", true);
+            m_FieldObject = new GameObject("Asteroid test field", typeof(NetworkIdentity));
+            Component owner = m_FieldObject.AddComponent(fieldType);
+            fieldType.GetField("m_Prefab", Private).SetValue(owner,
+                AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath).GetComponent(m_Type));
+            fieldType.GetField("m_Count", Private).SetValue(owner, 1);
+            fieldType.GetField("m_TargetCount", Private).SetValue(owner, 0);
+            Set(Server, "m_OwnerField", owner);
+            var bytes = new byte[81];
+            for (int y = 1; y < 8; y++)
+            for (int x = 1; x < 8; x++)
+                if (x != 4) bytes[y * 9 + x] = 255;
+            Set(Server, "m_Field", new AsteroidGeometry(9, 9, bytes));
+            Set(Server, "m_Spacing", Vector2.one);
+            object deposit = Deposits(Server)[0];
+            Vector2 localPosition = spansSplit ? Vector2.zero : new Vector2(-2f, 0f);
+            deposit.GetType().GetField("Position").SetValue(deposit, localPosition);
+            deposit.GetType().GetField("Radius").SetValue(deposit, spansSplit ? 1f : 0.25f);
+            Deposits(Server)[0] = deposit;
+            m_Server.transform.SetPositionAndRotation(new Vector3(10f, 5f, 0f), Quaternion.Euler(0f, 0f, 35f));
+            Rebuild(Server);
+            Vector2 originalPosition = m_Server.transform.TransformPoint(localPosition);
+            Damage(1f, m_Server.transform.TransformPoint(new Vector2(-2f, 0f)));
+            var children = NetworkServer.spawned.Values.Where(identity =>
+                identity.gameObject != m_Server && identity.GetComponent(m_Type) != null).ToArray();
+            Assert.AreEqual(2, children.Length);
+            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            var pickups = NetworkServer.spawned.Values.Where(identity => identity.GetComponent(pickupType) != null).ToArray();
+            Assert.AreEqual(spansSplit ? 1 : 0, pickups.Length);
+            Assert.AreEqual(spansSplit ? 0 : 1, children.Sum(identity => Deposits(identity.GetComponent(m_Type)).Count));
+            if (!spansSplit)
+            {
+                NetworkIdentity child = children.Single(identity => Deposits(identity.GetComponent(m_Type)).Count != 0);
+                Vector2 childLocal = DepositValue<Vector2>(Deposits(child.GetComponent(m_Type))[0], "Position");
+                Assert.That(Vector2.Distance(originalPosition, child.transform.TransformPoint(childLocal)), Is.LessThan(0.0001f));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator AsteroidAndPickup_AccelerateUnderWorldGravity()
+        {
+            Type sourceType = Type.GetType("PewPewPew.World.GravitySource, Assembly-CSharp", true);
+            var source = new GameObject("Test gravity source");
+            source.transform.position = Vector3.left * 20f;
+            source.AddComponent(sourceType);
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            object deposit = Deposits(Server)[0];
+            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            pickupType.GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null,
+                new object[] { deposit, new Vector2(0f, 20f), Quaternion.identity, Vector2.zero, 0f });
+            NetworkIdentity pickup = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null);
+            try
+            {
+                var asteroidBody = m_Server.GetComponent<Rigidbody2D>();
+                var pickupBody = pickup.GetComponent<Rigidbody2D>();
+                Type worldType = Type.GetType("PewPewPew.GameSystems.GameWorld, Assembly-CSharp", true);
+                Component world = m_WorldObject.GetComponent(worldType);
+                MethodInfo forceOn = worldType.GetMethod("ForceOn");
+                float asteroidAcceleration = ((Vector2)forceOn.Invoke(world,
+                    new object[] { asteroidBody.position, asteroidBody.mass })).magnitude / asteroidBody.mass;
+                float pickupAcceleration = ((Vector2)forceOn.Invoke(world,
+                    new object[] { pickupBody.position, pickupBody.mass })).magnitude / pickupBody.mass;
+                yield return new WaitForFixedUpdate();
+                yield return new WaitForFixedUpdate();
+                Assert.Less(asteroidBody.linearVelocity.x, 0f);
+                Assert.Less(pickupBody.linearVelocity.x, 0f);
+                Assert.Less(pickupBody.linearVelocity.y, 0f);
+                Assert.AreEqual(asteroidBody.linearVelocity.magnitude / asteroidAcceleration,
+                    pickupBody.linearVelocity.magnitude / pickupAcceleration, 0.001f);
+            }
+            finally { Object.DestroyImmediate(source); }
+        }
+
+        [UnityTest]
+        public IEnumerator Pickup_IsRemovedByOrbitalBodyCollision()
+        {
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            object deposit = Deposits(Server)[0];
+            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            foreach (string typeName in new[] { "PewPewPew.World.OrbitalBody" })
+            {
+                var target = new GameObject("Pickup collision target", typeof(NetworkIdentity), typeof(CircleCollider2D));
+                target.transform.position = new Vector2(30f, 0f);
+                var targetBehaviour = (Behaviour)target.AddComponent(Type.GetType(typeName + ", Assembly-CSharp", true));
+                targetBehaviour.enabled = false;
+                pickupType.GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null,
+                    new object[] { deposit, new Vector2(32f, 0f), Quaternion.identity, Vector2.left * 10f, 0f });
+                NetworkIdentity pickup = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null);
+                uint id = pickup.netId;
+                yield return new WaitForSeconds(0.5f);
+                Assert.IsFalse(NetworkServer.spawned.ContainsKey(id), typeName);
+                Object.DestroyImmediate(target);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Pickup_CollidesWithAsteroidWithoutDamagingIt()
+        {
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            byte[] initial = (byte[])Geometry(Server).Samples.Clone();
+            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            pickupType.GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null,
+                new object[] { Deposits(Server)[0], new Vector2(15f, 0f), Quaternion.identity, Vector2.left * 20f, 0f });
+            NetworkIdentity pickup = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null);
+            uint id = pickup.netId;
+            yield return new WaitForSeconds(0.8f);
+            Assert.IsTrue(NetworkServer.spawned.ContainsKey(id));
+            Assert.Greater(m_Server.GetComponent<Rigidbody2D>().linearVelocity.magnitude, 0f);
+            CollectionAssert.AreEqual(initial, Geometry(Server).Samples);
         }
 
         [TestCase(2f)]
@@ -168,7 +548,7 @@ namespace PewPewPew.Tests
             var server = (NetworkBehaviour)Server;
             var writer = new NetworkWriter();
             server.OnSerialize(writer, true);
-            Assert.AreEqual(72, writer.Position);
+            Assert.AreEqual(73, writer.Position);
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
             Assert.AreEqual(Value("Mass"), m_Type.GetProperty("Mass").GetValue(replica));
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.vertices,
@@ -178,7 +558,7 @@ namespace PewPewPew.Tests
             Damage(1f);
             writer.Reset();
             server.OnSerialize(writer, true);
-            Assert.LessOrEqual(writer.Position, 330);
+            Assert.LessOrEqual(writer.Position, 331);
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
             CollectionAssert.AreEqual(((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(Server)).Samples,
                 ((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(replica)).Samples);
@@ -187,7 +567,7 @@ namespace PewPewPew.Tests
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.colors,
                 m_Client.GetComponent<MeshFilter>().sharedMesh.colors);
             Assert.AreEqual(Value("Mass"), m_Type.GetProperty("Mass").GetValue(replica));
-            TestContext.WriteLine($"Untouched/damaged per-object geometry payload: 72/{writer.Position} bytes; 250 damaged: {writer.Position * 250} bytes.");
+            TestContext.WriteLine($"Untouched/damaged per-object geometry payload without treasure: 73/{writer.Position} bytes; 250 damaged: {writer.Position * 250} bytes.");
             byte[] malformed = writer.ToArray();
             int sampleCount = ((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(Server)).Samples.Length;
             malformed[malformed.Length - sampleCount - 2] = 18;
@@ -390,7 +770,7 @@ namespace PewPewPew.Tests
                 Assert.IsTrue(retained.Any(piece => piece.Recenter(out _).Samples.SequenceEqual(field.Samples)));
                 var writer = new NetworkWriter();
                 ((NetworkBehaviour)child.GetComponent(m_Type)).OnSerialize(writer, true);
-                Assert.LessOrEqual(writer.Position, 330);
+                Assert.LessOrEqual(writer.Position, 331);
                 var replica = (NetworkBehaviour)m_Client.GetComponent(m_Type);
                 replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
                 CollectionAssert.AreEqual(child.GetComponent<MeshFilter>().sharedMesh.vertices,
@@ -436,13 +816,13 @@ namespace PewPewPew.Tests
                 minimumScale = Mathf.Min(minimumScale, scale); maximumScale = Mathf.Max(maximumScale, scale);
                 writer.Reset();
                 ((NetworkBehaviour)Server).OnSerialize(writer, true);
-                Assert.AreEqual(72, writer.Position);
+                Assert.AreEqual(73, writer.Position);
                 payload += writer.Position;
                 Mesh mesh = m_Server.GetComponent<MeshFilter>().sharedMesh;
                 maxVertices = Mathf.Max(maxVertices, mesh.vertexCount);
             }
             stopwatch.Stop();
-            Assert.AreEqual(18000, payload);
+            Assert.AreEqual(18250, payload);
             Assert.Greater(maximumArea, minimumArea * 5f);
             Assert.Less(minimumScale, 0.95f);
             Assert.Greater(maximumScale, 1.05f);
@@ -535,6 +915,85 @@ namespace PewPewPew.Tests
                 .Count(item => item.name == "Temporary asteroid fragment"));
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.vertices,
                 replica.GetComponent<MeshFilter>().sharedMesh.vertices);
+        }
+
+        [UnityTest]
+        public IEnumerator RemoteClient_ReceivesEmbeddedTreasureAndReleasedPickup()
+        {
+            const int networkWaitSteps = 100;
+            var networkWait = new WaitForSecondsRealtime(0.02f);
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            Set(Server, "m_PeekingTreasureChance", 1f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            object original = Deposits(Server)[0];
+            TreasureMaterial material = DepositValue<TreasureMaterial>(original, "Material");
+            TreasureSize size = DepositValue<TreasureSize>(original, "Size");
+            NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
+            NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Resources/SpawnablePrefabs/Treasure/TreasurePickup.prefab"));
+            m_Server.GetComponent<Rigidbody2D>().simulated = false;
+            NetworkClient.Connect("localhost");
+            for (int i = 0; i < networkWaitSteps && !NetworkClient.isConnected; i++) yield return networkWait;
+            Assert.IsTrue(NetworkClient.isConnected);
+            NetworkClient.connection.isAuthenticated = true;
+            NetworkConnectionToClient connection = NetworkServer.connections.Values.Single();
+            connection.isAuthenticated = true;
+            typeof(NetworkConnection).GetProperty("identity").SetValue(connection, m_Server.GetComponent<NetworkIdentity>());
+            NetworkClient.Ready();
+            uint id = m_Server.GetComponent<NetworkIdentity>().netId;
+            for (int i = 0; i < networkWaitSteps && !NetworkClient.spawned.ContainsKey(id); i++) yield return networkWait;
+            Assert.IsTrue(NetworkClient.spawned.ContainsKey(id));
+            Component replica = NetworkClient.spawned[id].GetComponent(m_Type);
+            Assert.AreEqual(1, Deposits(replica).Count);
+            Assert.AreEqual(material, DepositValue<TreasureMaterial>(Deposits(replica)[0], "Material"));
+            var visuals = (IList)m_Type.GetField("m_TreasureVisuals", Private).GetValue(replica);
+            Assert.AreEqual(1, visuals.Count);
+            Assert.IsNull(((GameObject)visuals[0]).GetComponent<Collider2D>());
+            Damage(100000f, radius: 100f);
+            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            uint pickupId = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null).netId;
+            for (int i = 0; i < networkWaitSteps && !NetworkClient.spawned.ContainsKey(pickupId); i++) yield return networkWait;
+            Assert.IsTrue(NetworkClient.spawned.ContainsKey(pickupId));
+            Component clientPickup = NetworkClient.spawned[pickupId].GetComponent(pickupType);
+            Assert.AreEqual(material, pickupType.GetProperty("Material").GetValue(clientPickup));
+            Assert.AreEqual(size, pickupType.GetProperty("Size").GetValue(clientPickup));
+            for (int i = 0; i < networkWaitSteps && replica != null && Deposits(replica).Count != 0; i++) yield return networkWait;
+            Assert.IsNotNull(replica);
+            Assert.AreEqual(0, Deposits(replica).Count);
+        }
+
+        [UnityTest]
+        public IEnumerator LateClient_ReceivesPreviouslyReleasedPickup()
+        {
+            const int networkWaitSteps = 100;
+            var networkWait = new WaitForSecondsRealtime(0.02f);
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            Set(Server, "m_DespawnDelay", 10f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            object original = Deposits(Server)[0];
+            TreasureMaterial material = DepositValue<TreasureMaterial>(original, "Material");
+            TreasureSize size = DepositValue<TreasureSize>(original, "Size");
+            Damage(100000f, radius: 100f);
+            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            uint pickupId = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null).netId;
+            NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
+            NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Resources/SpawnablePrefabs/Treasure/TreasurePickup.prefab"));
+            NetworkClient.Connect("localhost");
+            for (int i = 0; i < networkWaitSteps && !NetworkClient.isConnected; i++) yield return networkWait;
+            Assert.IsTrue(NetworkClient.isConnected);
+            NetworkClient.connection.isAuthenticated = true;
+            NetworkConnectionToClient connection = NetworkServer.connections.Values.Single();
+            connection.isAuthenticated = true;
+            typeof(NetworkConnection).GetProperty("identity").SetValue(connection, m_Server.GetComponent<NetworkIdentity>());
+            NetworkClient.Ready();
+            for (int i = 0; i < networkWaitSteps && !NetworkClient.spawned.ContainsKey(pickupId); i++) yield return networkWait;
+            Assert.IsTrue(NetworkClient.spawned.ContainsKey(pickupId));
+            Component clientPickup = NetworkClient.spawned[pickupId].GetComponent(pickupType);
+            Assert.AreEqual(material, pickupType.GetProperty("Material").GetValue(clientPickup));
+            Assert.AreEqual(size, pickupType.GetProperty("Size").GetValue(clientPickup));
         }
 
         [Test]

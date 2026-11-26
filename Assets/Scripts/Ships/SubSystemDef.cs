@@ -19,6 +19,9 @@ namespace PewPewPew.Ships
         [SerializeField, Min(1f), Tooltip("Multiplies armour blocking strength while active.")] private float m_ArmourStrengthMultiplier = 1f;
         [SerializeField, Tooltip("HUD radial gauge prefab.")] private HudGauge m_Gauge;
         [SerializeField] private RadarEmitterDef m_Radar;
+        [SerializeField, Min(0f), Tooltip("Automatic tractor range; zero disables the tractor.")] private float m_TractorRange;
+        [SerializeField, Range(0f, 180f), Tooltip("Half of the tractor's forward cone angle.")] private float m_TractorHalfAngle;
+        [SerializeField, Min(0f), Tooltip("Force applied to an attracted pickup.")] private float m_TractorForce;
 
         public ActivationMode Mode => m_Mode;
         public float Duration => m_Duration;
@@ -31,6 +34,9 @@ namespace PewPewPew.Ships
         public float ArmourStrengthMultiplier => Mathf.Max(1f, m_ArmourStrengthMultiplier);
         public HudGauge Gauge => m_Gauge;
         public RadarEmitterDef Radar => m_Radar;
+        public float TractorRange => m_TractorRange;
+        public float TractorHalfAngle => m_TractorHalfAngle;
+        public float TractorForce => m_TractorForce;
         public override ComponentType Type => ComponentType.SubSystem;
     }
 }

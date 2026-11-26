@@ -34,6 +34,9 @@ are independent even when several subsystems reference the same asset.
   are checked over the elapsed interval, including scan wraparound.
 - Half Angle: coverage either side of the mount's +Y direction. 180 means full
   circle; 45 means a 90-degree cone. There is no separate bearing offset.
+- Detect Treasure: when enabled, a scan colours an asteroid marker using its
+  first embedded treasure material. Existing emitters default to disabled;
+  enable it on an emitter asset to use this feature.
 
 Detected contacts retain their last observed world position and heading. Those
 positions are displayed relative to the ship's current position. Ships use
@@ -42,7 +45,10 @@ Contacts are shown only while their last observed positions are within at least
 one active emitter's detection range. If an offset mount detects a contact
 beyond the ship-centred display radius, its marker is clamped to the edge.
 Any emitter may refresh the shared contact; overlapping cones do not duplicate
-markers. Detection uses client-known objects, not server-side fog of war.
+markers. Ordinary scans do not overwrite a treasure detection; its colour
+expires after the contact lifetime unless another treasure-capable scan
+refreshes it. A treasure-capable scan of an empty asteroid clears the colour.
+Detection uses client-known objects, not server-side fog of war.
 
 ## Subsystems and Mounts
 

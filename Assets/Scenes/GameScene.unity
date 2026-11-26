@@ -832,7 +832,7 @@ MonoBehaviour:
   m_Width: 360
   m_BarHeight: 32
   m_Gap: 4
-  m_PaperdollSize: 240
+  m_PaperdollSize: 360
   m_PaperdollBrightness: 0.35
   m_PaperdollMarkerScale: 1
 --- !u!1001 &7000020

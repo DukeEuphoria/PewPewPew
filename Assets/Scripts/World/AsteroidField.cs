@@ -80,10 +80,10 @@ namespace PewPewPew.World
 
         internal Asteroid SpawnPiece(AsteroidGeometry field, Vector2 spacing, float depth, float density,
             AsteroidSurface surface, uint seed, Vector2 position, Quaternion rotation,
-            Vector2 velocity, float spin)
+            Vector2 velocity, float spin, List<TreasureDeposit> treasure)
         {
             Asteroid asteroid = Instantiate(m_Prefab, position, rotation, transform.parent);
-            asteroid.InitializePiece(field, spacing, depth, density, surface, seed);
+            asteroid.InitializePiece(field, spacing, depth, density, surface, seed, treasure);
             var body = asteroid.GetComponent<Rigidbody2D>();
             body.linearVelocity = velocity;
             body.angularVelocity = spin;

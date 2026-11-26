@@ -391,6 +391,10 @@ namespace PewPewPew.Tests
                 Assert.AreEqual(new Vector2(180f, 180f), paperdoll.sizeDelta);
                 Assert.AreEqual(new Vector2(90f, 90f), paperdoll.anchoredPosition);
                 Assert.AreEqual(new Vector2(304f, 28f), bar.anchoredPosition);
+                root.GetType().GetMethod("PlaceBar").Invoke(root, new object[] { bar, 1, 2 });
+                Assert.AreEqual(paperdoll.anchoredPosition.y - paperdoll.rect.height * 0.5f,
+                    bar.anchoredPosition.y - bar.rect.height * 0.5f, 0.001f);
+                Assert.AreEqual(0f, paperdoll.anchoredPosition.x - paperdoll.rect.width * 0.5f, 0.001f);
             }
             finally
             {
@@ -619,7 +623,7 @@ namespace PewPewPew.Tests
                 owner.transform.SetParent(canvas.transform, false);
                 Type type = Type.GetType("PewPewPew.Ships.ShipHudPaperdoll, Assembly-CSharp");
                 Component paperdoll = owner.AddComponent(type);
-                type.GetMethod("Initialize").Invoke(paperdoll, new object[] { loadout, null, 240f, 0.65f, 1f });
+                type.GetMethod("Initialize").Invoke(paperdoll, new object[] { loadout, null, 360f, 0.65f, 1f });
                 var buttons = (Array)type.GetField("m_Buttons", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
                 var button = (Component)buttons.GetValue(mount);
                 float expected = orientation == 0 ? angle : orientation == 1 ? angle + 180f : 0f;
@@ -638,6 +642,117 @@ namespace PewPewPew.Tests
 
     public class ShipHudPaperdollTests
     {
+        [Test]
+        public void Paperdoll_EmptyMountsShowCountableCargoWithoutInterceptingClicks()
+        {
+            Type catalogType = Type.GetType("PewPewPew.Ships.ShipCatalog, Assembly-CSharp");
+            object catalog = catalogType.GetProperty("Instance").GetValue(null);
+            var loadout = (ShipLoadout)catalogType.GetMethod("DefaultLoadout").Invoke(catalog, new object[] { 0 });
+            for (int i = 0; i < loadout.MountComponents.Length; i++) loadout.MountComponents[i] = -1;
+            object hull = ((Array)catalogType.GetProperty("Hulls").GetValue(catalog)).GetValue(0);
+            object hullPoints = hull.GetType().GetProperty("HullPoints").GetValue(hull);
+            var points = (Array)hullPoints.GetType().GetProperty("Points").GetValue(hullPoints);
+            var capacities = new int[points.Length];
+            Type shipType = Type.GetType("PewPewPew.Ships.Ship, Assembly-CSharp");
+            for (int i = 0; i < points.Length; i++)
+                capacities[i] = (int)shipType.GetMethod("CargoCapacity").Invoke(null,
+                    new[] { points.GetValue(i).GetType().GetProperty("Size").GetValue(points.GetValue(i)) });
+            CollectionAssert.Contains(capacities, 16);
+            CollectionAssert.Contains(capacities, 25);
+            CollectionAssert.Contains(capacities, 49);
+            var cargo = new ShipCargo(capacities);
+            Assert.IsTrue(cargo.TryAdd(TreasureMaterial.Gold, TreasureSize.Large));
+            Assert.IsTrue(cargo.TryAdd(TreasureMaterial.RedCrystal, TreasureSize.Small));
+            var canvas = new GameObject("HUD canvas", typeof(RectTransform), typeof(Canvas));
+            var owner = new GameObject("Paperdoll", typeof(RectTransform));
+            try
+            {
+                owner.transform.SetParent(canvas.transform, false);
+                Type type = Type.GetType("PewPewPew.Ships.ShipHudPaperdoll, Assembly-CSharp");
+                Component paperdoll = owner.AddComponent(type);
+                type.GetMethod("Initialize").Invoke(paperdoll, new object[] { loadout, null, 240f, 0.65f, 1f });
+                type.GetMethod("SetCargo").Invoke(paperdoll, new object[] { cargo });
+                var grids = (Array)type.GetField("m_CargoCells", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                for (int mount = 0; mount < points.Length; mount++)
+                {
+                    var cells = (Array)grids.GetValue(mount);
+                    Assert.AreEqual(capacities[mount], cells.Length);
+                    var gridRect = (RectTransform)((Component)cells.GetValue(0)).transform.parent;
+                    float slotWidth = capacities[mount] == 16 ? 24f : capacities[mount] == 25 ? 36f : 50f;
+                    Assert.AreEqual(slotWidth, gridRect.rect.width, 0.001f);
+                    foreach (Component cell in cells)
+                    {
+                        Assert.IsFalse((bool)cell.GetType().GetProperty("raycastTarget").GetValue(cell));
+                        var rect = (RectTransform)cell.transform;
+                        var grid = (RectTransform)rect.parent;
+                        Assert.LessOrEqual(Mathf.Abs(rect.anchoredPosition.x) + rect.rect.width * 0.5f, grid.rect.width * 0.5f + 0.001f);
+                        Assert.LessOrEqual(Mathf.Abs(rect.anchoredPosition.y) + rect.rect.height * 0.5f, grid.rect.height * 0.5f + 0.001f);
+                    }
+                    var left = (RectTransform)((Component)cells.GetValue(0)).transform;
+                    var right = (RectTransform)((Component)cells.GetValue(1)).transform;
+                    Assert.Less(left.rect.width, right.anchoredPosition.x - left.anchoredPosition.x);
+                }
+                var first = (Array)grids.GetValue(0);
+                Color gold = (Color)((Component)first.GetValue(0)).GetType().GetProperty("color").GetValue(first.GetValue(0));
+                Color red = (Color)((Component)first.GetValue(3)).GetType().GetProperty("color").GetValue(first.GetValue(3));
+                Color empty = (Color)((Component)first.GetValue(4)).GetType().GetProperty("color").GetValue(first.GetValue(4));
+                Assert.AreNotEqual(gold, red);
+                Assert.AreNotEqual(red, empty);
+                Assert.AreEqual(gold, (Color)((Component)first.GetValue(2)).GetType().GetProperty("color").GetValue(first.GetValue(2)));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(owner);
+                UnityEngine.Object.DestroyImmediate(canvas);
+            }
+        }
+
+        [TestCase(240f, 1f)]
+        [TestCase(360f, 1f)]
+        [TestCase(360f, 1.25f)]
+        public void Paperdoll_SizeDoesNotChangeIconsOrCargoSlotFootprint(float panelSize, float markerScale)
+        {
+            Type catalogType = Type.GetType("PewPewPew.Ships.ShipCatalog, Assembly-CSharp");
+            object catalog = catalogType.GetProperty("Instance").GetValue(null);
+            var loadout = (ShipLoadout)catalogType.GetMethod("DefaultLoadout").Invoke(catalog, new object[] { 0 });
+            var components = (Array)catalogType.GetProperty("Components").GetValue(catalog);
+            object hull = ((Array)catalogType.GetProperty("Hulls").GetValue(catalog)).GetValue(0);
+            object hullPoints = hull.GetType().GetProperty("HullPoints").GetValue(hull);
+            var points = (Array)hullPoints.GetType().GetProperty("Points").GetValue(hullPoints);
+            int mount = Enumerable.Range(0, points.Length).First(i => loadout.MountComponents[i] >= 0 &&
+                points.GetValue(i).GetType().GetProperty("Size").GetValue(points.GetValue(i)).Equals(
+                    components.GetValue(loadout.MountComponents[i]).GetType().GetProperty("Size")
+                        .GetValue(components.GetValue(loadout.MountComponents[i]))));
+            object size = points.GetValue(mount).GetType().GetProperty("Size").GetValue(points.GetValue(mount));
+            float expectedWidth = size.ToString() == "Small" ? 24f : size.ToString() == "Medium" ? 36f : 50f;
+            var canvas = new GameObject("HUD canvas", typeof(RectTransform), typeof(Canvas));
+            var owner = new GameObject("Paperdoll", typeof(RectTransform));
+            try
+            {
+                owner.transform.SetParent(canvas.transform, false);
+                Type type = Type.GetType("PewPewPew.Ships.ShipHudPaperdoll, Assembly-CSharp");
+                Component paperdoll = owner.AddComponent(type);
+                type.GetMethod("Initialize").Invoke(paperdoll, new object[] { loadout, null, panelSize, 0.65f, markerScale });
+                var panel = (RectTransform)type.GetProperty("Rect").GetValue(paperdoll);
+                Assert.AreEqual(panelSize, panel.rect.width, 0.001f);
+                var buttons = (Array)type.GetField("m_Buttons", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                var icon = (RectTransform)((Component)buttons.GetValue(mount)).transform;
+                Assert.AreEqual(expectedWidth * markerScale, icon.rect.width, 0.001f);
+
+                loadout.MountComponents[mount] = -1;
+                type.GetMethod("Initialize").Invoke(paperdoll, new object[] { loadout, null, panelSize, 0.65f, markerScale });
+                var grids = (Array)type.GetField("m_CargoCells", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                var cells = (Array)grids.GetValue(mount);
+                var grid = (RectTransform)((Component)cells.GetValue(0)).transform.parent;
+                Assert.AreEqual(expectedWidth * markerScale, grid.rect.width, 0.001f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(owner);
+                UnityEngine.Object.DestroyImmediate(canvas);
+            }
+        }
+
         [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset", false)]
         [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Power Storage.asset", false)]
         [TestCase("Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset", true)]
@@ -758,6 +873,14 @@ namespace PewPewPew.Tests
                 type.GetMethod("Initialize").Invoke(paperdoll,
                     new object[] { loadout, new Action<int>(mount => clicked = mount), 240f, 0.65f, 1f });
                 object hullImage = type.GetField("m_HullImage", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(paperdoll);
+                var imageRect = (RectTransform)((Component)hullImage).transform;
+                var panelRect = (RectTransform)type.GetProperty("Rect").GetValue(paperdoll);
+                var imageCorners = new Vector3[4];
+                var panelCorners = new Vector3[4];
+                imageRect.GetWorldCorners(imageCorners);
+                panelRect.GetWorldCorners(panelCorners);
+                Assert.AreEqual(panelCorners[0].x, imageCorners[0].x, 0.001f);
+                Assert.AreEqual(panelCorners[0].y, imageCorners[0].y, 0.001f);
                 Color hullTint = (Color)hullImage.GetType().GetProperty("color").GetValue(hullImage);
                 Assert.AreEqual(0.35f, hullTint.r, 0.001f);
                 Assert.IsFalse((bool)hullImage.GetType().GetProperty("raycastTarget").GetValue(hullImage));
@@ -1113,6 +1236,61 @@ namespace PewPewPew.Tests
             }
         }
 
+        [Test]
+        public void TreasureDetection_ColoursScannedAsteroidsAndSurvivesOrdinaryScans()
+        {
+            Set(m_EmitterB, "m_DetectTreasure", true);
+            Set(m_Root, "m_FadeContacts", false);
+            AddEmitter(m_EmitterA, m_MountA.transform);
+            AddEmitter(m_EmitterB, m_MountB.transform);
+            GameObject target = MakeClientAsteroid(new Vector3(0f, 10f, 0f));
+            Component asteroid = target.GetComponent(GameType("PewPewPew.World.Asteroid"));
+            var deposits = (IList)Get(asteroid, "m_Treasure");
+            Type depositType = GameType("PewPewPew.World.TreasureDeposit");
+            object gold = Activator.CreateInstance(depositType);
+            object red = Activator.CreateInstance(depositType);
+            depositType.GetField("Material").SetValue(gold, TreasureMaterial.Gold);
+            depositType.GetField("Material").SetValue(red, TreasureMaterial.RedCrystal);
+            deposits.Add(gold);
+            deposits.Add(red);
+            try
+            {
+                double now = Time.timeAsDouble;
+                Sample(Emitters()[0], now);
+                var contacts = (IDictionary)Get(m_Root, "m_Contacts");
+                object contact = contacts[asteroid];
+                Assert.IsNull(Get(contact, "Treasure"));
+                Color ordinary = (Color)Call(m_Root, "ContactColor", contact);
+
+                Sample(Emitters()[1], now);
+                Assert.AreEqual(TreasureMaterial.Gold, Get(contact, "Treasure"));
+                Color detected = (Color)Call(m_Root, "ContactColor", contact);
+                Assert.Greater(detected.r, detected.g);
+                Assert.AreNotEqual(ordinary, detected);
+
+                Sample(Emitters()[0], now + 0.5d);
+                Assert.AreEqual(TreasureMaterial.Gold, Get(contact, "Treasure"));
+                deposits.RemoveAt(0);
+                Sample(Emitters()[1], now + 0.5d);
+                Assert.AreEqual(TreasureMaterial.RedCrystal, Get(contact, "Treasure"));
+                detected = (Color)Call(m_Root, "ContactColor", contact);
+                Assert.Greater(detected.r, detected.g);
+                Assert.Less(detected.g, 0.1f);
+
+                Set(contact, "TreasureLastSeen", Time.timeAsDouble - 5d);
+                Assert.AreEqual(ordinary, (Color)Call(m_Root, "ContactColor", contact));
+                deposits.Clear();
+                Sample(Emitters()[1], now + 1d);
+                Assert.IsNull(Get(contact, "Treasure"));
+                Assert.AreEqual(ordinary, (Color)Call(m_Root, "ContactColor", contact));
+            }
+            finally
+            {
+                DisableAsteroid(target);
+                UnityEngine.Object.DestroyImmediate(target);
+            }
+        }
+
         private GameObject MakeClientAsteroid(Vector3 position)
         {
             var target = new GameObject("Radar contact");
@@ -1135,7 +1313,7 @@ namespace PewPewPew.Tests
         private IList Emitters() => (IList)Get(m_Root, "m_Emitters");
         private void Sample(object emitter, double now)
         {
-            Type callbackType = typeof(Action<,>).MakeGenericType(GameType("PewPewPew.World.SpaceObject"), typeof(double));
+            Type callbackType = typeof(Action<,,>).MakeGenericType(GameType("PewPewPew.World.SpaceObject"), typeof(double), typeof(bool));
             Delegate callback = Delegate.CreateDelegate(callbackType, m_Root, m_Root.GetType().GetMethod("RecordContact", InstanceFields));
             Call(emitter, "Sample", now, null, callback);
         }

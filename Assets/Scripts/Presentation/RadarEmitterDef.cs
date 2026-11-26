@@ -14,6 +14,7 @@ namespace PewPewPew.Presentation
         [SerializeField, Min(1f)] private float m_PulseSpeed = 250f;
         [SerializeField, Min(1f)] private float m_SweepSpeed = 90f;
         [SerializeField, Range(1f, 180f)] private float m_HalfAngle = 180f;
+        [SerializeField, Tooltip("Detects embedded treasure in scanned asteroids.")] private bool m_DetectTreasure;
 
         public float Range => Mathf.Max(1f, m_Range);
         public RadarScanMode Mode => m_Mode;
@@ -22,5 +23,6 @@ namespace PewPewPew.Presentation
         public float PulseSpeed => Mathf.Max(1f, m_PulseSpeed);
         public float SweepSpeed => Mathf.Max(1f, m_SweepSpeed);
         public float HalfAngle => Mathf.Clamp(m_HalfAngle, 1f, 180f);
+        public bool DetectTreasure => m_DetectTreasure;
     }
 }

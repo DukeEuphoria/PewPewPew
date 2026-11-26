@@ -1,9 +1,10 @@
 # Asteroids
 
 Asteroids use seeded, extruded marching squares rather than spheres. Rigidbody2D
-keeps motion and rotation in the XY game plane. Asteroid gravity is disabled for
-now, and field replenishment starts rocks with zero velocity and spin. Impacts
-and shattering can still move them. Ship and orbital-body gravity is unchanged.
+keeps motion and rotation in the XY game plane. Asteroids and released treasure
+receive the same server-side world gravity and edge force as other space
+objects. Field replenishment still starts rocks with zero velocity and spin;
+gravity, impacts and shattering can subsequently move them.
 
 ## Geometry and bandwidth
 
@@ -35,18 +36,20 @@ and shattering can still move them. Ship and orbital-body gravity is unchanged.
   version, and physical descriptor reconstruct untouched rocks.
 - Damage changes the current field. Late observers receive that field, not
   an unbounded damage history. No mesh vertices are transmitted.
-- Generator/format **version 11** uses seeded overlapping splats and the
+- Generator **version 11** uses seeded overlapping splats and the
   displaced roof lattice, retaining the 127.5 contour. There are no health fields. The
   descriptor includes the splat seed, count, radius range and physical spacing/depth:
   observers need not share Inspector ranges.
-  Mixed versions are explicitly rejected; there is no older-format migration.
-- Initial asteroid-specific serialization is **72 bytes** for untouched rocks,
-  or at most **330 bytes** for damaged rocks/children (72 + 2 dimensions + 256
-  samples). At 250 rocks those states total **18,000 or 82,500 bytes**.
+  Asteroid wire format **version 12** additionally carries treasure descriptors.
+  Mixed wire versions are explicitly rejected; there is no older-format migration.
+- Initial asteroid-specific serialization is **73 bytes** without treasure for
+  untouched rocks, or at most **331 bytes** for damaged rocks/children. Each
+  embedded item adds **17 bytes**, up to 16 items: maximum untouched and damaged
+  payloads are **345 and 603 bytes**, respectively.
 - Live updates additionally include 17 bytes of effect position, inherited
   velocity, and chip/shatter selection. State and its effect arrive together;
   repeated revisions do not replay an effect, and initial synchronization
-  never replays old debris. The maximum live state is **347 bytes**.
+  never replays old debris. The maximum live state is **620 bytes**.
 - These sizes **exclude** Mirror identity/behaviour framing, network transforms,
   transport overhead, and all other game state.
 
@@ -197,6 +200,50 @@ fractional damage; there is no separate health allocation or health snapshot.
 Only real asteroid objects count toward the field target. Fragmentation can
 temporarily exceed that target; replenishment waits until below it.
 
+## Embedded treasure and pickups
+
+Gold, silver, and red, green, cyan and purple crystals each have small, medium
+and large forms. New asteroids select deposits on the authoritative server
+using an independent seeded sequence. The asteroid prefab defaults to a 70%
+chance of treasure, one to three requested items per successful rock, equal
+material weights, and a 30% chance that each item peeks through the roof.
+These settings are adjustable on the asteroid prefab; weight order is gold,
+silver, red, green, cyan, then purple. Placement is bounded and
+avoids overlap; a small or crowded rock can receive fewer items than requested.
+The three footprint radii are 0.25, 0.4 and 0.6 times the rock's cell spacing.
+Low-poly meshes and shared materials are generated locally for presentation.
+The shared URP material template is included in Resources so its shader remains
+available in player builds.
+
+Embedded items are visuals only: their 2D footprints overlap the current
+marching-square rock, and they cannot collide with ships or be collected.
+Peeking is a visual roof placement, not an indication that the footprint is
+free. Buried items are not rendered until their centre is excavated, even if
+their larger footprint is still supported. After damage, an item releases when its circular footprint no longer
+overlaps the surviving solid polygons. Mere tangency is not supporting rock,
+within a small geometric tolerance. A fracture through supporting rock releases
+an item if its footprint overlaps more than one component; otherwise the item
+follows its one retained component, or releases if that component is discarded.
+Support is checked again after the component is recentered.
+Splitting preserves the item's world position and does not regenerate treasure.
+
+Released pickups are separate server-owned network objects. They inherit the
+rock's velocity at the release point and angular velocity, receive world
+gravity, and collide physically with world objects and ships. Treasure impacts
+do not apply collision damage to ships or asteroids. Server-side ship contact
+collects the entire pickup if its cargo stores have room; otherwise it stays
+physical and available. Small, medium and large pickups contain 1, 2 and 3
+units of their material. Orbital-body contact still removes a pickup. Pickups
+otherwise persist until match teardown, so an active field can accumulate them
+indefinitely. Treasure value and universe-wide supply balancing are not yet
+implemented.
+
+The pickup prefab is registered by the existing spawnable-prefab loader. The
+editor menu **PewPewPew/Create Treasure Pickup Prefab** can recreate it and the
+material template if missing without overwriting existing assets. Embedded descriptors are sent
+with asteroid snapshots, including to late observers; released pickup material
+and size are synchronized separately.
+
 ## Prefab references and presentation
 
 Keep the existing asteroid network asset identity and spawn registration.
@@ -256,4 +303,13 @@ Unity's frame-timing API returned
 no positive GPU samples in this batch environment. Net managed-heap changes are
 not total allocation counts. A target-PC gameplay/GPU profile is still needed
 for a production frame budget.
+
+An isolated Editor batch test generating 250 rocks with the treasure chance
+forced to 100% and the maximum set to 16 took 2,171 ms in one run, producing
+2,233 embedded items and a largest untouched descriptor of 345 bytes. This is
+a stress configuration, not the default spawn rate or a gameplay frame budget;
+it excludes rendering and long-term accumulation of persistent released pickups.
+In a separate 512x512 graphics-enabled Editor test at orthographic size 20,
+30 of 100 seeded deposits were visibly different from the bare rock; all 30
+selected peeking deposits were visible.
 

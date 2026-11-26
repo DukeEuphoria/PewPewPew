@@ -5,10 +5,11 @@ namespace PewPewPew.Ships
     public class ShipHudRoot : MonoBehaviour
     {
         private const int SubSystemColumns = 4;
+        private const float DefaultPaperdollSize = 360f;
         [SerializeField] private float m_Width = 240f;
         [SerializeField] private float m_BarHeight = 16f;
         [SerializeField] private float m_Gap = 4f;
-        [SerializeField, Min(1f)] private float m_PaperdollSize = 240f;
+        [SerializeField, Min(1f)] private float m_PaperdollSize = DefaultPaperdollSize;
         [SerializeField, Range(0f, 1f)] private float m_PaperdollBrightness = 0.35f;
         [SerializeField, Min(0.01f)] private float m_PaperdollMarkerScale = 1f;
 

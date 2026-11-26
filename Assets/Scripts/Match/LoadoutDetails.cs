@@ -19,6 +19,10 @@ namespace PewPewPew.Match
             float storage = hull.MaxPowerStorage;
             float generation = Mathf.Max(0, -hull.PassivePowerDrain);
             float consumption = Mathf.Max(0, hull.PassivePowerDrain);
+            int cargoCapacity = 0;
+            HullPoint[] points = hull.HullPoints.Points;
+            for (int i = 0; i < loadout.MountComponents.Length; i++)
+                if (loadout.MountComponents[i] < 0) cargoCapacity += Ship.CargoCapacity(points[i].Size);
             foreach (int index in loadout.MountComponents)
             {
                 if (index < 0) continue;
@@ -36,6 +40,7 @@ namespace PewPewPew.Match
             text.AppendLine($"Armour: {hull.Armour:0.##}  Repair: {hull.ArmourRepairRate:0.##}/s");
             text.AppendLine($"Energy generation: {generation:0.##}/s  Passive use: {consumption:0.##}/s");
             text.AppendLine($"Net energy: {generation - consumption:0.##}/s  Storage: {storage:0.##}");
+            text.AppendLine($"Cargo capacity: {cargoCapacity}");
             text.Append($"Mass: {mass:0.##}");
             if (hull.IsLocked) text.Append($"\nLocked - price: {hull.Price}");
             return text.ToString();
@@ -95,6 +100,8 @@ namespace PewPewPew.Match
                     var radar = subSystem.Radar;
                     text.AppendLine($"Radar: {radar.Mode}  Range: {radar.Range:0.##}  Coverage: +/-{radar.HalfAngle:0.##} degrees");
                 }
+                if (subSystem.TractorRange > 0f)
+                    text.AppendLine($"Tractor: range {subSystem.TractorRange:0.##}  Cone: {subSystem.TractorHalfAngle * 2f:0.##} degrees  Force: {subSystem.TractorForce:0.##}");
             }
             if (component.IsLocked) text.AppendLine($"Locked - price: {component.Price}");
             return text.ToString().TrimEnd();

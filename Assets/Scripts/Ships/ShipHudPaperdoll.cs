@@ -1,6 +1,7 @@
 using System;
 using PewPewPew.Core;
 using PewPewPew.Match;
+using PewPewPew.World;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
@@ -14,6 +15,15 @@ namespace PewPewPew.Ships
     {
         private const int TextureWidth = 1024;
         private const int TextureHeight = 744;
+        private const int SmallCargoColumns = 4;
+        private const int MediumCargoColumns = 5;
+        private const int LargeCargoColumns = 7;
+        private const float SmallArtworkSize = 30f;
+        private const float MediumArtworkSize = 42f;
+        private const float LargeArtworkSize = 56f;
+        private const float MarkerPadding = 6f;
+        private const float CargoGapFraction = 0.15f;
+        private static readonly Color EmptyCargo = new Color(0.12f, 0.12f, 0.12f, 0.7f);
         private RectTransform m_Panel;
         private RawImage m_HullImage;
         private RenderTexture m_Texture;
@@ -23,6 +33,7 @@ namespace PewPewPew.Ships
         private Button[] m_Buttons = Array.Empty<Button>();
         private HudGauge[] m_Gauges = Array.Empty<HudGauge>();
         private Color[] m_Tints = Array.Empty<Color>();
+        private Image[][] m_CargoCells = Array.Empty<Image[]>();
         private Action<int> m_OnMountClick;
 
         public RectTransform Rect => m_Panel;
@@ -48,6 +59,7 @@ namespace PewPewPew.Ships
                 m_Panel = CreateRect("Paperdoll", transform);
                 m_Panel.sizeDelta = Vector2.one * size;
                 var imageRect = CreateRect("Hull", m_Panel);
+                imageRect.anchorMin = imageRect.anchorMax = imageRect.pivot = new Vector2(0.5f, 0f);
                 imageRect.sizeDelta = new Vector2(size, size * TextureHeight / TextureWidth);
                 m_HullImage = imageRect.gameObject.AddComponent<RawImage>();
                 m_HullImage.raycastTarget = false;
@@ -62,23 +74,25 @@ namespace PewPewPew.Ships
                 m_Buttons = new Button[points.Length];
                 m_Gauges = new HudGauge[points.Length];
                 m_Tints = new Color[points.Length];
+                m_CargoCells = new Image[points.Length][];
                 for (int i = 0; i < points.Length; i++)
                 {
                     int component = loadout.MountComponents[i];
-                    if (component < 0) continue;
-                    ShipComponentDef definition = catalog.Components[component];
                     HullPoint point = points[i];
                     Vector3 local = hull.transform.InverseTransformPoint(point.transform.position);
                     Vector2 position = UnityEngine.Rect.PointToNormalized(frame, local);
+                    if (component < 0)
+                    {
+                        CreateCargoGrid(imageRect, position, point.Size, markerScale, i);
+                        continue;
+                    }
+                    ShipComponentDef definition = catalog.Components[component];
                     Vector2 up = hull.transform.InverseTransformDirection(point.transform.up);
                     float angle = up == Vector2.zero ? 0f : Vector2.SignedAngle(Vector2.up, up);
                     RectTransform marker = CreateRect("Mount " + i + ": " + definition.DisplayName, imageRect);
                     marker.anchorMin = marker.anchorMax = position;
                     marker.localRotation = Quaternion.Euler(0f, 0f, LobbySymbol.ComponentRotation(definition, angle));
-                    // Keep the loadout's size classes and padding, but readable at the HUD's 240-unit scale.
-                    float artworkSize = definition.Size == ComponentSize.Small ? 30f :
-                        definition.Size == ComponentSize.Medium ? 42f : 56f;
-                    marker.sizeDelta = Vector2.one * ((artworkSize - 6f) * size / 240f * markerScale);
+                    marker.sizeDelta = Vector2.one * MarkerWidth(definition.Size, markerScale);
                     Image icon = marker.gameObject.AddComponent<Image>();
                     if (definition is SubSystemDef subSystem && subSystem.Gauge != null)
                     {
@@ -148,6 +162,64 @@ namespace PewPewPew.Ships
             return m_Gauges[mountIndex];
         }
 
+        private void CreateCargoGrid(RectTransform parent, Vector2 position, ComponentSize size, float markerScale, int mount)
+        {
+            int columns = size switch
+            {
+                ComponentSize.Small => SmallCargoColumns,
+                ComponentSize.Medium => MediumCargoColumns,
+                ComponentSize.Large => LargeCargoColumns,
+                _ => throw new ArgumentOutOfRangeException(nameof(size))
+            };
+            float width = MarkerWidth(size, markerScale);
+            var grid = CreateRect("Cargo " + mount, parent);
+            grid.anchorMin = grid.anchorMax = position;
+            grid.sizeDelta = Vector2.one * width;
+            var cells = new Image[columns * columns];
+            float pitch = width / columns;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                RectTransform cell = CreateRect("Unit " + i, grid);
+                cell.sizeDelta = Vector2.one * (pitch * (1f - CargoGapFraction));
+                cell.anchoredPosition = new Vector2((i % columns + 0.5f) * pitch - width * 0.5f,
+                    width * 0.5f - (i / columns + 0.5f) * pitch);
+                cells[i] = cell.gameObject.AddComponent<Image>();
+                cells[i].raycastTarget = false;
+                cells[i].color = EmptyCargo;
+            }
+            m_CargoCells[mount] = cells;
+        }
+
+        private static float MarkerWidth(ComponentSize size, float markerScale)
+        {
+            float artworkSize = size == ComponentSize.Small ? SmallArtworkSize :
+                size == ComponentSize.Medium ? MediumArtworkSize : LargeArtworkSize;
+            return (artworkSize - MarkerPadding) * markerScale;
+        }
+
+        public void SetCargo(ShipCargo cargo)
+        {
+            if (cargo == null) throw new ArgumentNullException(nameof(cargo));
+            if (cargo.MountCount != m_CargoCells.Length)
+                throw new InvalidOperationException("Cargo state does not match the paperdoll loadout.");
+            for (int mount = 0; mount < m_CargoCells.Length; mount++)
+            {
+                Image[] cells = m_CargoCells[mount];
+                if (cells == null) continue;
+                if (cells.Length != cargo.Capacity(mount))
+                    throw new InvalidOperationException("Cargo capacity does not match the paperdoll grid.");
+                int cell = 0;
+                for (int material = 0; material < ShipCargo.MaterialCount; material++)
+                {
+                    var kind = (TreasureMaterial)material;
+                    Color colour = TreasureVisual.Colour(kind);
+                    int count = cargo.Amount(mount, kind);
+                    for (int i = 0; i < count; i++) cells[cell++].color = colour;
+                }
+                while (cell < cells.Length) cells[cell++].color = EmptyCargo;
+            }
+        }
+
         private static RectTransform CreateRect(string name, Transform parent)
         {
             var rect = (RectTransform)new GameObject(name, typeof(RectTransform)).transform;
@@ -215,6 +287,7 @@ namespace PewPewPew.Ships
             m_Buttons = Array.Empty<Button>();
             m_Gauges = Array.Empty<HudGauge>();
             m_Tints = Array.Empty<Color>();
+            m_CargoCells = Array.Empty<Image[]>();
             if (m_HullImage != null) m_HullImage.texture = null;
             if (m_Camera != null) m_Camera.targetTexture = null;
             if (m_Texture != null)

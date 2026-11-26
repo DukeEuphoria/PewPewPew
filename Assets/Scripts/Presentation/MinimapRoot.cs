@@ -37,6 +37,8 @@ namespace PewPewPew.Presentation
             internal Vector2 Forward;
             internal float WorldRadius;
             internal double LastSeen;
+            internal TreasureMaterial? Treasure;
+            internal double TreasureLastSeen;
         }
 
         private readonly Dictionary<SpaceObject, Contact> m_Contacts = new Dictionary<SpaceObject, Contact>();
@@ -48,7 +50,7 @@ namespace PewPewPew.Presentation
         private MinimapGraphic m_Border;
         private MinimapGraphic m_Markers;
         private float m_DisplayRange = 1f;
-        private Action<SpaceObject, double> m_RecordContact;
+        private Action<SpaceObject, double, bool> m_RecordContact;
 
         internal IEnumerable<Contact> Contacts => m_Contacts.Values;
         internal IReadOnlyList<RadarEmitter> Emitters => m_Emitters;
@@ -175,7 +177,7 @@ namespace PewPewPew.Presentation
             return false;
         }
 
-        private void RecordContact(SpaceObject source, double now)
+        private void RecordContact(SpaceObject source, double now, bool detectTreasure)
         {
             if (!m_Contacts.TryGetValue(source, out Contact contact))
             {
@@ -185,11 +187,19 @@ namespace PewPewPew.Presentation
             contact.Position = source.transform.position;
             contact.Forward = source.transform.up;
             contact.LastSeen = now;
+            if (detectTreasure && source is Asteroid asteroid)
+            {
+                contact.Treasure = asteroid.TryGetTreasureMaterial(out TreasureMaterial material) ? material : null;
+                contact.TreasureLastSeen = now;
+            }
         }
 
         internal Color ContactColor(Contact contact)
         {
             Color tint = contact.Source is Ship ? m_ShipColor : contact.Source is OrbitalBody ? m_OrbitalColor : m_AsteroidColor;
+            if (contact.Treasure.HasValue &&
+                Time.timeAsDouble - contact.TreasureLastSeen < Mathf.Max(0.1f, m_ContactLifetime))
+                tint = TreasureVisual.Colour(contact.Treasure.Value);
             float opacity = m_MarkerOpacity;
             if (m_FadeContacts) opacity *= RadarMath.Fade(Time.timeAsDouble - contact.LastSeen, Mathf.Max(0.1f, m_ContactLifetime));
             return WithOpacity(tint, opacity);

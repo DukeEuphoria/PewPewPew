@@ -330,6 +330,32 @@ retain their authored positions. Disabled or destroyed components are grey.
 Subsystem mounts use their authored HUD gauges for activation and cooldown
 feedback; a missing gauge falls back to the component artwork.
 
+The paperdoll is 360 UI units wide by default. Its component icons and cargo
+grids use their own marker scale, independently of the paperdoll size.
+
+Every empty hull point stores cargo: small, medium and large points hold 16,
+25 and 49 units, respectively. Fitting any component replaces that point's
+storage. The in-game paperdoll shows one separated square per unit on each
+empty point; dim squares are free, and occupied squares use the material's
+colour. These grids do not appear in the loadout screen. Small, medium and large
+pickups contain 1, 2 and 3 units, and a pickup must fit in full; its units can
+span multiple empty points. The server stores material quantities per point and
+sends them only to the ship owner.
+
+On hull destruction, the server drops a configurable fraction of each material
+(30% by default), rounded to the nearest unit per material with midpoint values
+rounded up. The dropped units become randomly sized pickups; the rest is lost.
+Empty points have no separate health and do not drop cargo from component damage.
+Cargo is not retained between ships.
+
+The tractor beam is an automatic subsystem: while enabled and healthy it pulls
+the nearest visible pickup that fits the remaining cargo capacity. Its range,
+forward cone, pull force and power use are configurable; the starter beam has a
+range of 15, a 90-degree cone, force 5 and draws 2 power per second only while
+pulling. Asteroids, orbital bodies and other ships block its beam. Beams are
+visible to other players and may target the same pickup.
+Each visible beam widens from its mount to the pickup's diameter.
+
 Disabled components draw no power and provide no effects. Thrusters ramp down
 when disabled. Shield icons and bars toggle their shields; holding Space can
 temporarily raise a disabled shield. A disabled power store keeps its charge,

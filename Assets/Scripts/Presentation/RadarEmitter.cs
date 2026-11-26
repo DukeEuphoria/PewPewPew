@@ -20,7 +20,7 @@ namespace PewPewPew.Presentation
         internal Vector2 Forward => Def.Mode == RadarScanMode.Sweep && Def.HalfAngle >= 180f
             ? Vector2.up : (Vector2)Mount.up;
 
-        internal void Sample(double now, Ship localShip, Action<SpaceObject, double> detectedContact)
+        internal void Sample(double now, Ship localShip, Action<SpaceObject, double, bool> detectedContact)
         {
             if (now < m_NextSample) return;
             double elapsed = now - Started;
@@ -43,7 +43,7 @@ namespace PewPewPew.Presentation
                         Def.HalfAngle, Def.SweepSpeed),
                     _ => true,
                 };
-                if (detected) detectedContact(source, now);
+                if (detected) detectedContact(source, now, Def.DetectTreasure);
             }
             m_Previous = elapsed;
             float rate = Def.Mode == RadarScanMode.JustRefresh ? Def.RefreshRate : Def.SampleRate;

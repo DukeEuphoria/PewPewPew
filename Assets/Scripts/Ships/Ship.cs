@@ -20,6 +20,14 @@ namespace PewPewPew.Ships
         private const byte ComponentEnabled = 1;
         private const byte ComponentDestroyed = 2;
         private const byte ComponentPowered = 4;
+        private const float CargoDropClearance = 0.1f;
+        private const float CargoDropSpeed = 1f;
+        private const float TractorStartWidth = 0.08f;
+        private const float TractorStartWidthFraction = 0.5f;
+        private const float DiameterPerRadius = 2f;
+        private const float TractorDepthOffset = -0.5f;
+        private const string TractorMaterialPath = "Treasure/TractorBeam";
+        private static Material s_TractorMaterial;
         [SerializeField] private GameObject m_ExplosionPrefab;
         [SerializeField, Tooltip("Keeps the object alive briefly after the hull fails so clients receive the explosion.")] private float m_DespawnDelay = 0.3f;
         [SerializeField] private float m_SystemHitRadius = 2f;
@@ -59,6 +67,8 @@ namespace PewPewPew.Ships
         private readonly List<MountedGun> m_Guns = new List<MountedGun>();
         private readonly List<MountedThruster> m_Thrusters = new List<MountedThruster>();
         private readonly List<MountedShield> m_Shields = new List<MountedShield>();
+        private readonly Dictionary<int, SubSystem> m_Tractors = new Dictionary<int, SubSystem>();
+        private readonly Dictionary<int, LineRenderer> m_TractorLines = new Dictionary<int, LineRenderer>();
         private readonly List<HudGauge> m_ShieldGauges = new List<HudGauge>();
         private readonly List<Color> m_ShieldGaugeColours = new List<Color>();
         private readonly List<Transform> m_Visuals = new List<Transform>();
@@ -71,6 +81,9 @@ namespace PewPewPew.Ships
         private ComponentHealth m_Armour;
         private float m_ArmourStrengthMultiplier = 1f;
         private PowerBank m_Power;
+        private ShipCargo m_Cargo;
+        private byte[] m_AppliedCargo;
+        private bool m_CargoVisualDirty;
         private float m_HullPowerLevel;
         private ShipHudPaperdoll m_Paperdoll;
         private ShipControls m_Controls;
@@ -84,12 +97,22 @@ namespace PewPewPew.Ships
         [SyncVar] private ShipLoadout m_Loadout;
         [SyncVar] private byte[] m_Throttles;
         [SyncVar(hook = nameof(OnHeldShieldLevelsChanged))] private byte[] m_HeldShieldLevels;
+        [SyncVar] private uint[] m_TractorTargets;
 
         public PlayerState Owner { get; private set; }
         public event Action<Ship> Destroyed;
         public IReadOnlyList<Transform> Visuals => m_Visuals;
         public IReadOnlyList<SubSystem> SubSystems => m_SubSystems;
         public bool HasExploded => m_Exploded;
+        public int FreeCargo => m_Cargo == null ? 0 : m_Cargo.Free;
+
+        public static int CargoCapacity(ComponentSize size) => size switch
+        {
+            ComponentSize.Small => ShipCargo.SmallCapacity,
+            ComponentSize.Medium => ShipCargo.MediumCapacity,
+            ComponentSize.Large => ShipCargo.LargeCapacity,
+            _ => throw new ArgumentOutOfRangeException(nameof(size))
+        };
 
         public void Initialize(ShipLoadout loadout, PlayerState owner)
         {
@@ -113,6 +136,7 @@ namespace PewPewPew.Ships
         public override void OnStartClient()
         {
             ApplyLoadout();
+            BuildTractorLines();
             ApplyHeldShieldLevels(m_HeldShieldLevels);
             if (isOwned) BuildHud();
         }
@@ -137,10 +161,15 @@ namespace PewPewPew.Ships
             m_Systems.Add(m_Hull);
             ShipComponentDef[] definitions = catalog.Components;
             m_MountSystems = new ShipSystem[hull.Points.Length];
+            var cargoCapacities = new int[hull.Points.Length];
             for (int i = 0; i < hull.Points.Length; i++)
             {
                 int component = m_Loadout.MountComponents[i];
-                if (component < 0) continue;
+                if (component < 0)
+                {
+                    cargoCapacities[i] = CargoCapacity(hull.Points[i].Size);
+                    continue;
+                }
                 ShipComponentDef definition = definitions[component];
                 HullPoint point = hull.Points[i];
                 if (definition is GunDef gunDef)
@@ -182,10 +211,13 @@ namespace PewPewPew.Ships
                     var subSystem = new SubSystem(subSystemDef, point.transform, transform);
                     m_SubSystems.Add(subSystem);
                     m_Systems.Add(subSystem.System);
+                    ValidateTractor(subSystemDef);
+                    if (subSystemDef.TractorRange > 0f) m_Tractors.Add(i, subSystem);
                 }
                 else throw new InvalidOperationException($"Unsupported mounted component {definition.name}.");
                 m_MountSystems[i] = m_Systems[m_Systems.Count - 1];
             }
+            m_Cargo = new ShipCargo(cargoCapacities);
             m_Armour = new ComponentHealth(m_HullDef.Armour);
             var capacities = new List<float> { m_HullDef.MaxPowerStorage };
             for (int i = m_SubSystems.Count - 1; i >= 0; i--)
@@ -241,6 +273,9 @@ namespace PewPewPew.Ships
         public override void OnStartServer()
         {
             ApplyLoadout();
+            if (!float.IsFinite(m_HullDef.CargoDropFraction) || m_HullDef.CargoDropFraction < 0f || m_HullDef.CargoDropFraction > 1f)
+                throw new InvalidOperationException($"{m_HullDef.name} has an invalid cargo drop fraction.");
+            m_HudSync.PublishCargo(m_Cargo.Snapshot());
             m_Body.mass = m_Systems.Sum(system => system.Def.Mass);
             m_Body.angularDamping = m_HullDef.AngularDamping;
             m_Controls.AimPoint = m_Body.position + (Vector2)transform.up;
@@ -259,6 +294,7 @@ namespace PewPewPew.Ships
             PublishHeldShieldLevels();
             StepRepairs(deltaTime);
             StepSubSystems(deltaTime);
+            StepTractors(deltaTime);
             SyncStorageAvailability();
             StepWeapons(deltaTime);
             StepThrusters(deltaTime);
@@ -390,6 +426,13 @@ namespace PewPewPew.Ships
                 if (isOwned) ApplyVitals(m_HudSync.Vitals);
             }
             foreach (IHudElement element in m_HudElements) element.Render();
+            if (isClient) RenderTractors();
+            if (isOwned && m_Cargo != null && m_HudSync.Cargo != null && !ReferenceEquals(m_AppliedCargo, m_HudSync.Cargo))
+            {
+                m_Cargo.ApplySnapshot(m_HudSync.Cargo);
+                m_AppliedCargo = m_HudSync.Cargo;
+                m_CargoVisualDirty = true;
+            }
             RenderPaperdoll();
             for (int i = 0; i < m_ShieldGauges.Count; i++)
                 if (m_ShieldGauges[i] != null)
@@ -426,6 +469,11 @@ namespace PewPewPew.Ships
         {
             if (m_Paperdoll == null) return;
             ShipVitals vitals = m_HudSync.Vitals;
+            if (m_CargoVisualDirty)
+            {
+                m_Paperdoll.SetCargo(m_Cargo);
+                m_CargoVisualDirty = false;
+            }
             if (vitals.ComponentStates == null || vitals.ComponentStates.Length != m_MountSystems.Length) return;
             for (int i = 0; i < m_MountSystems.Length; i++)
             {
@@ -445,6 +493,7 @@ namespace PewPewPew.Ships
             m_Paperdoll = paperdollObject.GetComponent<ShipHudPaperdoll>();
             m_Paperdoll.Initialize(m_Loadout, CmdToggleComponent, root.PaperdollSize,
                 1f - root.PaperdollBrightness, root.PaperdollMarkerScale);
+            m_CargoVisualDirty = true;
             foreach (SubSystem subSystem in m_SubSystems)
             {
                 int mount = Array.IndexOf(m_MountSystems, subSystem.System);
@@ -671,6 +720,7 @@ namespace PewPewPew.Ships
         [ServerCallback]
         private void OnCollisionEnter2D(Collision2D collision)
         {
+            if (collision.collider.GetComponentInParent<TreasurePickup>() != null) return;
             bool isOrbitalBody = collision.collider.GetComponentInParent<OrbitalBody>() != null;
             float multiplier = isOrbitalBody ? m_OrbitalBodyDamageMultiplier : m_CollisionDamageMultiplier;
             ContactPoint2D contact = collision.GetContact(0);
@@ -724,6 +774,130 @@ namespace PewPewPew.Ships
             foreach (MountedThruster thruster in m_Thrusters) thruster.Thruster.ForceMultiplier = thrustForceMultiplier;
             foreach (MountedShield shield in m_Shields) shield.Charge.SetMax(shield.Def.ShieldCapacity * shieldHealthMultiplier);
             m_ArmourStrengthMultiplier = armourStrengthMultiplier;
+        }
+
+        private static void ValidateTractor(SubSystemDef def)
+        {
+            if (!float.IsFinite(def.TractorRange) || def.TractorRange < 0f ||
+                !float.IsFinite(def.TractorHalfAngle) || def.TractorHalfAngle < 0f || def.TractorHalfAngle > 180f ||
+                !float.IsFinite(def.TractorForce) || def.TractorForce < 0f ||
+                (def.TractorRange > 0f && (def.TractorForce <= 0f || def.Mode != ActivationMode.Passive ||
+                    !float.IsFinite(def.ActivePowerDrain) || def.ActivePowerDrain < 0f)))
+                throw new InvalidOperationException($"{def.name} has invalid automatic tractor settings.");
+        }
+
+        private void StepTractors(float deltaTime)
+        {
+            if (m_Tractors.Count == 0) return;
+            var targets = new uint[m_MountSystems.Length];
+            foreach (KeyValuePair<int, SubSystem> entry in m_Tractors)
+            {
+                SubSystem system = entry.Value;
+                if (!system.IsRunning) continue;
+                TreasurePickup target = FindTractorTarget(system);
+                if (target == null || !m_Power.TryDraw(system.Def.ActivePowerDrain * deltaTime)) continue;
+                Vector2 pull = (Vector2)system.System.Point.position - (Vector2)target.transform.position;
+                if (pull.sqrMagnitude <= 0f) continue;
+                target.Pull(pull.normalized * system.Def.TractorForce);
+                targets[entry.Key] = target.netId;
+            }
+            if (m_TractorTargets == null || !m_TractorTargets.SequenceEqual(targets)) m_TractorTargets = targets;
+        }
+
+        private TreasurePickup FindTractorTarget(SubSystem system)
+        {
+            Transform mount = system.System.Point;
+            Vector2 origin = mount.position;
+            Vector2 forward = mount.up;
+            float rangeSquared = system.Def.TractorRange * system.Def.TractorRange;
+            float minimumDot = Mathf.Cos(system.Def.TractorHalfAngle * Mathf.Deg2Rad);
+            int free = FreeCargo;
+            if (free == 0) return null;
+            float nearest = float.PositiveInfinity;
+            TreasurePickup best = null;
+            foreach (SpaceObject spaceObject in SpaceObject.ActiveObjects)
+            {
+                if (!(spaceObject is TreasurePickup pickup) || !pickup.isServer || !pickup.IsAvailable ||
+                    ShipCargo.Units(pickup.Size) > free) continue;
+                Vector2 delta = (Vector2)pickup.transform.position - origin;
+                float distance = delta.sqrMagnitude;
+                if (distance <= 0f || distance > rangeSquared || distance > nearest ||
+                    Vector2.Dot(forward, delta.normalized) < minimumDot) continue;
+                if (distance == nearest && best != null && pickup.netId >= best.netId) continue;
+                if (TractorBlocked(origin, delta, Mathf.Sqrt(distance))) continue;
+                nearest = distance;
+                best = pickup;
+            }
+            return best;
+        }
+
+        private bool TractorBlocked(Vector2 origin, Vector2 delta, float distance)
+        {
+            foreach (RaycastHit2D hit in Physics2D.RaycastAll(origin, delta / distance, distance))
+            {
+                Collider2D collider = hit.collider;
+                if (collider == null || collider.isTrigger || collider.transform.IsChildOf(transform) ||
+                    collider.GetComponentInParent<TreasurePickup>() != null) continue;
+                Ship ship = collider.GetComponentInParent<Ship>();
+                if ((ship != null && ship != this) || collider.GetComponentInParent<Asteroid>() != null ||
+                    collider.GetComponentInParent<OrbitalBody>() != null) return true;
+            }
+            return false;
+        }
+
+        private void BuildTractorLines()
+        {
+            if (m_Tractors.Count == 0 || m_TractorLines.Count > 0) return;
+            if (s_TractorMaterial == null)
+            {
+                s_TractorMaterial = Resources.Load<Material>(TractorMaterialPath);
+                if (s_TractorMaterial == null) throw new InvalidOperationException($"Missing tractor material at Resources/{TractorMaterialPath}.");
+            }
+            foreach (KeyValuePair<int, SubSystem> entry in m_Tractors)
+            {
+                var lineObject = new GameObject("Tractor beam " + entry.Key);
+                lineObject.transform.SetParent(transform, false);
+                lineObject.layer = gameObject.layer;
+                LineRenderer line = lineObject.AddComponent<LineRenderer>();
+                line.sharedMaterial = s_TractorMaterial;
+                line.renderingLayerMask = TreasureVisual.RenderingLayers;
+                line.startWidth = TractorStartWidth;
+                line.positionCount = 2;
+                line.useWorldSpace = true;
+                line.enabled = false;
+                m_TractorLines.Add(entry.Key, line);
+            }
+        }
+
+        private void RenderTractors()
+        {
+            foreach (KeyValuePair<int, LineRenderer> entry in m_TractorLines)
+            {
+                LineRenderer line = entry.Value;
+                uint target = m_TractorTargets != null && entry.Key < m_TractorTargets.Length ? m_TractorTargets[entry.Key] : 0;
+                if (target == 0 || !NetworkClient.spawned.TryGetValue(target, out NetworkIdentity identity) || identity == null)
+                {
+                    line.enabled = false;
+                    continue;
+                }
+                if (!identity.TryGetComponent(out TreasurePickup pickup))
+                {
+                    line.enabled = false;
+                    Debug.LogError("Tractor target is not a treasure pickup.", identity);
+                    continue;
+                }
+                Vector3 scale = pickup.transform.lossyScale;
+                float diameter = pickup.Radius * DiameterPerRadius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
+                line.startWidth = Mathf.Min(TractorStartWidth, diameter * TractorStartWidthFraction);
+                line.endWidth = diameter;
+                Vector3 start = m_Tractors[entry.Key].System.Point.position;
+                Vector3 end = identity.transform.position;
+                start.z += TractorDepthOffset;
+                end.z += TractorDepthOffset;
+                line.SetPosition(0, start);
+                line.SetPosition(1, end);
+                line.enabled = true;
+            }
         }
 
         private void StepWeapons(float deltaTime)
@@ -793,10 +967,49 @@ namespace PewPewPew.Ships
         {
             if (m_Exploded || !m_Hull.Health.IsDestroyed) return;
             m_Exploded = true;
+            if (m_Tractors.Count > 0) m_TractorTargets = new uint[m_MountSystems.Length];
+            DropCargo();
             m_Body.simulated = false;
             Destroyed?.Invoke(this);
             RpcExploded();
             Invoke(nameof(Despawn), m_DespawnDelay);
+        }
+
+        [Server]
+        internal bool TryCollect(TreasurePickup pickup)
+        {
+            if (pickup == null) throw new ArgumentNullException(nameof(pickup));
+            if (m_Exploded || m_Hull == null || m_Hull.Health.IsDestroyed || !pickup.IsAvailable) return false;
+            if (!m_Cargo.TryAdd(pickup.Material, pickup.Size)) return false;
+            m_HudSync.PublishCargo(m_Cargo.Snapshot());
+            return true;
+        }
+
+        private void DropCargo()
+        {
+            var collider = GetComponent<CircleCollider2D>();
+            if (collider == null) throw new InvalidOperationException("Ship requires a circle collider to drop cargo.");
+            Vector2 centre = transform.TransformPoint(collider.offset);
+            for (int material = 0; material < ShipCargo.MaterialCount; material++)
+            {
+                var kind = (TreasureMaterial)material;
+                int remaining = ShipCargo.DropUnits(m_Cargo.Total(kind), m_HullDef.CargoDropFraction);
+                while (remaining > 0)
+                {
+                    int units = m_Random.Next(1, Math.Min(remaining, ShipCargo.Units(TreasureSize.Large)) + 1);
+                    TreasureSize size = (TreasureSize)(units - 1);
+                    float radius = AsteroidTreasure.Radius(size);
+                    float angle = (float)m_Random.NextDouble() * Mathf.PI * 2f;
+                    Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                    Vector2 position = centre + direction * (collider.radius + radius + CargoDropClearance);
+                    var deposit = new TreasureDeposit { Material = kind, Size = size, Radius = radius };
+                    TreasurePickup.Spawn(deposit, position, transform.rotation,
+                        m_Body.GetPointVelocity(position) + direction * CargoDropSpeed, m_Body.angularVelocity);
+                    remaining -= units;
+                }
+            }
+            m_Cargo.Clear();
+            m_HudSync.PublishCargo(m_Cargo.Snapshot());
         }
 
         private void Despawn() => NetworkServer.Destroy(gameObject);
