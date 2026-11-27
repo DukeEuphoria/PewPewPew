@@ -35,7 +35,7 @@ namespace PewPewPew.Match
             if (component.Type == ComponentType.Thruster) return hullPointAngle + 180f;
             if (component.Type == ComponentType.Gun ||
                 component is ShieldDef shield && shield.HalfAngle < 180f ||
-                component is SubSystemDef subSystem && subSystem.Radar != null && subSystem.Radar.HalfAngle < 180f)
+                component is RadarSubSystemDef subSystem && subSystem.Radar != null && subSystem.Radar.HalfAngle < 180f)
                 return hullPointAngle;
             return 0f;
         }

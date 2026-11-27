@@ -142,7 +142,7 @@ namespace PewPewPew.Networking
                     else if (m_RemoteHoldSeen) m_RemoteReleaseSeen = true;
                     var bank = (PowerBank)typeof(Ship).GetField("m_Power", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ship);
                     HullDef hull = ShipCatalog.Instance.Hulls[remote.Loadout.Hull];
-                    SubSystem[] stores = ship.SubSystems.Where(system => system.Def.ExtraPowerStorage > 0f).ToArray();
+                    StatBoosterSubSystem[] stores = ship.SubSystems.OfType<StatBoosterSubSystem>().Where(system => system.Def.ExtraPowerStorage > 0f).ToArray();
                     if (stores.Length != 2) { Fail("Remote ship does not have two power stores."); return; }
                     float stored = hull.MaxPowerStorage + stores[1].Def.ExtraPowerStorage + stores[0].Def.ExtraPowerStorage * 0.5f;
                     bank.SetFraction(stored / bank.Max);
@@ -193,7 +193,7 @@ namespace PewPewPew.Networking
                 Ship ship = FindObjectsByType<Ship>().FirstOrDefault(candidate => candidate.isOwned);
                 if (ship == null) { Fail("Owned ship disappeared."); return; }
                 ShipVitals vitals = ship.GetComponent<ShipHudSync>().Vitals;
-                SubSystem[] stores = ship.SubSystems.Where(system => system.Def.ExtraPowerStorage > 0f).ToArray();
+                StatBoosterSubSystem[] stores = ship.SubSystems.OfType<StatBoosterSubSystem>().Where(system => system.Def.ExtraPowerStorage > 0f).ToArray();
                 if (stores.Length != 2) { Fail("Owned ship does not have two power stores."); return; }
                 float hullPower = (float)typeof(Ship).GetField("m_HullPowerLevel", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ship);
                 var field = typeof(Ship).GetField("m_Throttles", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -263,7 +263,7 @@ namespace PewPewPew.Networking
             int shield = Array.FindIndex(components, component => component is ShieldDef);
             int thruster = Array.FindIndex(components, component => component is ThrusterDef);
             int subsystem = Array.FindIndex(components, component => component is SubSystemDef def && def.Mode == ActivationMode.Toggle);
-            int storage = Array.FindIndex(components, component => component is SubSystemDef def && def.ExtraPowerStorage > 0f);
+            int storage = Array.FindIndex(components, component => component is StatBoosterSubSystemDef def && def.ExtraPowerStorage > 0f);
             if (shield < 0 || thruster < 0 || subsystem < 0 || storage < 0)
                 throw new InvalidOperationException("Remote test components are missing.");
             int shields = 0, thrusters = 0, subsystems = 0;

@@ -224,6 +224,12 @@ Missing or duplicate catalog entries are reported as errors. Restore removed
 definitions rather than silently shifting indices.
 Radar definitions used by subsystems are not a separate fitting category.
 
+Subsystem definitions share activation and HUD settings but use separate
+**Stat Booster**, **Radar**, and **Tractor** asset types. Stat boosters own
+storage and multipliers, radar definitions reference their radar emitter, and
+tractor definitions own pull settings and a **Visual** prefab reference. All
+remain compatible with subsystem hull points.
+
 Each gun fires all bullets in a burst from its own hull point. Gun angles and
 thruster effects use their point's local Up direction; thruster force acts in
 the opposite direction. A point can accept both guns and thrusters. The closest
@@ -355,6 +361,12 @@ range of 15, a 90-degree cone, force 5 and draws 2 power per second only while
 pulling. Asteroids, orbital bodies and other ships block its beam. Beams are
 visible to other players and may target the same pickup.
 Each visible beam widens from its mount to the pickup's diameter.
+`TractorBeams` handles targeting and pulling; `Ship` retains the synchronized
+target IDs. Each tractor definition references a `TractorVisual` prefab. Its
+material, starting width, width fraction, depth offset, scroll speed and repeat
+interval are authored on that prefab; clients instantiate one visual per fitted tractor.
+Assign a repeating texture to the material's Base Map to see it scroll towards
+the mount. A missing visual prevents launch.
 
 Disabled components draw no power and provide no effects. Thrusters ramp down
 when disabled. Shield icons and bars toggle their shields; holding Space can

@@ -50,6 +50,18 @@ namespace PewPewPew.Tests
         }
 
         [Test]
+        public void Collection_UsesAuthoredUnitsAndRejectsInvalidAmounts()
+        {
+            var cargo = new ShipCargo(new[] { 2, 3 });
+            Assert.IsTrue(cargo.TryAdd(TreasureMaterial.Gold, 4));
+            Assert.AreEqual(4, cargo.Total(TreasureMaterial.Gold));
+            byte[] before = cargo.Snapshot();
+            Assert.IsFalse(cargo.TryAdd(TreasureMaterial.Gold, 2));
+            CollectionAssert.AreEqual(before, cargo.Snapshot());
+            Assert.Throws<ArgumentOutOfRangeException>(() => cargo.TryAdd(TreasureMaterial.Gold, 0));
+        }
+
+        [Test]
         public void DeathDrops_RoundPerMaterialToNearestAwayFromZero()
         {
             Assert.AreEqual(2, ShipCargo.DropUnits(5, 0.3f));

@@ -50,9 +50,11 @@ namespace PewPewPew.Core
             _ => throw new ArgumentOutOfRangeException(nameof(size))
         };
 
-        public bool TryAdd(TreasureMaterial material, TreasureSize size)
+        public bool TryAdd(TreasureMaterial material, TreasureSize size) => TryAdd(material, Units(size));
+
+        public bool TryAdd(TreasureMaterial material, int units)
         {
-            int units = Units(size);
+            if (units <= 0) throw new ArgumentOutOfRangeException(nameof(units));
             if ((int)material < 0 || (int)material >= MaterialCount) throw new ArgumentOutOfRangeException(nameof(material));
             if (Free < units) return false;
             for (int mount = 0; mount < MountCount && units > 0; mount++)

@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ba41be92dc64d8f8d8a38452d728a27, type: 3}
+  m_Name: AsteroidTreasure
+  m_EditorClassIdentifier: Assembly-CSharp::PewPewPew.World.AsteroidTreasure
+  m_Chance: 0.7
+  m_Maximum: 3
+  m_PeekingChance: 0.3
+  m_SizeWeights:
+  - 1
+  - 1
+  - 1
+  m_Types:
+  - m_Material: 0
+    m_Weight: 1
+    m_Prefabs:
+    - {fileID: 4951101233573392751, guid: adf99d024a54d074887740fb799da99b, type: 3}
+    - {fileID: 275209336159644756, guid: 4b5e9c7dde041bb4c8855517df1dde3b, type: 3}
+    - {fileID: 4867359698772112320, guid: a9f10692a2f15de4180743e0c2be2c0d, type: 3}
+  - m_Material: 1
+    m_Weight: 1
+    m_Prefabs:
+    - {fileID: 3133705547857063445, guid: a51b7452993098d40ac25ee00f66911f, type: 3}
+    - {fileID: 1783442476056368609, guid: c1555382b60048d449f69e18fe7f3352, type: 3}
+    - {fileID: 8533616752017163841, guid: d4baeb77fa6baf047a5294d5f7a927d2, type: 3}
+  - m_Material: 2
+    m_Weight: 1
+    m_Prefabs:
+    - {fileID: 3403104009830641097, guid: e2ed9c6751ddaae49ba4ff39ef0db9e8, type: 3}
+    - {fileID: 3300427257227569591, guid: e16d12abb184c5544a8a187fb0486d5f, type: 3}
+    - {fileID: 8438467646544121008, guid: 146d249798f9d9b49a4c30e3466648db, type: 3}
+  - m_Material: 3
+    m_Weight: 1
+    m_Prefabs:
+    - {fileID: 1570206200758386811, guid: c7fa22848c850ee4788077561d46a6cf, type: 3}
+    - {fileID: 8936119105234132510, guid: a28ec6d172afd454aa87ff18422dc819, type: 3}
+    - {fileID: 296318447663411029, guid: 6971a920a06888c4589ceb6fe4130dda, type: 3}
+  - m_Material: 4
+    m_Weight: 1
+    m_Prefabs:
+    - {fileID: 3005651601826576909, guid: 0999c5f44bcaab943baae926b284d603, type: 3}
+    - {fileID: 8154430569127697829, guid: 1b769d9470a32724ca6decaaf4004651, type: 3}
+    - {fileID: 6484209097474394672, guid: 3a9518cb5c787ee42a937407f3a169bf, type: 3}
+  - m_Material: 5
+    m_Weight: 1
+    m_Prefabs:
+    - {fileID: 6354499224760129294, guid: 560376dcd7bc31849a4570f4807820fa, type: 3}
+    - {fileID: 5640758075206582855, guid: 95ee8a04052e2f249a9be469247736b1, type: 3}
+    - {fileID: 4327076772702045402, guid: 30b580cde1693994b93ae81f800f6f17, type: 3}

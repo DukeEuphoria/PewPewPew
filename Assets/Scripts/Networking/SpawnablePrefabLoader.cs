@@ -1,4 +1,6 @@
+using System;
 using Mirror;
+using PewPewPew.World;
 using UnityEngine;
 
 namespace PewPewPew.Networking
@@ -20,14 +22,32 @@ namespace PewPewPew.Networking
             }
 
             foreach (GameObject prefab in Resources.LoadAll<GameObject>(Folder))
+                Register(manager, prefab);
+
+            var types = AsteroidTreasure.Instance.Types;
+            if (types == null) throw new InvalidOperationException("The treasure catalog has no types.");
+            foreach (AsteroidTreasure.TreasureType type in types)
             {
-                if (prefab.GetComponent<NetworkIdentity>() == null)
+                if (type == null || type.Prefabs == null)
+                    throw new InvalidOperationException("The treasure catalog contains an invalid prefab list.");
+                foreach (Treasure treasure in type.Prefabs)
                 {
-                    Debug.LogWarning($"[Network] '{prefab.name}' in Resources/{Folder} has no NetworkIdentity and was skipped.");
-                    continue;
+                    if (treasure == null) throw new InvalidOperationException("The treasure catalog contains a missing prefab.");
+                    if (treasure.GetComponent<NetworkIdentity>() == null)
+                        throw new InvalidOperationException($"Treasure prefab {treasure.name} has no NetworkIdentity.");
+                    Register(manager, treasure.gameObject);
                 }
-                if (prefab != manager.playerPrefab && !manager.spawnPrefabs.Contains(prefab)) manager.spawnPrefabs.Add(prefab);
             }
+        }
+
+        private static void Register(NetworkManager manager, GameObject prefab)
+        {
+            if (prefab.GetComponent<NetworkIdentity>() == null)
+            {
+                Debug.LogWarning($"[Network] '{prefab.name}' in Resources/{Folder} has no NetworkIdentity and was skipped.");
+                return;
+            }
+            if (prefab != manager.playerPrefab && !manager.spawnPrefabs.Contains(prefab)) manager.spawnPrefabs.Add(prefab);
         }
     }
 }

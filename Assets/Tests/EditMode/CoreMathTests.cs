@@ -10,6 +10,77 @@ using Random = System.Random;
 
 namespace PewPewPew.Tests
 {
+    public class SubSystemDefinitionTests
+    {
+        private const string AssetFolder = "Assets/ShipComponents/SubSystems/";
+
+        [TestCase("Basic SubSystem Power Storage.asset", "StatBoosterSubSystemDef", "StatBoosterSubSystem", "ExtraPowerStorage", 100f)]
+        [TestCase("Basic SubSystem Thrust Booster.asset", "StatBoosterSubSystemDef", "StatBoosterSubSystem", "ThrustForceMultiplier", 1.5f)]
+        [TestCase("Basic SubSystem Tractor Beam.asset", "TractorSubSystemDef", "TractorSubSystem", "TractorRange", 15f)]
+        public void MigratedDefinition_CreatesMatchingRuntimeAndRetainsSettings(
+            string asset, string definitionType, string runtimeType, string property, float expected)
+        {
+            var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(AssetFolder + asset);
+            Assert.IsNotNull(definition);
+            Assert.AreEqual(definitionType, definition.GetType().Name);
+            Assert.AreEqual(expected, (float)definition.GetType().GetProperty(property).GetValue(definition));
+            object runtime = definition.GetType().GetMethod("Create").Invoke(definition, new object[] { null, null });
+            Assert.AreEqual(runtimeType, runtime.GetType().Name);
+        }
+
+        [Test]
+        public void RadarDefinitions_KeepEmittersAndAreDiscoveredAsSubsystems()
+        {
+            string[] assets = UnityEditor.AssetDatabase.FindAssets("t:SubSystemDef", new[] { AssetFolder });
+            string[] radarAssets = { "Basic SubSystem Radar Circle.asset", "Basic SubSystem Radar Cone.asset",
+                "Basic SubSystem Radar Cone_Detector.asset", "Basic SubSystem Radar Pulse.asset" };
+            foreach (string asset in radarAssets)
+            {
+                string path = AssetFolder + asset;
+                var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                Assert.IsNotNull(definition);
+                Assert.AreEqual("RadarSubSystemDef", definition.GetType().Name);
+                Assert.IsNotNull(definition.GetType().GetProperty("Radar").GetValue(definition));
+                Assert.Contains(UnityEditor.AssetDatabase.AssetPathToGUID(path), assets);
+                object runtime = definition.GetType().GetMethod("Create").Invoke(definition, new object[] { null, null });
+                Assert.AreEqual("RadarSubSystem", runtime.GetType().Name);
+            }
+        }
+
+        [Test]
+        public void TractorDefinition_RequiresAuthoredVisualForLaunch()
+        {
+            var original = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(AssetFolder + "Basic SubSystem Tractor Beam.asset");
+            Assert.IsNotNull(original.GetType().GetProperty("Visual").GetValue(original));
+            var copy = UnityEngine.Object.Instantiate(original);
+            Type catalogType = Type.GetType("PewPewPew.Ships.ShipCatalog, Assembly-CSharp", true);
+            object catalog = catalogType.GetProperty("Instance").GetValue(null);
+            var components = (Array)catalogType.GetProperty("Components").GetValue(catalog);
+            int component = Array.IndexOf(components, original);
+            Assert.GreaterOrEqual(component, 0);
+            try
+            {
+                copy.GetType().GetField("m_Visual", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(copy, null);
+                components.SetValue(copy, component);
+                var loadout = (ShipLoadout)catalogType.GetMethod("DefaultLoadout").Invoke(catalog, new object[] { 0 });
+                for (int i = 0; i < loadout.MountComponents.Length; i++) loadout.MountComponents[i] = -1;
+                object hull = ((Array)catalogType.GetProperty("Hulls").GetValue(catalog)).GetValue(0);
+                object hullPoints = hull.GetType().GetProperty("HullPoints").GetValue(hull);
+                var points = (Array)hullPoints.GetType().GetProperty("Points").GetValue(hullPoints);
+                int mount = Enumerable.Range(0, points.Length).First(i =>
+                    (bool)points.GetValue(i).GetType().GetMethod("AcceptsComponent").Invoke(points.GetValue(i), new object[] { copy }));
+                loadout.MountComponents[mount] = component;
+                string problem = (string)catalogType.GetMethod("LaunchProblem").Invoke(catalog, new object[] { loadout });
+                StringAssert.Contains("no tractor visual", problem);
+            }
+            finally
+            {
+                components.SetValue(original, component);
+                UnityEngine.Object.DestroyImmediate(copy);
+            }
+        }
+    }
+
     public class MountedComponentControlTests
     {
         [Test]
@@ -58,7 +129,7 @@ namespace PewPewPew.Tests
             var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
                 "Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset");
             Type type = Type.GetType("PewPewPew.Ships.SubSystem, Assembly-CSharp");
-            object subsystem = Activator.CreateInstance(type, definition, null, null);
+            object subsystem = definition.GetType().GetMethod("Create").Invoke(definition, new object[] { null, null });
             object system = type.GetProperty("System").GetValue(subsystem);
             object activation = type.GetProperty("Activation").GetValue(subsystem);
             var enabled = system.GetType().GetProperty("Enabled");
@@ -121,7 +192,7 @@ namespace PewPewPew.Tests
             var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
                 "Assets/ShipComponents/SubSystems/Basic SubSystem Thrust Booster.asset");
             Type type = Type.GetType("PewPewPew.Ships.SubSystem, Assembly-CSharp");
-            object subsystem = Activator.CreateInstance(type, definition, null, null);
+            object subsystem = definition.GetType().GetMethod("Create").Invoke(definition, new object[] { null, null });
             object system = type.GetProperty("System").GetValue(subsystem);
             object activation = type.GetProperty("Activation").GetValue(subsystem);
             var enabled = system.GetType().GetProperty("Enabled");
@@ -162,7 +233,7 @@ namespace PewPewPew.Tests
             var definition = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(
                 "Assets/ShipComponents/SubSystems/Basic SubSystem Armour Booster.asset");
             Type type = Type.GetType("PewPewPew.Ships.SubSystem, Assembly-CSharp");
-            object subsystem = Activator.CreateInstance(type, definition, null, null);
+            object subsystem = definition.GetType().GetMethod("Create").Invoke(definition, new object[] { null, null });
             var running = type.GetProperty("IsRunning");
             var toggle = type.GetMethod("TogglePower");
             Assert.IsTrue((bool)running.GetValue(subsystem));
@@ -780,7 +851,7 @@ namespace PewPewPew.Tests
                 if (missingGauge)
                 {
                     clone = UnityEngine.Object.Instantiate(definition);
-                    clone.GetType().GetField("m_Gauge", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(clone, null);
+                    clone.GetType().BaseType.GetField("m_Gauge", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(clone, null);
                     components.SetValue(clone, componentIndex);
                     UnityEngine.TestTools.LogAssert.Expect(LogType.Warning, $"{clone.name} has no HUD gauge; using its component artwork.");
                 }
@@ -824,7 +895,7 @@ namespace PewPewPew.Tests
                 var colorProperty = rootGraphic.GetType().GetProperty("color");
                 Color original = (Color)colorProperty.GetValue(rootGraphic);
                 Type subsystemType = Type.GetType("PewPewPew.Ships.SubSystem, Assembly-CSharp");
-                object subsystem = Activator.CreateInstance(subsystemType, definition, null, null);
+                object subsystem = definition.GetType().GetMethod("Create").Invoke(definition, new object[] { null, null });
                 subsystemType.GetProperty("Gauge").SetValue(subsystem, gauge);
                 MethodInfo setHud = subsystemType.GetMethod("SetHud");
                 Type stateType = setHud.GetParameters()[1].ParameterType;
@@ -1067,7 +1138,7 @@ namespace PewPewPew.Tests
         public void LateUpdate_TracksActiveSubsystemsAndDefaultEmitter()
         {
             var shipObject = new GameObject("Local radar ship");
-            Type subsystemDefType = GameType("PewPewPew.Ships.SubSystemDef");
+            Type subsystemDefType = GameType("PewPewPew.Ships.RadarSubSystemDef");
             var defA = ScriptableObject.CreateInstance(subsystemDefType);
             var defB = ScriptableObject.CreateInstance(subsystemDefType);
             Component ship = null;
@@ -1083,7 +1154,7 @@ namespace PewPewPew.Tests
                 Set(defB, "m_Radar", m_EmitterB);
                 Set(m_EmitterA, "m_Range", 300f);
                 Set(m_EmitterB, "m_Range", 900f);
-                Type systemType = GameType("PewPewPew.Ships.SubSystem");
+                Type systemType = GameType("PewPewPew.Ships.RadarSubSystem");
                 object systemA = Activator.CreateInstance(systemType, defA, m_MountA.transform, shipObject.transform);
                 object systemB = Activator.CreateInstance(systemType, defB, m_MountB.transform, shipObject.transform);
                 object unmounted = Activator.CreateInstance(systemType, defB, null, null);
@@ -1246,11 +1317,11 @@ namespace PewPewPew.Tests
             GameObject target = MakeClientAsteroid(new Vector3(0f, 10f, 0f));
             Component asteroid = target.GetComponent(GameType("PewPewPew.World.Asteroid"));
             var deposits = (IList)Get(asteroid, "m_Treasure");
-            Type depositType = GameType("PewPewPew.World.TreasureDeposit");
-            object gold = Activator.CreateInstance(depositType);
-            object red = Activator.CreateInstance(depositType);
-            depositType.GetField("Material").SetValue(gold, TreasureMaterial.Gold);
-            depositType.GetField("Material").SetValue(red, TreasureMaterial.RedCrystal);
+            Type depositType = GameType("PewPewPew.World.Treasure");
+            object gold = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Resources/SpawnablePrefabs/Treasure/Gold Small.prefab").GetComponent(depositType);
+            object red = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Resources/SpawnablePrefabs/Treasure/RedCrystal Small.prefab").GetComponent(depositType);
             deposits.Add(gold);
             deposits.Add(red);
             try

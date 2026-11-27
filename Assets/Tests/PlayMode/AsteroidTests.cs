@@ -29,12 +29,21 @@ namespace PewPewPew.Tests
         private GameObject m_FieldObject;
         private GameObject m_WorldObject;
         private Transport m_PreviousTransport;
+        private object m_Catalog;
+        private float m_OriginalChance;
+        private int m_OriginalMaximum;
+        private float m_OriginalPeekingChance;
 
         [SetUp]
         public void SetUp()
         {
             Assert.IsFalse(NetworkServer.active);
             m_Type = Type.GetType("PewPewPew.World.Asteroid, Assembly-CSharp", true);
+            Type catalogType = Type.GetType("PewPewPew.World.AsteroidTreasure, Assembly-CSharp", true);
+            m_Catalog = catalogType.GetProperty("Instance").GetValue(null);
+            m_OriginalChance = (float)catalogType.GetField("m_Chance", Private).GetValue(m_Catalog);
+            m_OriginalMaximum = (int)catalogType.GetField("m_Maximum", Private).GetValue(m_Catalog);
+            m_OriginalPeekingChance = (float)catalogType.GetField("m_PeekingChance", Private).GetValue(m_Catalog);
             m_PreviousTransport = Transport.active;
             m_TransportObject = new GameObject("Asteroid test transport");
             m_TransportObject.AddComponent<AudioListener>();
@@ -55,6 +64,10 @@ namespace PewPewPew.Tests
         [TearDown]
         public void TearDown()
         {
+            Type catalogType = m_Catalog.GetType();
+            catalogType.GetField("m_Chance", Private).SetValue(m_Catalog, m_OriginalChance);
+            catalogType.GetField("m_Maximum", Private).SetValue(m_Catalog, m_OriginalMaximum);
+            catalogType.GetField("m_PeekingChance", Private).SetValue(m_Catalog, m_OriginalPeekingChance);
             NetworkClient.Shutdown();
             NetworkServer.Shutdown();
             Transport.active = m_PreviousTransport;
@@ -69,9 +82,29 @@ namespace PewPewPew.Tests
 
         private Component Server => m_Server.GetComponent(m_Type);
         private IList Deposits(Component asteroid) => (IList)m_Type.GetField("m_Treasure", Private).GetValue(asteroid);
-        private static T DepositValue<T>(object deposit, string field) => (T)deposit.GetType().GetField(field).GetValue(deposit);
+        private static T DepositValue<T>(object deposit, string field) =>
+            (T)deposit.GetType().GetProperty(field, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(deposit);
         private float Value(string name) => (float)m_Type.GetProperty(name).GetValue(Server);
-        private void Set(Component asteroid, string field, object value) => m_Type.GetField(field, Private).SetValue(asteroid, value);
+        private void Set(Component asteroid, string field, object value)
+        {
+            string catalogField = field == "m_TreasureChance" ? "m_Chance" :
+                field == "m_MaxTreasure" ? "m_Maximum" :
+                field == "m_PeekingTreasureChance" ? "m_PeekingChance" : null;
+            if (catalogField != null) m_Catalog.GetType().GetField(catalogField, Private).SetValue(m_Catalog, value);
+            else m_Type.GetField(field, Private).SetValue(asteroid, value);
+        }
+
+        private void SetDeposit(object deposit, Vector2 position, float radius)
+        {
+            deposit.GetType().GetMethod("Embed", Private).Invoke(deposit, new object[]
+            {
+                m_Server.transform, DepositValue<ushort>(deposit, "Id"), position, radius,
+                DepositValue<bool>(deposit, "Peeking")
+            });
+        }
+
+        private object PrefabFor(object treasure) => m_Catalog.GetType().GetMethod("Prefab").Invoke(m_Catalog,
+            new object[] { DepositValue<TreasureMaterial>(treasure, "Material"), DepositValue<TreasureSize>(treasure, "Size") });
         private object Damage(float amount, Vector2? point = null, float radius = 0.5f) => m_Type.GetMethod("TakeAreaDamage").Invoke(Server,
             new object[] { amount, point ?? (Vector2)m_Server.transform.position, radius, null });
         private object Projectile(float amount, float chance = 0f, float radius = 0.5f,
@@ -98,29 +131,60 @@ namespace PewPewPew.Tests
         }
 
         [Test]
-        public void TreasureGeneration_UsesAllVariantsAndTargetsPeekingProportion()
+        public void TreasureGeneration_UsesAllPrefabVariants()
         {
             Type generator = Type.GetType("PewPewPew.World.AsteroidTreasure, Assembly-CSharp", true);
-            MethodInfo generate = generator.GetMethod("Generate", BindingFlags.Static | BindingFlags.NonPublic);
+            MethodInfo generate = generator.GetMethod("Generate", Private);
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
             var materials = new System.Collections.Generic.HashSet<TreasureMaterial>();
             var sizes = new System.Collections.Generic.HashSet<TreasureSize>();
-            int peeking = 0, generated = 0;
             for (uint seed = 0; seed < 1200; seed++)
             {
-                var deposits = (IList)generate.Invoke(null, new object[]
-                {
-                    Geometry(Server), Vector2.one, seed, 1f, 1, 0.3f, new[] { 1f, 1f, 1f, 1f, 1f, 1f }
-                });
+                var deposits = (IList)generate.Invoke(m_Catalog, new object[] { seed });
                 Assert.AreEqual(1, deposits.Count);
                 object deposit = deposits[0];
                 materials.Add(DepositValue<TreasureMaterial>(deposit, "Material"));
                 sizes.Add(DepositValue<TreasureSize>(deposit, "Size"));
-                if (DepositValue<bool>(deposit, "Peeking")) peeking++;
-                generated++;
             }
             Assert.AreEqual(6, materials.Count);
             Assert.AreEqual(3, sizes.Count);
-            Assert.That((float)peeking / generated, Is.InRange(0.25f, 0.35f));
+        }
+
+        [Test]
+        public void TreasureGeneration_UsesCatalogWeights()
+        {
+            Type generator = m_Catalog.GetType();
+            MethodInfo generate = generator.GetMethod("Generate", Private);
+            var types = (IList)generator.GetField("m_Types", Private).GetValue(m_Catalog);
+            var weights = new float[types.Count];
+            var sizeWeights = (float[])generator.GetField("m_SizeWeights", Private).GetValue(m_Catalog);
+            float[] originalSizeWeights = (float[])sizeWeights.Clone();
+            Set(Server, "m_TreasureChance", 1f);
+            Set(Server, "m_MaxTreasure", 1);
+            try
+            {
+                for (int i = 0; i < types.Count; i++)
+                {
+                    FieldInfo weight = types[i].GetType().GetField("m_Weight", Private);
+                    weights[i] = (float)weight.GetValue(types[i]);
+                    weight.SetValue(types[i], i == (int)TreasureMaterial.RedCrystal ? 1f : 0f);
+                }
+                for (int i = 0; i < sizeWeights.Length; i++)
+                    sizeWeights[i] = i == (int)TreasureSize.Large ? 1f : 0f;
+                for (uint seed = 0; seed < 100; seed++)
+                {
+                    var generated = (IList)generate.Invoke(m_Catalog, new object[] { seed });
+                    Assert.AreEqual(TreasureMaterial.RedCrystal, DepositValue<TreasureMaterial>(generated[0], "Material"));
+                    Assert.AreEqual(TreasureSize.Large, DepositValue<TreasureSize>(generated[0], "Size"));
+                }
+            }
+            finally
+            {
+                for (int i = 0; i < types.Count; i++)
+                    types[i].GetType().GetField("m_Weight", Private).SetValue(types[i], weights[i]);
+                Array.Copy(originalSizeWeights, sizeWeights, sizeWeights.Length);
+            }
         }
 
         [Test]
@@ -169,9 +233,8 @@ namespace PewPewPew.Tests
                     bool peeks = DepositValue<bool>(Deposits(Server)[0], "Peeking");
                     if (peeks) peeking++;
                     m_Type.GetMethod("UpdateTreasureVisuals", Private).Invoke(Server, null);
-                    var visuals = (IList)m_Type.GetField("m_TreasureVisuals", Private).GetValue(Server);
-                    if (visuals.Count == 0) continue;
-                    var visual = (GameObject)visuals[0];
+                    var visual = ((Component)Deposits(Server)[0]).gameObject;
+                    if (!visual.GetComponentInChildren<Renderer>().enabled) continue;
                     visual.SetActive(false);
                     Color32[] before = Render();
                     visual.SetActive(true);
@@ -278,13 +341,56 @@ namespace PewPewPew.Tests
         [Test]
         public void TreasurePrefab_HasPersistentIdentityAndServerPhysics()
         {
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/Resources/SpawnablePrefabs/Treasure/TreasurePickup.prefab");
-            Assert.IsNotNull(prefab);
-            Assert.AreNotEqual(0u, prefab.GetComponent<NetworkIdentity>().assetId);
             Type rigidbodySync = Type.GetType("Mirror.NetworkRigidbodyUnreliable2D, Mirror.Components", true);
-            Assert.AreEqual(SyncDirection.ServerToClient, ((NetworkBehaviour)prefab.GetComponent(rigidbodySync)).syncDirection);
-            Assert.IsFalse(prefab.GetComponent<CircleCollider2D>().isTrigger);
+            foreach (TreasureMaterial material in Enum.GetValues(typeof(TreasureMaterial)))
+            foreach (TreasureSize size in Enum.GetValues(typeof(TreasureSize)))
+            {
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    $"Assets/Resources/SpawnablePrefabs/Treasure/{material} {size}.prefab");
+                Assert.IsNotNull(prefab);
+                Assert.AreNotEqual(0u, prefab.GetComponent<NetworkIdentity>().assetId);
+                Assert.AreEqual(SyncDirection.ServerToClient, ((NetworkBehaviour)prefab.GetComponent(rigidbodySync)).syncDirection);
+                Assert.IsFalse(prefab.GetComponent<CircleCollider2D>().isTrigger);
+                Component treasure = prefab.GetComponent(Type.GetType("PewPewPew.World.Treasure, Assembly-CSharp", true));
+                Assert.AreEqual(material, DepositValue<TreasureMaterial>(treasure, "Material"));
+                Assert.AreEqual(size, DepositValue<TreasureSize>(treasure, "Size"));
+                Assert.AreSame(treasure, PrefabFor(treasure));
+                Assert.AreEqual(ShipCargo.Units(size), DepositValue<int>(treasure, "Units"));
+                Assert.Greater(DepositValue<float>(treasure, "Radius"), 0f);
+                Assert.IsNotNull(prefab.GetComponentInChildren<MeshFilter>().sharedMesh);
+                Assert.IsNotNull(prefab.GetComponentInChildren<MeshRenderer>().sharedMaterial);
+            }
+        }
+
+        [Test]
+        public void TreasureCatalog_RegistersReferencedPrefabsOutsideSpawnableResources()
+        {
+            Assert.IsTrue(NetworkManager.singleton == null);
+            var types = (IList)m_Catalog.GetType().GetField("m_Types", Private).GetValue(m_Catalog);
+            var prefabs = (IList)types[0].GetType().GetField("m_Prefabs", Private).GetValue(types[0]);
+            object original = prefabs[0];
+            GameObject external = Object.Instantiate(((Component)original).gameObject);
+            var managerObject = new GameObject("Treasure catalog test manager");
+            managerObject.SetActive(false);
+            var manager = managerObject.AddComponent<NetworkManager>();
+            manager.dontDestroyOnLoad = false;
+            manager.transport = Transport.active;
+            try
+            {
+                managerObject.SetActive(true);
+                prefabs[0] = external.GetComponent(original.GetType());
+                Type loader = Type.GetType("PewPewPew.Networking.SpawnablePrefabLoader, Assembly-CSharp", true);
+                MethodInfo load = loader.GetMethod("Load", BindingFlags.Static | BindingFlags.NonPublic);
+                load.Invoke(null, null);
+                load.Invoke(null, null);
+                Assert.AreEqual(1, manager.spawnPrefabs.Count(prefab => prefab == external));
+            }
+            finally
+            {
+                prefabs[0] = original;
+                Object.DestroyImmediate(managerObject);
+                Object.DestroyImmediate(external);
+            }
         }
 
         [Test]
@@ -299,14 +405,12 @@ namespace PewPewPew.Tests
             Set(Server, "m_Field", new AsteroidGeometry(9, 9, bytes));
             Set(Server, "m_Spacing", Vector2.one);
             object deposit = Deposits(Server)[0];
-            deposit.GetType().GetField("Position").SetValue(deposit, Vector2.zero);
-            deposit.GetType().GetField("Radius").SetValue(deposit, 0.25f);
-            Deposits(Server)[0] = deposit;
+            SetDeposit(deposit, Vector2.zero, 0.25f);
             Rebuild(Server);
             var body = m_Server.GetComponent<Rigidbody2D>();
             body.linearVelocity = new Vector2(3f, 2f);
             body.angularVelocity = 45f;
-            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            Type pickupType = Type.GetType("PewPewPew.World.Treasure, Assembly-CSharp", true);
             Damage(1f, Vector2.zero);
             Assert.AreEqual(1, Deposits(Server).Count);
             Assert.IsFalse(NetworkServer.spawned.Values.Any(identity => identity.GetComponent(pickupType) != null));
@@ -333,17 +437,15 @@ namespace PewPewPew.Tests
             Set(Server, "m_Field", new AsteroidGeometry(9, 9, bytes));
             Set(Server, "m_Spacing", Vector2.one);
             object deposit = Deposits(Server)[0];
-            deposit.GetType().GetField("Position").SetValue(deposit, Vector2.zero);
-            deposit.GetType().GetField("Radius").SetValue(deposit, 0.75f);
-            Deposits(Server)[0] = deposit;
+            SetDeposit(deposit, Vector2.zero, 0.75f);
             Rebuild(Server);
             m_Type.GetMethod("UpdateTreasureVisuals", Private).Invoke(Server, null);
-            var visuals = (IList)m_Type.GetField("m_TreasureVisuals", Private).GetValue(Server);
-            Assert.AreEqual(0, visuals.Count);
+            var renderer = ((Component)deposit).GetComponentInChildren<Renderer>();
+            Assert.IsFalse(renderer.enabled);
             Damage(255f, Vector2.zero);
             m_Type.GetMethod("UpdateTreasureVisuals", Private).Invoke(Server, null);
             Assert.AreEqual(1, Deposits(Server).Count);
-            Assert.AreEqual(1, visuals.Count);
+            Assert.IsTrue(renderer.enabled);
         }
 
         [TestCase(false)]
@@ -369,9 +471,7 @@ namespace PewPewPew.Tests
             Set(Server, "m_Spacing", Vector2.one);
             object deposit = Deposits(Server)[0];
             Vector2 localPosition = spansSplit ? Vector2.zero : new Vector2(-2f, 0f);
-            deposit.GetType().GetField("Position").SetValue(deposit, localPosition);
-            deposit.GetType().GetField("Radius").SetValue(deposit, spansSplit ? 1f : 0.25f);
-            Deposits(Server)[0] = deposit;
+            SetDeposit(deposit, localPosition, spansSplit ? 1f : 0.25f);
             m_Server.transform.SetPositionAndRotation(new Vector3(10f, 5f, 0f), Quaternion.Euler(0f, 0f, 35f));
             Rebuild(Server);
             Vector2 originalPosition = m_Server.transform.TransformPoint(localPosition);
@@ -379,7 +479,7 @@ namespace PewPewPew.Tests
             var children = NetworkServer.spawned.Values.Where(identity =>
                 identity.gameObject != m_Server && identity.GetComponent(m_Type) != null).ToArray();
             Assert.AreEqual(2, children.Length);
-            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            Type pickupType = Type.GetType("PewPewPew.World.Treasure, Assembly-CSharp", true);
             var pickups = NetworkServer.spawned.Values.Where(identity => identity.GetComponent(pickupType) != null).ToArray();
             Assert.AreEqual(spansSplit ? 1 : 0, pickups.Length);
             Assert.AreEqual(spansSplit ? 0 : 1, children.Sum(identity => Deposits(identity.GetComponent(m_Type)).Count));
@@ -402,9 +502,9 @@ namespace PewPewPew.Tests
             Set(Server, "m_MaxTreasure", 1);
             m_Type.GetMethod("Initialize").Invoke(Server, null);
             object deposit = Deposits(Server)[0];
-            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            Type pickupType = Type.GetType("PewPewPew.World.Treasure, Assembly-CSharp", true);
             pickupType.GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null,
-                new object[] { deposit, new Vector2(0f, 20f), Quaternion.identity, Vector2.zero, 0f });
+                new object[] { PrefabFor(deposit), new Vector2(0f, 20f), Quaternion.identity, Vector2.zero, 0f });
             NetworkIdentity pickup = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null);
             try
             {
@@ -435,7 +535,7 @@ namespace PewPewPew.Tests
             Set(Server, "m_MaxTreasure", 1);
             m_Type.GetMethod("Initialize").Invoke(Server, null);
             object deposit = Deposits(Server)[0];
-            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            Type pickupType = Type.GetType("PewPewPew.World.Treasure, Assembly-CSharp", true);
             foreach (string typeName in new[] { "PewPewPew.World.OrbitalBody" })
             {
                 var target = new GameObject("Pickup collision target", typeof(NetworkIdentity), typeof(CircleCollider2D));
@@ -443,7 +543,7 @@ namespace PewPewPew.Tests
                 var targetBehaviour = (Behaviour)target.AddComponent(Type.GetType(typeName + ", Assembly-CSharp", true));
                 targetBehaviour.enabled = false;
                 pickupType.GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null,
-                    new object[] { deposit, new Vector2(32f, 0f), Quaternion.identity, Vector2.left * 10f, 0f });
+                    new object[] { PrefabFor(deposit), new Vector2(32f, 0f), Quaternion.identity, Vector2.left * 10f, 0f });
                 NetworkIdentity pickup = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null);
                 uint id = pickup.netId;
                 yield return new WaitForSeconds(0.5f);
@@ -459,9 +559,9 @@ namespace PewPewPew.Tests
             Set(Server, "m_MaxTreasure", 1);
             m_Type.GetMethod("Initialize").Invoke(Server, null);
             byte[] initial = (byte[])Geometry(Server).Samples.Clone();
-            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            Type pickupType = Type.GetType("PewPewPew.World.Treasure, Assembly-CSharp", true);
             pickupType.GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null,
-                new object[] { Deposits(Server)[0], new Vector2(15f, 0f), Quaternion.identity, Vector2.left * 20f, 0f });
+                new object[] { PrefabFor(Deposits(Server)[0]), new Vector2(15f, 0f), Quaternion.identity, Vector2.left * 20f, 0f });
             NetworkIdentity pickup = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null);
             uint id = pickup.netId;
             yield return new WaitForSeconds(0.8f);
@@ -887,11 +987,13 @@ namespace PewPewPew.Tests
         [UnityTest]
         public IEnumerator RemoteClient_ReceivesCurrentGeometryAndLiveEffectsThroughMirror()
         {
+            const int networkWaitSteps = 100;
+            var networkWait = new WaitForSecondsRealtime(0.02f);
             NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
             Damage(1f);
             m_Server.GetComponent<Rigidbody2D>().simulated = false;
             NetworkClient.Connect("localhost");
-            for (int i = 0; i < 30 && !NetworkClient.isConnected; i++) yield return null;
+            for (int i = 0; i < networkWaitSteps && !NetworkClient.isConnected; i++) yield return networkWait;
             Assert.IsTrue(NetworkClient.isConnected);
             NetworkClient.connection.isAuthenticated = true;
             NetworkConnectionToClient connection = NetworkServer.connections.Values.Single();
@@ -900,7 +1002,7 @@ namespace PewPewPew.Tests
             typeof(NetworkConnection).GetProperty("identity").SetValue(connection, m_Server.GetComponent<NetworkIdentity>());
             NetworkClient.Ready();
             uint id = m_Server.GetComponent<NetworkIdentity>().netId;
-            for (int i = 0; i < 30 && !NetworkClient.spawned.ContainsKey(id); i++) yield return null;
+            for (int i = 0; i < networkWaitSteps && !NetworkClient.spawned.ContainsKey(id); i++) yield return networkWait;
             Assert.IsTrue(NetworkClient.spawned.ContainsKey(id));
             Component replica = NetworkClient.spawned[id].GetComponent(m_Type);
             CollectionAssert.AreEqual(((AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(Server)).Samples,
@@ -908,8 +1010,8 @@ namespace PewPewPew.Tests
             Assert.IsFalse(Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None)
                 .Any(item => item.name == "Temporary asteroid fragment"), "Joining must not replay old debris.");
             Damage(1f);
-            for (int i = 0; i < 30 && !Geometry(replica).Samples.SequenceEqual(Geometry(Server).Samples); i++)
-                yield return null;
+            for (int i = 0; i < networkWaitSteps && !Geometry(replica).Samples.SequenceEqual(Geometry(Server).Samples); i++)
+                yield return networkWait;
             CollectionAssert.AreEqual(Geometry(Server).Samples, Geometry(replica).Samples);
             Assert.AreEqual(5, Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None)
                 .Count(item => item.name == "Temporary asteroid fragment"));
@@ -929,9 +1031,10 @@ namespace PewPewPew.Tests
             object original = Deposits(Server)[0];
             TreasureMaterial material = DepositValue<TreasureMaterial>(original, "Material");
             TreasureSize size = DepositValue<TreasureSize>(original, "Size");
+            float radius = DepositValue<float>(original, "Radius");
             NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
             NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/Resources/SpawnablePrefabs/Treasure/TreasurePickup.prefab"));
+                $"Assets/Resources/SpawnablePrefabs/Treasure/{material} {size}.prefab"));
             m_Server.GetComponent<Rigidbody2D>().simulated = false;
             NetworkClient.Connect("localhost");
             for (int i = 0; i < networkWaitSteps && !NetworkClient.isConnected; i++) yield return networkWait;
@@ -947,17 +1050,17 @@ namespace PewPewPew.Tests
             Component replica = NetworkClient.spawned[id].GetComponent(m_Type);
             Assert.AreEqual(1, Deposits(replica).Count);
             Assert.AreEqual(material, DepositValue<TreasureMaterial>(Deposits(replica)[0], "Material"));
-            var visuals = (IList)m_Type.GetField("m_TreasureVisuals", Private).GetValue(replica);
-            Assert.AreEqual(1, visuals.Count);
-            Assert.IsNull(((GameObject)visuals[0]).GetComponent<Collider2D>());
+            var embedded = (Component)Deposits(replica)[0];
+            Assert.IsFalse(embedded.GetComponent<Rigidbody2D>().simulated);
             Damage(100000f, radius: 100f);
-            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            Type pickupType = Type.GetType("PewPewPew.World.Treasure, Assembly-CSharp", true);
             uint pickupId = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null).netId;
             for (int i = 0; i < networkWaitSteps && !NetworkClient.spawned.ContainsKey(pickupId); i++) yield return networkWait;
             Assert.IsTrue(NetworkClient.spawned.ContainsKey(pickupId));
             Component clientPickup = NetworkClient.spawned[pickupId].GetComponent(pickupType);
             Assert.AreEqual(material, pickupType.GetProperty("Material").GetValue(clientPickup));
             Assert.AreEqual(size, pickupType.GetProperty("Size").GetValue(clientPickup));
+            Assert.AreEqual(radius, (float)pickupType.GetProperty("Radius").GetValue(clientPickup), 0.0001f);
             for (int i = 0; i < networkWaitSteps && replica != null && Deposits(replica).Count != 0; i++) yield return networkWait;
             Assert.IsNotNull(replica);
             Assert.AreEqual(0, Deposits(replica).Count);
@@ -975,12 +1078,13 @@ namespace PewPewPew.Tests
             object original = Deposits(Server)[0];
             TreasureMaterial material = DepositValue<TreasureMaterial>(original, "Material");
             TreasureSize size = DepositValue<TreasureSize>(original, "Size");
+            float radius = DepositValue<float>(original, "Radius");
             Damage(100000f, radius: 100f);
-            Type pickupType = Type.GetType("PewPewPew.World.TreasurePickup, Assembly-CSharp", true);
+            Type pickupType = Type.GetType("PewPewPew.World.Treasure, Assembly-CSharp", true);
             uint pickupId = NetworkServer.spawned.Values.Single(identity => identity.GetComponent(pickupType) != null).netId;
             NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
             NetworkClient.RegisterPrefab(AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/Resources/SpawnablePrefabs/Treasure/TreasurePickup.prefab"));
+                $"Assets/Resources/SpawnablePrefabs/Treasure/{material} {size}.prefab"));
             NetworkClient.Connect("localhost");
             for (int i = 0; i < networkWaitSteps && !NetworkClient.isConnected; i++) yield return networkWait;
             Assert.IsTrue(NetworkClient.isConnected);
@@ -994,6 +1098,7 @@ namespace PewPewPew.Tests
             Component clientPickup = NetworkClient.spawned[pickupId].GetComponent(pickupType);
             Assert.AreEqual(material, pickupType.GetProperty("Material").GetValue(clientPickup));
             Assert.AreEqual(size, pickupType.GetProperty("Size").GetValue(clientPickup));
+            Assert.AreEqual(radius, (float)pickupType.GetProperty("Radius").GetValue(clientPickup), 0.0001f);
         }
 
         [Test]

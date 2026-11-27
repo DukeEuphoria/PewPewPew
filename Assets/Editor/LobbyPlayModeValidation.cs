@@ -401,7 +401,7 @@ namespace PewPewPew.Editor
                 int directionalShield = Array.FindIndex(components, component => component is ShieldDef def && def.HalfAngle == 45f);
                 int thruster = Array.FindIndex(components, component => component is ThrusterDef);
                 int subsystem = Array.FindIndex(components, component => component is SubSystemDef def && def.Mode == ActivationMode.Toggle);
-                int storage = Array.FindIndex(components, component => component is SubSystemDef def && def.ExtraPowerStorage > 0f);
+                int storage = Array.FindIndex(components, component => component is StatBoosterSubSystemDef def && def.ExtraPowerStorage > 0f);
                 Check(shield >= 0 && directionalShield >= 0 && thruster >= 0 && subsystem >= 0 && storage >= 0, "Test components exist");
                 string[] directionPoints = { "ReverseThrusterPoint", "SideThrusterPositivePoint", "SideThrusterNegativePoint" };
                 int firstSubsystem = Array.FindIndex(points, point => point.AcceptsComponent(components[subsystem]) &&
@@ -465,7 +465,7 @@ namespace PewPewPew.Editor
 
             private static void ValidatePowerStorageDisplay(Ship ship)
             {
-                var stores = ship.SubSystems.Where(system => system.Def.ExtraPowerStorage > 0f).ToArray();
+                var stores = ship.SubSystems.OfType<StatBoosterSubSystem>().Where(system => system.Def.ExtraPowerStorage > 0f).ToArray();
                 Check(stores.Length == 2, "Two power storage subsystems exist");
                 PowerBank bank = Get<PowerBank>(ship, "m_Power");
                 HullDef hull = Get<HullDef>(ship, "m_HullDef");

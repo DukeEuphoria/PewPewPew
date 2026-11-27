@@ -212,7 +212,7 @@ namespace PewPewPew.Ships
                 for (int material = 0; material < ShipCargo.MaterialCount; material++)
                 {
                     var kind = (TreasureMaterial)material;
-                    Color colour = TreasureVisual.Colour(kind);
+                    Color colour = Treasure.Colour(kind);
                     int count = cargo.Amount(mount, kind);
                     for (int i = 0; i < count; i++) cells[cell++].color = colour;
                 }

@@ -40,7 +40,7 @@ gravity, impacts and shattering can subsequently move them.
   displaced roof lattice, retaining the 127.5 contour. There are no health fields. The
   descriptor includes the splat seed, count, radius range and physical spacing/depth:
   observers need not share Inspector ranges.
-  Asteroid wire format **version 12** additionally carries treasure descriptors.
+  Asteroid wire format **version 13** additionally carries treasure descriptors.
   Mixed wire versions are explicitly rejected; there is no older-format migration.
 - Initial asteroid-specific serialization is **73 bytes** without treasure for
   untouched rocks, or at most **331 bytes** for damaged rocks/children. Each
@@ -203,20 +203,21 @@ temporarily exceed that target; replenishment waits until below it.
 ## Embedded treasure and pickups
 
 Gold, silver, and red, green, cyan and purple crystals each have small, medium
-and large forms. New asteroids select deposits on the authoritative server
-using an independent seeded sequence. The asteroid prefab defaults to a 70%
-chance of treasure, one to three requested items per successful rock, equal
-material weights, and a 30% chance that each item peeks through the roof.
-These settings are adjustable on the asteroid prefab; weight order is gold,
-silver, red, green, cyan, then purple. Placement is bounded and
-avoids overlap; a small or crowded rock can receive fewer items than requested.
-The three footprint radii are 0.25, 0.4 and 0.6 times the rock's cell spacing.
-Low-poly meshes and shared materials are generated locally for presentation.
-The shared URP material template is included in Resources so its shader remains
-available in player builds.
+and large prefabs. The shared `Resources/AsteroidTreasure` ScriptableObject
+contains a weighted list of treasure types, each with its own list of prefabs,
+and controls the treasure and peeking chances and maximum item count. Its defaults
+are a 70% chance of treasure, one to three requested items per successful rock,
+equal type and size weights, and a 30% peeking chance. Size weights apply within
+each type. New asteroids select prefabs on the authoritative server using
+an independent seeded sequence, then position the items themselves. Placement is
+bounded and avoids overlap; a small or crowded rock can receive fewer items than
+requested. The default footprint radii are 0.25, 0.4 and 0.6 times the rock's
+cell spacing. Each prefab owns its material, shared mesh, type, size, unit count,
+and collider radius.
 
-Embedded items are visuals only: their 2D footprints overlap the current
-marching-square rock, and they cannot collide with ships or be collected.
+Embedded items are prefab instances with physics disabled: their 2D footprints
+overlap the current marching-square rock, and they cannot collide with ships or
+be collected.
 Peeking is a visual roof placement, not an indication that the footprint is
 free. Buried items are not rendered until their centre is excavated, even if
 their larger footprint is still supported. After damage, an item releases when its circular footprint no longer
@@ -232,17 +233,22 @@ rock's velocity at the release point and angular velocity, receive world
 gravity, and collide physically with world objects and ships. Treasure impacts
 do not apply collision damage to ships or asteroids. Server-side ship contact
 collects the entire pickup if its cargo stores have room; otherwise it stays
-physical and available. Small, medium and large pickups contain 1, 2 and 3
-units of their material. Orbital-body contact still removes a pickup. Pickups
+physical and available. The default small, medium and large pickups contain 1, 2 and 3 units; collection
+and cargo drops use the unit count authored on each prefab. Each treasure type
+must include a one-unit prefab so every cargo remainder can be dropped.
+Orbital-body contact still removes a pickup. Pickups
 otherwise persist until match teardown, so an active field can accumulate them
 indefinitely. Treasure value and universe-wide supply balancing are not yet
 implemented.
 
-The pickup prefab is registered by the existing spawnable-prefab loader. The
-editor menu **PewPewPew/Create Treasure Pickup Prefab** can recreate it and the
-material template if missing without overwriting existing assets. Embedded descriptors are sent
-with asteroid snapshots, including to late observers; released pickup material
-and size are synchronized separately.
+The spawnable-prefab loader registers every catalog prefab, including prefabs
+outside the usual `Resources/SpawnablePrefabs` folder.
+The editor menu **PewPewPew/Create Treasure Catalog and Prefabs** creates
+missing default assets without replacing existing prefab or catalog settings. If an existing
+catalog has a missing prefab reference, reassign the recreated prefab in the
+catalog. Embedded descriptors
+are sent with asteroid snapshots, including to late observers; released pickups
+use their network prefab identity and synchronize their scale.
 
 ## Prefab references and presentation
 
@@ -304,7 +310,7 @@ no positive GPU samples in this batch environment. Net managed-heap changes are
 not total allocation counts. A target-PC gameplay/GPU profile is still needed
 for a production frame budget.
 
-An isolated Editor batch test generating 250 rocks with the treasure chance
+Before the prefab-backed treasure refactor, an isolated Editor batch test generating 250 rocks with the treasure chance
 forced to 100% and the maximum set to 16 took 2,171 ms in one run, producing
 2,233 embedded items and a largest untouched descriptor of 345 bytes. This is
 a stress configuration, not the default spawn rate or a gameplay frame budget;

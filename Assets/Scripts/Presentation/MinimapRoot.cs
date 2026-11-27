@@ -118,7 +118,8 @@ namespace PewPewPew.Presentation
             {
                 foreach (SubSystem system in m_Ship.SubSystems)
                 {
-                    if (system.IsRadarActive) AddEmitter(system, system.Def.Radar, system.System.Point, now);
+                    if (system is RadarSubSystem radar && radar.IsRadarActive)
+                        AddEmitter(radar, radar.Def.Radar, radar.System.Point, now);
                 }
             }
             m_Emitters.RemoveAll(emitter => !emitter.Present);
@@ -199,7 +200,7 @@ namespace PewPewPew.Presentation
             Color tint = contact.Source is Ship ? m_ShipColor : contact.Source is OrbitalBody ? m_OrbitalColor : m_AsteroidColor;
             if (contact.Treasure.HasValue &&
                 Time.timeAsDouble - contact.TreasureLastSeen < Mathf.Max(0.1f, m_ContactLifetime))
-                tint = TreasureVisual.Colour(contact.Treasure.Value);
+                tint = Treasure.Colour(contact.Treasure.Value);
             float opacity = m_MarkerOpacity;
             if (m_FadeContacts) opacity *= RadarMath.Fade(Time.timeAsDouble - contact.LastSeen, Mathf.Max(0.1f, m_ContactLifetime));
             return WithOpacity(tint, opacity);

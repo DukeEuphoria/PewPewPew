@@ -189,7 +189,7 @@ namespace PewPewPew.Editor
             Check(catalog.Hulls.All(hull => !string.IsNullOrWhiteSpace(hull.Description) &&
                 hull.HullPoints.Points.All(point => !string.IsNullOrWhiteSpace(point.Description))),
                 "Hulls and hull points have authored descriptions");
-            SubSystemDef storage = catalog.Components.OfType<SubSystemDef>().First(item => item.ExtraPowerStorage > 0);
+            StatBoosterSubSystemDef storage = catalog.Components.OfType<StatBoosterSubSystemDef>().First(item => item.ExtraPowerStorage > 0);
             int hullIndex = Array.FindIndex(catalog.Hulls, hull => hull.HullPoints.Points.Any(point => point.AcceptsComponent(storage)));
             Check(hullIndex >= 0, "A hull can accept a storage subsystem");
             HullDef hull = catalog.Hulls[hullIndex];
@@ -198,7 +198,7 @@ namespace PewPewPew.Editor
             loadout.SetMountComponent(mount, -1);
             float mass = hull.Mass + loadout.MountComponents.Where(index => index >= 0).Sum(index => catalog.Components[index].Mass);
             float capacity = hull.MaxPowerStorage + loadout.MountComponents.Where(index => index >= 0)
-                .Select(index => catalog.Components[index]).OfType<SubSystemDef>().Sum(item => item.ExtraPowerStorage);
+                .Select(index => catalog.Components[index]).OfType<StatBoosterSubSystemDef>().Sum(item => item.ExtraPowerStorage);
             loadout.SetMountComponent(mount, Array.IndexOf(catalog.Components, storage));
             string details = LoadoutDetails.Hull(catalog, loadout);
             Check(details.Contains($"Mass: {mass + storage.Mass:0.##}") &&
@@ -216,7 +216,7 @@ namespace PewPewPew.Editor
                 Check(art != null && AssetDatabase.GetAssetPath(art.texture).StartsWith("Assets/Art/Loadout Icons/Components/") &&
                     art.texture.width == art.texture.height, $"{component.name} links to a square component texture");
                 Color tint = component.Tint;
-                bool armour = component is SubSystemDef subsystem && subsystem.ArmourStrengthMultiplier > 1;
+                bool armour = component is StatBoosterSubSystemDef subsystem && subsystem.ArmourStrengthMultiplier > 1;
                 bool expected = component.Type == ComponentType.Gun ? tint.r > 0.8f && tint.g < 0.4f && tint.b < 0.4f
                     : component.Type == ComponentType.Shield ? tint.r > 0.5f && tint.b > 0.8f && tint.g < 0.5f
                     : armour ? Mathf.Max(tint.r, tint.g, tint.b) - Mathf.Min(tint.r, tint.g, tint.b) < 0.1f && tint.r < 0.9f

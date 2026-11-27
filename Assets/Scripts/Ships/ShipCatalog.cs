@@ -111,6 +111,8 @@ namespace PewPewPew.Ships
                 ShipComponentDef component = components[index];
                 if (component is ShieldDef shield && shield.Visual == null)
                     return $"{shield.name} has no shield visual.";
+                if (component is TractorSubSystemDef tractor && tractor.TractorRange > 0f && tractor.Visual == null)
+                    return $"{tractor.name} has no tractor visual.";
                 if (component is GunDef gun && gun.BulletPrefab == null)
                     return $"{gun.name} has no bullet prefab.";
             }

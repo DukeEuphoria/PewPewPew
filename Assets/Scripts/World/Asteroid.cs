@@ -22,12 +22,10 @@ namespace PewPewPew.World
         private const uint SurfaceSeedSalt = 0x9E3779B9u;
         private const uint ScaleSeedSalt = 0xC2B2AE35u;
         private const uint SplatCountSeedSalt = 0xB5297A4Du;
-        private const byte WireVersion = AsteroidGeometry.Version + 1;
+        private const byte WireVersion = AsteroidGeometry.Version + 2;
         private const float PeekingDepthFraction = -0.25f;
         private const float HiddenDepthFraction = 1.25f;
-        private const float DefaultTreasureChance = 0.7f;
-        private const int DefaultMaxTreasure = 3;
-        private const float DefaultPeekingChance = 0.3f;
+        private const int TreasurePlacementAttempts = 96;
         [SerializeField, Min(0.01f)] private float m_CellSpacing = 1f;
         [SerializeField, Min(0.01f)] private float m_Thickness = 1f;
         [SerializeField, Min(0.01f)] private float m_MaterialDensity = 1f;
@@ -50,11 +48,6 @@ namespace PewPewPew.World
         [SerializeField] private GameObject m_ShatterExplosion;
         [SerializeField] private AudioClip m_ChipSound;
         [SerializeField] private AudioClip m_ShatterSound;
-        [SerializeField, Range(0f, 1f)] private float m_TreasureChance = DefaultTreasureChance;
-        [SerializeField, Range(0, AsteroidTreasure.MaximumDeposits)] private int m_MaxTreasure = DefaultMaxTreasure;
-        [SerializeField, Range(0f, 1f)] private float m_PeekingTreasureChance = DefaultPeekingChance;
-        [SerializeField, Tooltip("Weights for gold, silver, red, green, cyan and purple, in that order.")]
-        private float[] m_TreasureWeights = { 1f, 1f, 1f, 1f, 1f, 1f };
 
         private uint m_Seed;
         private uint m_Revision;
@@ -75,8 +68,7 @@ namespace PewPewPew.World
         private Vector2 m_EffectPoint;
         private Vector2 m_EffectVelocity;
         private bool m_ShatterEffect;
-        private List<TreasureDeposit> m_Treasure = new List<TreasureDeposit>();
-        private readonly List<GameObject> m_TreasureVisuals = new List<GameObject>();
+        private List<Treasure> m_Treasure = new List<Treasure>();
 
         public float Mass => m_Body.mass;
 
@@ -130,8 +122,8 @@ namespace PewPewPew.World
                 splatCount, m_VertexOffsetFactor);
             m_Field = m_Surface.CreateField();
             m_Field.ConfigurePositions(m_Surface.Seed, m_VertexOffsetFactor, Vector2Int.zero);
-            m_Treasure = AsteroidTreasure.Generate(m_Field, m_Spacing, m_Seed, m_TreasureChance,
-                m_MaxTreasure, m_PeekingTreasureChance, m_TreasureWeights);
+            ClearTreasure();
+            PlaceTreasure();
             m_HasSnapshot = false;
             m_Broken = false;
             m_Revision = 0;
@@ -141,7 +133,7 @@ namespace PewPewPew.World
         }
 
         internal void InitializePiece(AsteroidGeometry field, Vector2 spacing, float depth, float density,
-            AsteroidSurface surface, uint seed, List<TreasureDeposit> treasure)
+            AsteroidSurface surface, uint seed, List<Treasure> treasure)
         {
             m_Field = field;
             m_Spacing = spacing;
@@ -150,6 +142,7 @@ namespace PewPewPew.World
             m_Surface = surface;
             m_Seed = seed;
             m_Treasure = treasure;
+            foreach (Treasure item in m_Treasure) item.transform.SetParent(transform, false);
             m_HasSnapshot = true;
             Rebuild();
         }
@@ -218,7 +211,7 @@ namespace PewPewPew.World
                     if (components.Count >= 2) break;
                 }
             }
-            List<List<TreasureDeposit>> treasureByComponent = PartitionTreasure(components);
+            List<List<Treasure>> treasureByComponent = PartitionTreasure(components);
             if (components.Count == 0 || (components.Count == 1 &&
                 components[0].Area() * m_Spacing.x * m_Spacing.y * m_Depth * m_Density < m_MinPieceMass))
             {
@@ -241,17 +234,17 @@ namespace PewPewPew.World
         private void OnCollisionEnter2D(Collision2D collision)
         {
             if (collision.contactCount == 0) return;
-            if (collision.collider.GetComponentInParent<TreasurePickup>() != null) return;
+            if (collision.collider.GetComponentInParent<Treasure>() != null) return;
             bool isOrbitalBody = collision.collider.GetComponentInParent<OrbitalBody>() != null;
             float multiplier = isOrbitalBody ? m_OrbitalBodyDamageMultiplier : m_CollisionDamageMultiplier;
             ContactPoint2D contact = collision.GetContact(0);
             TakeDamage(DamageMath.Impact(collision.relativeVelocity, contact.normal, multiplier), contact.point, null);
         }
 
-        private List<List<TreasureDeposit>> PartitionTreasure(List<AsteroidGeometry> components)
+        private List<List<Treasure>> PartitionTreasure(List<AsteroidGeometry> components)
         {
-            var groups = new List<List<TreasureDeposit>>(components.Count);
-            foreach (AsteroidGeometry component in components) groups.Add(new List<TreasureDeposit>());
+            var groups = new List<List<Treasure>>(components.Count);
+            foreach (AsteroidGeometry component in components) groups.Add(new List<Treasure>());
             if (m_Treasure.Count == 0) return groups;
             var polygons = new List<List<Vector2[]>>(components.Count);
             var retained = new List<bool>(components.Count);
@@ -260,7 +253,7 @@ namespace PewPewPew.World
                 polygons.Add(AsteroidMesh.Paths(component, m_Spacing, out float area, out _));
                 retained.Add(area * m_Spacing.x * m_Spacing.y * m_Depth * m_Density >= m_MinPieceMass);
             }
-            foreach (TreasureDeposit deposit in m_Treasure)
+            foreach (Treasure deposit in m_Treasure)
             {
                 int support = TreasureGeometry.SupportingComponent(polygons, retained, deposit.Position, deposit.Radius);
                 if (support >= 0) groups[support].Add(deposit);
@@ -270,20 +263,20 @@ namespace PewPewPew.World
             return groups;
         }
 
-        private void ReleaseTreasure(TreasureDeposit deposit)
+        private void ReleaseTreasure(Treasure deposit)
         {
             Vector2 position = transform.TransformPoint(deposit.Position);
-            TreasurePickup.Spawn(deposit, position, transform.rotation,
+            deposit.Release(position, transform.rotation,
                 m_Body.GetPointVelocity(position), m_Body.angularVelocity);
         }
 
-        private void SpawnPieces(List<AsteroidGeometry> components, List<List<TreasureDeposit>> treasure, Vector2 point)
+        private void SpawnPieces(List<AsteroidGeometry> components, List<List<Treasure>> treasure, Vector2 point)
         {
-            var measured = new List<(AsteroidGeometry field, float area, List<TreasureDeposit> treasure)>(components.Count);
+            var measured = new List<(AsteroidGeometry field, float area, List<Treasure> treasure)>(components.Count);
             for (int i = 0; i < components.Count; i++)
                 measured.Add((components[i], components[i].Area(), treasure[i]));
             measured.Sort((a, b) => b.area.CompareTo(a.area));
-            var retained = new List<(AsteroidGeometry field, List<TreasureDeposit> treasure)>();
+            var retained = new List<(AsteroidGeometry field, List<Treasure> treasure)>();
             foreach (var component in measured)
             {
                 float mass = component.area * m_Spacing.x * m_Spacing.y * m_Depth * m_Density;
@@ -307,12 +300,12 @@ namespace PewPewPew.World
             {
                 AsteroidGeometry piece = retained[i].field.Recenter(out Vector2 sampleOffset);
                 Vector2 offset = Vector2.Scale(sampleOffset, m_Spacing);
-                List<TreasureDeposit> pieceTreasure = retained[i].treasure;
+                List<Treasure> pieceTreasure = retained[i].treasure;
                 List<Vector2[]> piecePaths = pieceTreasure.Count == 0 ? null :
                     AsteroidMesh.Paths(piece, m_Spacing, out _, out _);
                 for (int j = pieceTreasure.Count - 1; j >= 0; j--)
                 {
-                    TreasureDeposit deposit = pieceTreasure[j];
+                    Treasure deposit = pieceTreasure[j];
                     deposit.Position -= offset;
                     if (!TreasureGeometry.Overlaps(piecePaths, deposit.Position, deposit.Radius))
                     {
@@ -321,7 +314,6 @@ namespace PewPewPew.World
                         pieceTreasure.RemoveAt(j);
                         continue;
                     }
-                    pieceTreasure[j] = deposit;
                 }
                 Vector2 position = transform.TransformPoint(offset);
                 Vector2 direction = position - m_Body.position;
@@ -393,24 +385,58 @@ namespace PewPewPew.World
             if (isClient) UpdateTreasureVisuals();
         }
 
+        private void PlaceTreasure()
+        {
+            AsteroidTreasure catalog = AsteroidTreasure.Instance;
+            uint state = m_Seed ^ AsteroidTreasure.SeedSalt;
+            List<Treasure> prefabs = catalog.Generate(ref state);
+            if (prefabs.Count == 0) return;
+            List<Vector2[]> paths = AsteroidMesh.Paths(m_Field, m_Spacing, out _, out _);
+            for (int i = 0; i < prefabs.Count; i++)
+            {
+                Treasure prefab = prefabs[i];
+                float radius = prefab.BaseRadius * Mathf.Min(m_Spacing.x, m_Spacing.y);
+                bool peeking = AsteroidTreasure.Unit(ref state) < catalog.PeekingChance;
+                for (int attempt = 0; attempt < TreasurePlacementAttempts; attempt++)
+                {
+                    Vector2 sample = new Vector2(AsteroidTreasure.Unit(ref state) * (m_Field.Width - 1),
+                        AsteroidTreasure.Unit(ref state) * (m_Field.Height - 1));
+                    Vector2 position = Vector2.Scale(sample - new Vector2(m_Field.Width - 1, m_Field.Height - 1) * 0.5f, m_Spacing);
+                    if (!AsteroidGeometry.Contains(paths, position)) continue;
+                    bool overlaps = false;
+                    foreach (Treasure existing in m_Treasure)
+                    {
+                        float separation = existing.Radius + radius;
+                        if ((existing.Position - position).sqrMagnitude < separation * separation)
+                        { overlaps = true; break; }
+                    }
+                    if (overlaps) continue;
+                    Treasure item = Instantiate(prefab);
+                    item.Embed(transform, (ushort)i, position, radius, peeking);
+                    m_Treasure.Add(item);
+                    break;
+                }
+            }
+        }
+
+        private void ClearTreasure()
+        {
+            foreach (Treasure item in m_Treasure)
+                if (item != null) { item.gameObject.SetActive(false); Destroy(item.gameObject); }
+            m_Treasure.Clear();
+        }
+
         private void UpdateTreasureVisuals()
         {
-            foreach (GameObject visual in m_TreasureVisuals)
-                if (visual != null) { visual.SetActive(false); Destroy(visual); }
-            m_TreasureVisuals.Clear();
             List<Vector2[]> paths = null;
-            foreach (TreasureDeposit deposit in m_Treasure)
+            foreach (Treasure item in m_Treasure)
             {
-                if (!deposit.Peeking)
-                {
-                    if (paths == null) paths = AsteroidMesh.Paths(m_Field, m_Spacing, out _, out _);
-                    if (AsteroidGeometry.Contains(paths, deposit.Position)) continue;
-                }
-                GameObject visual = TreasureVisual.Create(transform, deposit.Material, deposit.Radius);
-                float depth = m_Surface.Front(deposit.Position) + deposit.Radius *
-                    (deposit.Peeking ? PeekingDepthFraction : HiddenDepthFraction);
-                visual.transform.localPosition = new Vector3(deposit.Position.x, deposit.Position.y, depth);
-                m_TreasureVisuals.Add(visual);
+                if (!item.Peeking && paths == null) paths = AsteroidMesh.Paths(m_Field, m_Spacing, out _, out _);
+                bool visible = item.Peeking || !AsteroidGeometry.Contains(paths, item.Position);
+                float depth = m_Surface.Front(item.Position) + item.Radius *
+                    (item.Peeking ? PeekingDepthFraction : HiddenDepthFraction);
+                item.transform.localPosition = new Vector3(item.Position.x, item.Position.y, depth);
+                foreach (Renderer renderer in item.GetComponentsInChildren<Renderer>()) renderer.enabled = visible;
             }
         }
 
@@ -450,7 +476,7 @@ namespace PewPewPew.World
             writer.WriteBool(m_Broken);
             writer.WriteBool(m_HasSnapshot);
             writer.WriteByte((byte)m_Treasure.Count);
-            foreach (TreasureDeposit deposit in m_Treasure)
+            foreach (Treasure deposit in m_Treasure)
             {
                 writer.WriteUShort(deposit.Id);
                 writer.WriteByte((byte)deposit.Material);
@@ -493,19 +519,16 @@ namespace PewPewPew.World
             int treasureCount = reader.ReadByte();
             if (treasureCount > AsteroidTreasure.MaximumDeposits || (broken && treasureCount != 0))
                 throw new InvalidOperationException("Invalid asteroid treasure count.");
-            var treasure = new List<TreasureDeposit>(treasureCount);
+            var treasure = new List<(ushort id, TreasureMaterial material, TreasureSize size, Vector2 position, float radius, bool peeking)>(treasureCount);
             var ids = new HashSet<ushort>();
             for (int i = 0; i < treasureCount; i++)
             {
-                var deposit = new TreasureDeposit
-                {
-                    Id = reader.ReadUShort(), Material = (TreasureMaterial)reader.ReadByte(),
-                    Size = (TreasureSize)reader.ReadByte(), Position = reader.ReadVector2(),
-                    Radius = reader.ReadFloat(), Peeking = reader.ReadBool()
-                };
-                if (!ids.Add(deposit.Id) || (int)deposit.Material > (int)TreasureMaterial.PurpleCrystal ||
-                    (int)deposit.Size > (int)TreasureSize.Large || !AsteroidGeometry.Finite(deposit.Position.x) ||
-                    !AsteroidGeometry.Finite(deposit.Position.y) || !Positive(deposit.Radius))
+                var deposit = (id: reader.ReadUShort(), material: (TreasureMaterial)reader.ReadByte(),
+                    size: (TreasureSize)reader.ReadByte(), position: reader.ReadVector2(),
+                    radius: reader.ReadFloat(), peeking: reader.ReadBool());
+                if (!ids.Add(deposit.id) || (int)deposit.material > (int)TreasureMaterial.PurpleCrystal ||
+                    (int)deposit.size > (int)TreasureSize.Large || !AsteroidGeometry.Finite(deposit.position.x) ||
+                    !AsteroidGeometry.Finite(deposit.position.y) || !Positive(deposit.radius))
                     throw new InvalidOperationException("Invalid asteroid treasure descriptor.");
                 treasure.Add(deposit);
             }
@@ -544,7 +567,13 @@ namespace PewPewPew.World
             m_Broken = broken; m_HasSnapshot = snapshot;
             m_Surface = surface;
             m_Field = field;
-            m_Treasure = treasure;
+            ClearTreasure();
+            foreach (var deposit in treasure)
+            {
+                Treasure item = Instantiate(AsteroidTreasure.Instance.Prefab(deposit.material, deposit.size));
+                item.Embed(transform, deposit.id, deposit.position, deposit.radius, deposit.peeking);
+                m_Treasure.Add(item);
+            }
             if (broken) Hide();
             else Rebuild();
             if (!initialState)

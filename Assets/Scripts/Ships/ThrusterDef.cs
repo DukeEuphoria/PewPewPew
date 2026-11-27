@@ -5,6 +5,7 @@ namespace PewPewPew.Ships
     [CreateAssetMenu(menuName = "PewPewPew/Thruster")]
     public class ThrusterDef : ShipComponentDef
     {
+        [Header("Thruster Settings")]
         [SerializeField] private float m_Force = 500f;
         [SerializeField] private float m_RampUpTime = 0.3f;
         [SerializeField] private float m_RampDownTime = 0.5f;

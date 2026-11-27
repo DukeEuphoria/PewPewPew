@@ -3,14 +3,14 @@ using UnityEngine;
 
 namespace PewPewPew.Ships
 {
-    public class SubSystem : IHudElement
+    public abstract class SubSystem : IHudElement
     {
         private static readonly Color ActiveColor = new Color(0.3f, 1f, 0.4f);
         private static readonly Color CoolingColor = new Color(1f, 0.6f, 0.15f);
         private static readonly Color ReadyColor = new Color(0.7f, 1f, 0.8f);
         private static readonly Color DisabledColor = new Color(0.4f, 0.4f, 0.4f);
 
-        public SubSystem(SubSystemDef def, Transform mount = null, Transform space = null)
+        protected SubSystem(SubSystemDef def, Transform mount = null, Transform space = null)
         {
             Def = def;
             System = new ShipSystem(def, mount, space);
@@ -26,7 +26,6 @@ namespace PewPewPew.Ships
         public HudState HudState { get; private set; }
 
         public bool IsRunning => System.Enabled && !System.Health.IsDestroyed && Activation.IsActive;
-        public bool IsRadarActive => Def.Radar != null && HudState == HudState.Active && System.Point != null;
 
         public void TogglePower()
         {
@@ -93,5 +92,30 @@ namespace PewPewPew.Ships
                 _ => DisabledColor,
             });
         }
+    }
+
+    public sealed class StatBoosterSubSystem : SubSystem
+    {
+        public StatBoosterSubSystem(StatBoosterSubSystemDef def, Transform mount = null, Transform space = null)
+            : base(def, mount, space) => Def = def;
+
+        public new StatBoosterSubSystemDef Def { get; }
+    }
+
+    public sealed class RadarSubSystem : SubSystem
+    {
+        public RadarSubSystem(RadarSubSystemDef def, Transform mount = null, Transform space = null)
+            : base(def, mount, space) => Def = def;
+
+        public new RadarSubSystemDef Def { get; }
+        public bool IsRadarActive => Def.Radar != null && HudState == HudState.Active && System.Point != null;
+    }
+
+    public sealed class TractorSubSystem : SubSystem
+    {
+        public TractorSubSystem(TractorSubSystemDef def, Transform mount = null, Transform space = null)
+            : base(def, mount, space) => Def = def;
+
+        public new TractorSubSystemDef Def { get; }
     }
 }

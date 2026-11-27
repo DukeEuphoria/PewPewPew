@@ -30,7 +30,7 @@ namespace PewPewPew.Match
                 mass += component.Mass;
                 generation += Mathf.Max(0, -component.PassivePowerDrain);
                 consumption += Mathf.Max(0, component.PassivePowerDrain);
-                if (component is SubSystemDef subSystem) storage += subSystem.ExtraPowerStorage;
+                if (component is StatBoosterSubSystemDef subSystem) storage += subSystem.ExtraPowerStorage;
             }
 
             var text = new StringBuilder();
@@ -89,19 +89,22 @@ namespace PewPewPew.Match
             else if (component is SubSystemDef subSystem)
             {
                 text.AppendLine($"Activation: {subSystem.Mode}  Duration: {subSystem.Duration:0.##}s  Cooldown: {subSystem.Cooldown:0.##}s");
-                if (subSystem.ExtraPowerStorage != 0) text.AppendLine($"Extra storage: {subSystem.ExtraPowerStorage:0.##}");
-                if (subSystem.HullRepairRate != 0) text.AppendLine($"Hull repair: {subSystem.HullRepairRate:0.##}/s while active");
-                if (subSystem.FireRateMultiplier != 1) text.AppendLine($"Fire rate multiplier: {subSystem.FireRateMultiplier:0.##} while active");
-                if (subSystem.ThrustForceMultiplier != 1) text.AppendLine($"Thrust multiplier: {subSystem.ThrustForceMultiplier:0.##} while active");
-                if (subSystem.ShieldHealthMultiplier != 1) text.AppendLine($"Shield multiplier: {subSystem.ShieldHealthMultiplier:0.##} while active");
-                if (subSystem.ArmourStrengthMultiplier != 1) text.AppendLine($"Armour multiplier: {subSystem.ArmourStrengthMultiplier:0.##} while active");
-                if (subSystem.Radar != null)
+                if (subSystem is StatBoosterSubSystemDef booster)
                 {
-                    var radar = subSystem.Radar;
+                    if (booster.ExtraPowerStorage != 0) text.AppendLine($"Extra storage: {booster.ExtraPowerStorage:0.##}");
+                    if (booster.HullRepairRate != 0) text.AppendLine($"Hull repair: {booster.HullRepairRate:0.##}/s while active");
+                    if (booster.FireRateMultiplier != 1) text.AppendLine($"Fire rate multiplier: {booster.FireRateMultiplier:0.##} while active");
+                    if (booster.ThrustForceMultiplier != 1) text.AppendLine($"Thrust multiplier: {booster.ThrustForceMultiplier:0.##} while active");
+                    if (booster.ShieldHealthMultiplier != 1) text.AppendLine($"Shield multiplier: {booster.ShieldHealthMultiplier:0.##} while active");
+                    if (booster.ArmourStrengthMultiplier != 1) text.AppendLine($"Armour multiplier: {booster.ArmourStrengthMultiplier:0.##} while active");
+                }
+                if (subSystem is RadarSubSystemDef radarDef && radarDef.Radar != null)
+                {
+                    var radar = radarDef.Radar;
                     text.AppendLine($"Radar: {radar.Mode}  Range: {radar.Range:0.##}  Coverage: +/-{radar.HalfAngle:0.##} degrees");
                 }
-                if (subSystem.TractorRange > 0f)
-                    text.AppendLine($"Tractor: range {subSystem.TractorRange:0.##}  Cone: {subSystem.TractorHalfAngle * 2f:0.##} degrees  Force: {subSystem.TractorForce:0.##}");
+                if (subSystem is TractorSubSystemDef tractor && tractor.TractorRange > 0f)
+                    text.AppendLine($"Tractor: range {tractor.TractorRange:0.##}  Cone: {tractor.TractorHalfAngle * 2f:0.##} degrees  Force: {tractor.TractorForce:0.##}");
             }
             if (component.IsLocked) text.AppendLine($"Locked - price: {component.Price}");
             return text.ToString().TrimEnd();
