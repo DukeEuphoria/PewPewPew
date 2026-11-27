@@ -63,6 +63,7 @@ namespace PewPewPew.World
         private CompositeCollider2D m_Collider;
         private MeshFilter m_Filter;
         private Mesh m_Mesh;
+        private bool m_RebuildPending;
         private MaterialPropertyBlock m_MaterialProperties;
         private static readonly int SurfaceMapping = Shader.PropertyToID("_SurfaceMapping");
         private Vector2 m_EffectPoint;
@@ -71,6 +72,18 @@ namespace PewPewPew.World
         private List<Treasure> m_Treasure = new List<Treasure>();
 
         public float Mass => m_Body.mass;
+
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+            if (m_RebuildPending) NetworkLoop.OnLateUpdate += FlushRebuild;
+        }
+
+        protected override void OnDisable()
+        {
+            NetworkLoop.OnLateUpdate -= FlushRebuild;
+            base.OnDisable();
+        }
 
         internal bool TryGetTreasureMaterial(out TreasureMaterial material)
         {
@@ -211,21 +224,21 @@ namespace PewPewPew.World
                     if (components.Count >= 2) break;
                 }
             }
-            List<List<Treasure>> treasureByComponent = PartitionTreasure(components);
+            List<List<Treasure>> treasureByComponent = PartitionTreasure(components, out List<float> areas);
             if (components.Count == 0 || (components.Count == 1 &&
-                components[0].Area() * m_Spacing.x * m_Spacing.y * m_Depth * m_Density < m_MinPieceMass))
+                areas[0] * m_Spacing.x * m_Spacing.y * m_Depth * m_Density < m_MinPieceMass))
             {
                 Retire(point, true);
                 return HitResult.Damaged;
             }
             if (components.Count > 1)
             {
-                SpawnPieces(components, treasureByComponent, point);
+                SpawnPieces(components, areas, treasureByComponent, point);
                 return HitResult.Damaged;
             }
             m_Field = components[0];
             m_Treasure = treasureByComponent[0];
-            Rebuild();
+            QueueRebuild();
             RecordEffect(point, false, m_Body.linearVelocity);
             return HitResult.Damaged;
         }
@@ -241,16 +254,22 @@ namespace PewPewPew.World
             TakeDamage(DamageMath.Impact(collision.relativeVelocity, contact.normal, multiplier), contact.point, null);
         }
 
-        private List<List<Treasure>> PartitionTreasure(List<AsteroidGeometry> components)
+        private List<List<Treasure>> PartitionTreasure(List<AsteroidGeometry> components, out List<float> areas)
         {
+            areas = new List<float>(components.Count);
             var groups = new List<List<Treasure>>(components.Count);
             foreach (AsteroidGeometry component in components) groups.Add(new List<Treasure>());
-            if (m_Treasure.Count == 0) return groups;
+            if (m_Treasure.Count == 0)
+            {
+                foreach (AsteroidGeometry component in components) areas.Add(component.Area());
+                return groups;
+            }
             var polygons = new List<List<Vector2[]>>(components.Count);
             var retained = new List<bool>(components.Count);
             foreach (AsteroidGeometry component in components)
             {
                 polygons.Add(AsteroidMesh.Paths(component, m_Spacing, out float area, out _));
+                areas.Add(area);
                 retained.Add(area * m_Spacing.x * m_Spacing.y * m_Depth * m_Density >= m_MinPieceMass);
             }
             foreach (Treasure deposit in m_Treasure)
@@ -270,11 +289,12 @@ namespace PewPewPew.World
                 m_Body.GetPointVelocity(position), m_Body.angularVelocity);
         }
 
-        private void SpawnPieces(List<AsteroidGeometry> components, List<List<Treasure>> treasure, Vector2 point)
+        private void SpawnPieces(List<AsteroidGeometry> components, List<float> areas,
+            List<List<Treasure>> treasure, Vector2 point)
         {
             var measured = new List<(AsteroidGeometry field, float area, List<Treasure> treasure)>(components.Count);
             for (int i = 0; i < components.Count; i++)
-                measured.Add((components[i], components[i].Area(), treasure[i]));
+                measured.Add((components[i], areas[i], treasure[i]));
             measured.Sort((a, b) => b.area.CompareTo(a.area));
             var retained = new List<(AsteroidGeometry field, List<Treasure> treasure)>();
             foreach (var component in measured)
@@ -288,7 +308,7 @@ namespace PewPewPew.World
             {
                 m_Field = retained[0].field;
                 m_Treasure = retained[0].treasure;
-                Rebuild();
+                QueueRebuild();
                 RecordEffect(point, false, m_Body.linearVelocity);
                 return;
             }
@@ -344,6 +364,7 @@ namespace PewPewPew.World
 
         private void Hide()
         {
+            CancelRebuild();
             m_Body.simulated = false;
             if (m_Collider != null) m_Collider.enabled = false;
             foreach (Renderer renderer in GetComponentsInChildren<Renderer>()) renderer.enabled = false;
@@ -366,6 +387,25 @@ namespace PewPewPew.World
                 Mathf.Min(m_Spacing.x, m_Spacing.y));
         }
 
+        private void QueueRebuild()
+        {
+            if (m_RebuildPending) return;
+            m_RebuildPending = true;
+            // Mirror's late hook follows script LateUpdate and precedes outgoing state and rendering.
+            if (isActiveAndEnabled) NetworkLoop.OnLateUpdate += FlushRebuild;
+        }
+
+        private void FlushRebuild()
+        {
+            if (m_RebuildPending && isActiveAndEnabled) Rebuild();
+        }
+
+        private void CancelRebuild()
+        {
+            NetworkLoop.OnLateUpdate -= FlushRebuild;
+            m_RebuildPending = false;
+        }
+
         private void Rebuild()
         {
             if (m_Filter == null || m_SourceCollider == null || m_Collider == null)
@@ -382,7 +422,8 @@ namespace PewPewPew.World
             m_Collider.GenerateGeometry();
             m_Body.mass = Mathf.Max(0.0001f, area * m_Spacing.x * m_Spacing.y * m_Depth * m_Density);
             UpdateSurface();
-            if (isClient) UpdateTreasureVisuals();
+            if (isClient) RefreshTreasureVisuals(paths);
+            CancelRebuild();
         }
 
         private void PlaceTreasure()
@@ -426,9 +467,10 @@ namespace PewPewPew.World
             m_Treasure.Clear();
         }
 
-        private void UpdateTreasureVisuals()
+        private void UpdateTreasureVisuals() => RefreshTreasureVisuals(null);
+
+        private void RefreshTreasureVisuals(List<Vector2[]> paths)
         {
-            List<Vector2[]> paths = null;
             foreach (Treasure item in m_Treasure)
             {
                 if (!item.Peeking && paths == null) paths = AsteroidMesh.Paths(m_Field, m_Spacing, out _, out _);
@@ -452,6 +494,7 @@ namespace PewPewPew.World
 
         private void OnDestroy()
         {
+            CancelRebuild();
             if (m_Mesh != null) Destroy(m_Mesh);
         }
 
@@ -575,7 +618,8 @@ namespace PewPewPew.World
                 m_Treasure.Add(item);
             }
             if (broken) Hide();
-            else Rebuild();
+            else if (initialState) Rebuild();
+            else QueueRebuild();
             if (!initialState)
             {
                 m_EffectPoint = effectPoint;

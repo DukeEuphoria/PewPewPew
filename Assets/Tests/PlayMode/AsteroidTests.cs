@@ -21,6 +21,16 @@ namespace PewPewPew.Tests
         private const string PrefabPath = "Assets/Resources/SpawnablePrefabs/Asteroids/PlaceHolder Asteroid.prefab";
         private const string BulletPrefabPath = "Assets/Resources/SpawnablePrefabs/Bullets/SimpleBullet.prefab";
         private const string InvalidDamage = "Asteroid damage requires finite inputs, a nonnegative radius, crack chance in [0,1], and a nonzero point-projectile impact vector.";
+        private const int BurstHitCount = 32;
+        private const int BurstRepetitions = 5;
+        private const int BurstSeed = 81723;
+        private const float BurstOffsetFactor = 0.5f;
+        private const float PointImpactRadius = 0.5f;
+        private const float BurstExplosionRadius = 1.5f;
+        private const int BatchingTestGridSize = 9;
+        private const int BatchingTestCentreIndex = (BatchingTestGridSize / 2) * (BatchingTestGridSize + 1);
+        private const float FractionalHitDamage = 0.25f;
+        private const int ChipFragmentCount = 5;
         private static readonly BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
         private Type m_Type;
         private GameObject m_Server;
@@ -113,6 +123,7 @@ namespace PewPewPew.Tests
         private AsteroidGeometry Geometry(Component asteroid) => (AsteroidGeometry)m_Type.GetField("m_Field", Private).GetValue(asteroid);
         private int Solidness(Component asteroid) => Geometry(asteroid).Samples.Sum(value => (int)value);
         private void Rebuild(Component asteroid) => m_Type.GetMethod("Rebuild", Private).Invoke(asteroid, null);
+        private void Flush(Component asteroid) => m_Type.GetMethod("FlushRebuild", Private).Invoke(asteroid, null);
         private void FireBullet(float asteroidRating, float shipRating = 0f, float chance = 0f, float radius = 0.5f)
         {
             Type type = Type.GetType("PewPewPew.Weapons.Bullet, Assembly-CSharp", true);
@@ -656,6 +667,7 @@ namespace PewPewPew.Tests
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.colors,
                 m_Client.GetComponent<MeshFilter>().sharedMesh.colors);
             Damage(1f);
+            Flush(Server);
             writer.Reset();
             server.OnSerialize(writer, true);
             Assert.LessOrEqual(writer.Position, 331);
@@ -935,6 +947,7 @@ namespace PewPewPew.Tests
             long heap = UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong();
             var timer = System.Diagnostics.Stopwatch.StartNew();
             for (int i = 0; i < 32; i++) Damage(1f);
+            Flush(Server);
             long remesh = timer.ElapsedMilliseconds;
             int pieces = 0;
             for (uint seed = 0; seed < 16; seed++)
@@ -955,8 +968,183 @@ namespace PewPewPew.Tests
             Assert.Greater(pieces, 16);
         }
 
+        [TestCase(false, PointImpactRadius)]
+        [TestCase(true, PointImpactRadius)]
+        [TestCase(false, BurstExplosionRadius)]
+        [TestCase(true, BurstExplosionRadius)]
+        public void SameFrameDamageBurst_ReportsCompleteWork(bool treasure, float radius)
+        {
+            UnityEngine.Random.State random = UnityEngine.Random.state;
+            var elapsed = new double[BurstRepetitions];
+            var allocations = new int[BurstRepetitions];
+            var rebuilds = new int[BurstRepetitions];
+            var recorder = UnityEngine.Profiling.Recorder.Get("GC.Alloc");
+            bool recording = recorder.enabled;
+            recorder.FilterToCurrentThread();
+            try
+            {
+                Set(Server, "m_VertexOffsetFactor", BurstOffsetFactor);
+                Set(Server, "m_TreasureChance", treasure ? 1f : 0f);
+                for (int repetition = -1; repetition < BurstRepetitions; repetition++)
+                {
+                    UnityEngine.Random.InitState(BurstSeed + Mathf.Max(0, repetition));
+                    m_Type.GetMethod("Initialize").Invoke(Server, null);
+                    int count = 0;
+                    recorder.enabled = false;
+                    recorder.enabled = true;
+                    var timer = System.Diagnostics.Stopwatch.StartNew();
+                    for (int hit = 0; hit < BurstHitCount; hit++)
+                    {
+                        Mesh previous = m_Server.GetComponent<MeshFilter>().sharedMesh;
+                        Assert.AreEqual("Damaged", Damage(1f, radius: radius).ToString());
+                        if (previous != m_Server.GetComponent<MeshFilter>().sharedMesh) count++;
+                    }
+                    Mesh pending = m_Server.GetComponent<MeshFilter>().sharedMesh;
+                    Flush(Server);
+                    if (pending != m_Server.GetComponent<MeshFilter>().sharedMesh) count++;
+                    timer.Stop();
+                    recorder.enabled = false;
+                    int allocationCount = recorder.sampleBlockCount;
+                    Assert.AreEqual(BurstHitCount, m_Type.GetField("m_Revision", Private).GetValue(Server));
+                    Assert.AreEqual(1, count, "Ordinary surviving hits must share one final rebuild.");
+                    if (repetition < 0) continue;
+                    elapsed[repetition] = timer.Elapsed.TotalMilliseconds;
+                    allocations[repetition] = allocationCount;
+                    rebuilds[repetition] = count;
+                }
+                Array.Sort(elapsed);
+                TestContext.WriteLine($"Same-frame {BurstHitCount}-hit burst, displaced grid, treasure={treasure}, radius={radius}: " +
+                    $"median {elapsed[BurstRepetitions / 2]:0.00} ms, worst {elapsed[BurstRepetitions - 1]:0.00} ms; " +
+                    $"GC.Alloc samples [{string.Join(", ", allocations)}]; mesh replacements [{string.Join(", ", rebuilds)}]. " +
+                    "Includes synchronous hits, final flush and reflection/assertion harness; excludes setup and rendering.");
+            }
+            finally
+            {
+                UnityEngine.Random.state = random;
+                recorder.CollectFromAllThreads();
+                recorder.enabled = recording;
+            }
+        }
+
         [Test]
-        public void LiveUpdate_AppliesGeometryBeforeEffectsAndDoesNotReplayOnLateJoin()
+        public void SameFrameHits_PublishFinalGeometryAndMassOnlyAtFlush()
+        {
+            var samples = new byte[BatchingTestGridSize * BatchingTestGridSize];
+            for (int y = 1; y < BatchingTestGridSize - 1; y++)
+            for (int x = 1; x < BatchingTestGridSize - 1; x++)
+                samples[y * BatchingTestGridSize + x] = byte.MaxValue;
+            Set(Server, "m_Field", new AsteroidGeometry(BatchingTestGridSize, BatchingTestGridSize, samples));
+            Set(Server, "m_Spacing", Vector2.one);
+            Rebuild(Server);
+            var filter = m_Server.GetComponent<MeshFilter>();
+            var collider = m_Server.GetComponent<CompositeCollider2D>();
+            Mesh original = filter.sharedMesh;
+            float mass = Value("Mass");
+            Assert.AreEqual("Damaged", Damage(FractionalHitDamage).ToString());
+            Assert.AreEqual(byte.MaxValue, Geometry(Server).Samples[BatchingTestCentreIndex]);
+            Assert.AreEqual("Damaged", Damage(1f - FractionalHitDamage).ToString());
+            Assert.AreEqual(byte.MaxValue - 1, Geometry(Server).Samples[BatchingTestCentreIndex]);
+            Assert.AreEqual("Damaged", Damage(byte.MaxValue - 1).ToString());
+            Assert.AreEqual(0, Geometry(Server).Samples[BatchingTestCentreIndex]);
+            Assert.AreSame(original, filter.sharedMesh);
+            Assert.AreEqual(mass, Value("Mass"));
+            Assert.IsTrue(collider.OverlapPoint(Vector2.zero), "The accepted batching interval retains the old collider.");
+            NetworkLoop.OnLateUpdate?.Invoke();
+            Assert.AreNotSame(original, filter.sharedMesh);
+            Assert.IsFalse(collider.OverlapPoint(Vector2.zero));
+            Assert.Less(Value("Mass"), mass);
+            Mesh current = filter.sharedMesh;
+            Vector3[] vertices = current.vertices, normals = current.normals;
+            Vector2[] uv = current.uv;
+            Color32[] colors = current.colors32;
+            int[] triangles = current.triangles;
+            var paths = new Vector2[collider.pathCount][];
+            for (int path = 0; path < paths.Length; path++)
+            {
+                paths[path] = new Vector2[collider.GetPathPointCount(path)];
+                collider.GetPath(path, paths[path]);
+            }
+            NetworkLoop.OnLateUpdate?.Invoke();
+            Assert.AreSame(current, filter.sharedMesh, "A frame without hits must not rebuild.");
+            Rebuild(Server);
+            CollectionAssert.AreEqual(vertices, filter.sharedMesh.vertices);
+            CollectionAssert.AreEqual(normals, filter.sharedMesh.normals);
+            CollectionAssert.AreEqual(uv, filter.sharedMesh.uv);
+            CollectionAssert.AreEqual(colors, filter.sharedMesh.colors32);
+            CollectionAssert.AreEqual(triangles, filter.sharedMesh.triangles);
+            Assert.AreEqual(paths.Length, collider.pathCount);
+            for (int path = 0; path < paths.Length; path++)
+            {
+                var points = new Vector2[collider.GetPathPointCount(path)];
+                collider.GetPath(path, points);
+                CollectionAssert.AreEqual(paths[path], points);
+            }
+            current = filter.sharedMesh;
+            Assert.AreEqual("Damaged", Damage(1f, Vector2.right).ToString());
+            Assert.AreSame(current, filter.sharedMesh);
+            NetworkLoop.OnLateUpdate?.Invoke();
+            Assert.AreNotSame(current, filter.sharedMesh, "The next frame must flush new damage.");
+        }
+
+        [Test]
+        public void PendingRebuild_SurvivesDisableButIsCancelledByInitializationAndRetirement()
+        {
+            var filter = m_Server.GetComponent<MeshFilter>();
+            Mesh original = filter.sharedMesh;
+            Damage(1f);
+            Server.gameObject.SetActive(false);
+            NetworkLoop.OnLateUpdate?.Invoke();
+            Assert.AreSame(original, filter.sharedMesh);
+            Server.gameObject.SetActive(true);
+            NetworkLoop.OnLateUpdate?.Invoke();
+            Assert.AreNotSame(original, filter.sharedMesh);
+            Damage(1f);
+            m_Type.GetMethod("Initialize").Invoke(Server, null);
+            Mesh initialized = filter.sharedMesh;
+            NetworkLoop.OnLateUpdate?.Invoke();
+            Assert.AreSame(initialized, filter.sharedMesh);
+            Damage(1f);
+            Damage(float.MaxValue, radius: float.MaxValue);
+            Assert.IsFalse(m_Server.GetComponent<Rigidbody2D>().simulated);
+            Assert.AreEqual("NoDamage", Damage(1f).ToString());
+            NetworkLoop.OnLateUpdate?.Invoke();
+            Assert.AreSame(initialized, filter.sharedMesh, "Retirement must discard the pending rebuild.");
+        }
+
+        [Test]
+        public void PendingRebuild_IsRemovedOnDestruction()
+        {
+            Damage(1f);
+            Object.DestroyImmediate(m_Server);
+            Assert.DoesNotThrow(() => NetworkLoop.OnLateUpdate?.Invoke());
+        }
+
+        [UnityTest]
+        public IEnumerator DamageAcrossPhysicsSteps_SharesThePreRenderFlush()
+        {
+            yield return null;
+            Mesh original = m_Server.GetComponent<MeshFilter>().sharedMesh;
+            SimulationMode2D simulation = Physics2D.simulationMode;
+            try
+            {
+                Physics2D.simulationMode = SimulationMode2D.Script;
+                Damage(1f);
+                Physics2D.Simulate(Time.fixedDeltaTime);
+                Damage(1f);
+                Physics2D.Simulate(Time.fixedDeltaTime);
+            }
+            finally
+            {
+                Physics2D.simulationMode = simulation;
+            }
+            Assert.AreSame(original, m_Server.GetComponent<MeshFilter>().sharedMesh);
+            yield return null;
+            Assert.AreNotSame(original, m_Server.GetComponent<MeshFilter>().sharedMesh);
+            Assert.AreEqual(2u, m_Type.GetField("m_Revision", Private).GetValue(Server));
+        }
+
+        [Test]
+        public void LiveUpdates_CoalesceGeometryWithoutReplayingEffectsOnLateJoin()
         {
             m_Client = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
             var replica = (NetworkBehaviour)m_Client.GetComponent(m_Type);
@@ -970,16 +1158,28 @@ namespace PewPewPew.Tests
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), true);
             Assert.IsFalse(Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None)
                 .Any(item => item.name == "Temporary asteroid fragment"));
+            Mesh previous = m_Client.GetComponent<MeshFilter>().sharedMesh;
             Damage(1f);
             writer.Reset();
             server.OnSerialize(writer, false);
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), false);
             int fragments = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None)
                 .Count(item => item.name == "Temporary asteroid fragment");
-            Assert.AreEqual(5, fragments);
+            Assert.AreEqual(ChipFragmentCount, fragments);
+            Assert.AreSame(previous, m_Client.GetComponent<MeshFilter>().sharedMesh);
+            Damage(1f);
+            writer.Reset();
+            server.OnSerialize(writer, false);
+            replica.OnDeserialize(new NetworkReader(writer.ToArray()), false);
+            fragments = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None)
+                .Count(item => item.name == "Temporary asteroid fragment");
+            Assert.AreEqual(2 * ChipFragmentCount, fragments);
+            Assert.AreSame(previous, m_Client.GetComponent<MeshFilter>().sharedMesh);
             replica.OnDeserialize(new NetworkReader(writer.ToArray()), false);
             Assert.AreEqual(fragments, Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None)
                 .Count(item => item.name == "Temporary asteroid fragment"));
+            NetworkLoop.OnLateUpdate?.Invoke();
+            Assert.AreNotSame(previous, m_Client.GetComponent<MeshFilter>().sharedMesh);
             CollectionAssert.AreEqual(m_Server.GetComponent<MeshFilter>().sharedMesh.vertices,
                 m_Client.GetComponent<MeshFilter>().sharedMesh.vertices);
         }
@@ -1408,6 +1608,7 @@ namespace PewPewPew.Tests
             foreach (Vector3 point in before.Where(point => point.z < 0f))
                 Assert.AreEqual(surface.Front(point), point.z, surface.Depth * 0.00001f);
             Damage(1f);
+            Flush(Server);
             foreach (Vector3 point in m_Server.GetComponent<MeshFilter>().sharedMesh.vertices.Where(point => point.z < 0f))
                 Assert.AreEqual(surface.Front(point), point.z, surface.Depth * 0.00001f);
             byte[] damaged = (byte[])Geometry(Server).Samples.Clone();

@@ -49,7 +49,9 @@ gravity, impacts and shattering can subsequently move them.
 - Live updates additionally include 17 bytes of effect position, inherited
   velocity, and chip/shatter selection. State and its effect arrive together;
   repeated revisions do not replay an effect, and initial synchronization
-  never replays old debris. The maximum live state is **620 bytes**.
+  never replays old debris. Current samples are applied immediately; live mesh,
+  collider and body-mass updates are coalesced at the frame flush described below.
+  The maximum live state is **620 bytes**.
 - These sizes **exclude** Mirror identity/behaviour framing, network transforms,
   transport overhead, and all other game state.
 
@@ -127,6 +129,27 @@ There is no abstract asteroid size or size-to-scale conversion. Mass is occupied
 marching-polygon area times physical cell area, thickness and material density.
 More occupied cells therefore mean a physically larger, heavier rock at the
 same spacing. Excavation never rescales the surviving rock.
+
+Each hit immediately changes the authoritative samples and fractional damage,
+then makes its crack, component-retention, split, retirement and treasure-support
+decisions. A surviving asteroid defers its mesh, collider and Rigidbody2D mass
+rebuild until `Mirror.NetworkLoop.OnLateUpdate`: after script `LateUpdate`, before
+outgoing network processing and ordinary rendering. Multiple hits, including
+hits across multiple physics steps in one rendered frame, therefore share one
+final rebuild. The flush uses the latest field rather than replaying or summing
+damage. Live observer snapshots use the same deferred rebuild; initial geometry
+and new fragments are built immediately. A retiring parent cancels pending work
+and disables physics immediately. Disabled live objects retain pending work for
+re-enabling; initialization and destruction cancel obsolete work.
+
+**Accepted timing trade-off:** until that flush, physics uses the previous
+collider, body mass/inertia and centre of mass. Later bullets obtain
+`ClosestPoint` from that collider, so impact coordinates and subsequent physics
+can differ from rebuilding after every hit. Released treasure can inherit
+point velocity from that previous body state. Retention decisions still use
+current geometric area, not the delayed body mass. Damage precision, per-hit
+crack rolls, split/retirement decisions, treasure release and effect delivery
+are not batched.
 
 There is **no minimum damage threshold**. Any finite positive damage from
 bullets or physical impacts can erode solid material, regardless of asteroid
@@ -299,7 +322,37 @@ source cells, never the whole lattice per polygon. Child grids now use a bounded
 integer sample copy instead of the earlier shape-refitting search.
 Component extraction reuses the unchanged sample positions, and remeshing
 reuses its polygons for mass calculation. Fragment areas are calculated once
-per split rather than repeatedly during sorting.
+per hit and reused for treasure retention and split filtering/sorting. On hosts,
+remeshing also reuses its paths for buried-treasure visibility checks.
+
+An isolated Unity 6000.5.7f1 Editor comparison used five measured repetitions
+after warm-up, fixed seeds, 32 accepted same-frame hits, vertex-offset factor
+0.5, and both no-treasure and treasure-enabled rocks. The table includes all hit
+processing plus the final flush; setup and rendering are excluded. Both sides
+used the same headless test environment and reflection/assertion harness.
+
+| Workload | Median before | Median after | Worst before | Worst after |
+| --- | ---: | ---: | ---: | ---: |
+| Point hits, no treasure | 579.80 ms | 22.65 ms | 725.00 ms | 25.14 ms |
+| Point hits, treasure enabled | 586.92 ms | 25.72 ms | 636.91 ms | 28.77 ms |
+| Radius 1.5 hits, no treasure | 570.17 ms | 22.18 ms | 696.55 ms | 24.13 ms |
+| Radius 1.5 hits, treasure enabled | 576.88 ms | 25.74 ms | 662.04 ms | 28.10 ms |
+
+Each ordinary surviving burst replaced the mesh **32 times before, once after**.
+The main-thread `GC.Alloc` recorder reported 562,913-697,633 allocation samples
+per burst before and 23,891-35,065 after. These are allocation-event counts,
+including the harness, **not allocated bytes or net heap growth**.
+The runtime's `GC.GetAllocatedBytesForCurrentThread` returned zero even for this
+allocating workload and was not used as evidence.
+
+Validation passed all 59 selected graphics-enabled asteroid PlayMode cases,
+including batching, lifecycle, real host/remote state, treasure, fragmentation
+and rendering, plus all 49 focused EditMode geometry cases. One unrelated
+PlayMode case, `BulletAsteroidRating_IsIndependentOfShipRatings`, was excluded
+after reproducing its failure on unchanged asteroid code: it expects a 1%
+prefab crack chance while the prefab currently specifies 0.1%.
+These Editor results are not a target-PC player frame budget; the remaining
+per-hit gameplay work and single final rebuild still need gameplay profiling.
 
 The graphical tests additionally exercise a 32-hit remesh burst, 16 fractures
 and their recentered children, plus a 250-renderer shadow-on/off comparison at

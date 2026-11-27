@@ -102,7 +102,7 @@ namespace PewPewPew.Weapons
                 HitResult.ShieldAbsorbed => m_ShieldExplosion,
                 _ => m_NoDamageExplosion,
             };
-            if (explosion != null) Instantiate(explosion, point, Quaternion.identity);
+            if (explosion != null) Instantiate(explosion, point, transform.rotation);
         }
 
         private void Despawn() => NetworkServer.Destroy(gameObject);
